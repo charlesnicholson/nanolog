@@ -317,14 +317,6 @@ std::vector<uint32_t> get_log_str_refs(state const& s) {
 
     printf("get_log_str_refs: searching section %s\n", &s.sec_names[sh.sh_name]);
     accumulate_log_str_refs_from_progbits_sec(s, sh, log_str_refs);
-
-    uint32_t cand;
-    for (auto i = 0u; i < sh.sh_size - sizeof(cand); i += 2) {
-      memcpy(&cand, &s.elf[i + sh.sh_offset], sizeof(cand));
-      if ((cand >= nl_start) && (cand < nl_end)) {
-        log_str_refs.push_back(sh.sh_offset + i);
-      }
-    }
   }
 
   return log_str_refs;
