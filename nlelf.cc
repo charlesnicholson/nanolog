@@ -1,6 +1,7 @@
 #include <cassert>
 #include <cstdio>
 #include <cstdint>
+#include <queue>
 #include <vector>
 
 enum elf_osabi {
@@ -124,6 +125,9 @@ struct state {
   char const *sec_names;
   elf_section_hdr32 const *nl_hdr;
 };
+
+using imm_addr_pq_t =
+  std::priority_queue<uint32_t, std::vector<uint32_t>, std::greater<uint32_t>>;
 
 namespace {
 std::vector<char> load_elf(char const *elf) { // TODO: mmap
@@ -254,7 +258,51 @@ elf_section_hdr32 const *find_nl_hdr(elf_section_hdr32 const *sec_hdrs, char con
   return nullptr;
 }
 
-std::vector<uint32_t> get_log_str_refs(state const &s) {
+void accumulate_log_str_refs_from_progbits_sec(state const& s,
+                                               elf_section_hdr32 const& sh,
+                                               std::vector<uint32_t>& log_str_refs) {
+  uint32_t const nl_start = s.nl_hdr->sh_addr;
+  uint32_t const nl_end = nl_start + s.nl_hdr->sh_size;
+
+  uint32_t const n = sh.sh_offset + sh.sh_size;
+  uint32_t i = sh.sh_offset;
+  imm_addr_pq_t imm_addrs;
+
+  while (i < n) {
+    bool matched = false;
+    while (!imm_addrs.empty() && (i == imm_addrs.top())) { // pc-rel 32-bit imm load?
+      matched = true;
+      imm_addrs.pop();
+      uint32_t imm;
+      memcpy(&imm, &s.elf[i], sizeof(imm));
+      if ((imm >= nl_start) && (imm < nl_end)) { log_str_refs.push_back(i); }
+    }
+
+    if (matched) {
+      i += 4;
+      continue;
+    }
+
+    uint16_t inst;
+    memcpy(&inst, &s.elf[i], 2);
+
+    if (((inst & 0xF000) == 0xF000) || ((inst & 0xE800) == 0xE800)) { // 32-bit instr
+      i += 4;
+      continue;
+    }
+
+    if ((inst >> 11) != 0b01001) { // load from literal pool = 0b01001...
+      i += 2;
+      continue;
+    }
+
+    uint32_t const imm = ((i + 4) & uint32_t(~3)) + ((inst & 0xFF) * 4);
+    imm_addrs.push(imm);
+    i += 2;
+  }
+}
+
+std::vector<uint32_t> get_log_str_refs(state const& s) {
   std::vector<uint32_t> log_str_refs;
 
   uint32_t const nl_start = s.nl_hdr->sh_addr;
@@ -268,6 +316,7 @@ std::vector<uint32_t> get_log_str_refs(state const &s) {
     if (sh.sh_size < sizeof(uint32_t)) { continue; }
 
     printf("get_log_str_refs: searching section %s\n", &s.sec_names[sh.sh_name]);
+    accumulate_log_str_refs_from_progbits_sec(s, sh, log_str_refs);
 
     uint32_t cand;
     for (auto i = 0u; i < sh.sh_size - sizeof(cand); i += 2) {
