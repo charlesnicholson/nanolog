@@ -117,6 +117,15 @@ struct elf_section_hdr32 {
   uint32_t sh_entsize;
 };
 
+struct elf_symbol32 {
+  uint32_t st_name;
+  uint32_t st_value;
+  uint32_t st_size;
+  uint8_t st_info;
+  uint8_t st_other;
+  uint16_t st_shndx;
+};
+
 struct state {
   std::vector<char> elf;
   elf_hdr32 *elf_hdr;
@@ -124,6 +133,9 @@ struct state {
   elf_prog_hdr32 const *prog_hdrs;
   char const *sec_names;
   elf_section_hdr32 const *nl_hdr;
+  elf_symbol32 const *symtab;
+  unsigned sym_count;
+  char const *strtab;
 };
 
 using imm_addr_pq_t =
@@ -250,13 +262,30 @@ void print(elf_section_hdr32 const& s, char const *sec_names) {
 elf_section_hdr32 const *find_nl_hdr(elf_section_hdr32 const *sec_hdrs, char const *sec_names, int sec_n) {
   for (int i = 0; i < sec_n; ++i) {
     elf_section_hdr32 const& sh = sec_hdrs[i];
-    if (sh.sh_type) {
-      if (!strcmp(".nanolog", &sec_names[sh.sh_name])) { return &sh; }
-    }
+    if (sh.sh_type && !strcmp(".nanolog", &sec_names[sh.sh_name])) { return &sh; }
   }
-
   return nullptr;
 }
+
+elf_section_hdr32 const *find_symtab_hdr(elf_section_hdr32 const *sec_hdrs, int sec_n) {
+  for (int i = 0; i < sec_n; ++i) {
+    if (sec_hdrs[i].sh_type == ELF_SEC_TYPE_SYMTAB) { return &sec_hdrs[i]; }
+  }
+  return nullptr;
+}
+
+elf_section_hdr32 const *find_strtab_hdr(elf_section_hdr32 const *sec_hdrs,
+                                         char const *sec_names,
+                                         int sec_n) {
+  for (int i = 0; i < sec_n; ++i) {
+    elf_section_hdr32 const& sh = sec_hdrs[i];
+    if ((sh.sh_type == ELF_SEC_TYPE_STRTAB) && !strcmp(".strtab", &sec_names[sh.sh_name])) {
+      return &sec_hdrs[i];
+    }
+  }
+  return nullptr;
+}
+
 
 void accumulate_log_str_refs_from_progbits_sec(state const& s,
                                                elf_section_hdr32 const& sh,
@@ -305,9 +334,6 @@ void accumulate_log_str_refs_from_progbits_sec(state const& s,
 std::vector<uint32_t> get_log_str_refs(state const& s) {
   std::vector<uint32_t> log_str_refs;
 
-  uint32_t const nl_start = s.nl_hdr->sh_addr;
-  uint32_t const nl_end = nl_start + s.nl_hdr->sh_size;
-
   for (auto i = 0u; i < s.elf_hdr->e_shnum; ++i) {
     elf_section_hdr32 const &sh = s.sec_hdrs[i];
     if (&sh == s.nl_hdr) { continue; }
@@ -317,23 +343,12 @@ std::vector<uint32_t> get_log_str_refs(state const& s) {
 
     printf("get_log_str_refs: searching section %s\n", &s.sec_names[sh.sh_name]);
     accumulate_log_str_refs_from_progbits_sec(s, sh, log_str_refs);
-
-    uint32_t cand;
-    for (auto i = 0u; i < sh.sh_size - sizeof(cand); i += 2) {
-      memcpy(&cand, &s.elf[i + sh.sh_offset], sizeof(cand));
-      if ((cand >= nl_start) && (cand < nl_end)) {
-        log_str_refs.push_back(sh.sh_offset + i);
-      }
-    }
   }
 
   return log_str_refs;
 }
 
-}
-
-int main(int, char const *[]) {
-  state s;
+void load(state& s) {
   s.elf = load_elf("nrf52832_xxaa.out");
   s.elf_hdr = reinterpret_cast<elf_hdr32*>(s.elf.data());
   assert(s.elf_hdr->e_shentsize == sizeof(elf_section_hdr32));
@@ -341,27 +356,47 @@ int main(int, char const *[]) {
   s.sec_hdrs = reinterpret_cast<elf_section_hdr32 const*>(s.elf.data() + s.elf_hdr->e_shoff);
   s.prog_hdrs = reinterpret_cast<elf_prog_hdr32 const*>(s.elf.data() + s.elf_hdr->e_phoff);
   s.sec_names = s.elf.data() + s.sec_hdrs[s.elf_hdr->e_shstrndx].sh_offset;
+
+  // nanolog section
   s.nl_hdr = find_nl_hdr(s.sec_hdrs, s.sec_names, (int)s.elf_hdr->e_shnum);
   assert(s.nl_hdr);
 
+  // symbol table
+  elf_section_hdr32 const *symtab_hdr = find_symtab_hdr(s.sec_hdrs, (int)s.elf_hdr->e_shnum);
+  assert(symtab_hdr);
+  assert(symtab_hdr->sh_entsize == sizeof(elf_symbol32));
+  s.symtab = reinterpret_cast<elf_symbol32 const*>(s.elf.data() + symtab_hdr->sh_offset);
+  s.sym_count = symtab_hdr->sh_size / symtab_hdr->sh_entsize;
+
+  // string table
+  elf_section_hdr32 const *strtab_hdr =
+    find_strtab_hdr(s.sec_hdrs, s.sec_names, (int)s.elf_hdr->e_shnum);
+  assert(symtab_hdr);
+  s.strtab = s.elf.data() + strtab_hdr->sh_offset;
+}
+}
+
+int main(int, char const *[]) {
+  state s;
+  load(s);
+
   print(*s.elf_hdr);
   printf("\n");
-
-  for (auto i = 0u; i < s.elf_hdr->e_phnum; ++i) {
-    print(s.prog_hdrs[i]);
-  }
+  for (auto i = 0u; i < s.elf_hdr->e_phnum; ++i) { print(s.prog_hdrs[i]); }
   printf("\n");
-
-  for (auto i = 0u; i < s.elf_hdr->e_shnum; ++i) {
-    print(s.sec_hdrs[i], s.sec_names);
-  }
+  for (auto i = 0u; i < s.elf_hdr->e_shnum; ++i) { print(s.sec_hdrs[i], s.sec_names); }
   printf("\n");
+  printf("%d symbols found\n", s.sym_count);
 
-  print(*s.nl_hdr, s.sec_names);
+  //for (auto i = 0u; i < s.sym_count; ++i) {
+  //  char const *name = &s.strtab[s.symtab[i].st_name];
+  //  if (*name) { printf("%s\n", name); }
+  //}
 
   std::vector<uint32_t> log_str_refs = get_log_str_refs(s);
+  printf("nanolog string refs:\n");
   for (auto log_str_ref : log_str_refs) {
-    printf("found nanolog str ref at 0x%08x\n", log_str_ref);
+    printf("  0x%08x\n", log_str_ref);
   }
 
   return 0;
