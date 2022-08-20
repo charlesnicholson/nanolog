@@ -92,91 +92,51 @@
 
 // elf_osabi
 #define X(NAME, VAL) NAME = VAL,
-enum elf_osabi {
-  ELF_OSABI_X_LIST()
-};
+enum elf_osabi { ELF_OSABI_X_LIST() };
 #undef X
 #define X(NAME, VAL) case VAL: printf("%s", #NAME); break;
-void print(elf_osabi eo) {
-  switch (eo) {
-    ELF_OSABI_X_LIST()
-    default: break;
-  }
-}
+void print(elf_osabi eo) { switch (eo) { ELF_OSABI_X_LIST() default: break; } }
 #undef X
 
 // elf_type
 #define X(NAME, VAL) NAME = VAL,
-enum elf_type {
-  ELF_TYPE_X_LIST()
-};
+enum elf_type { ELF_TYPE_X_LIST() };
 #undef X
 #define X(NAME, VAL) case VAL: printf("%s", #NAME); break;
-void print(elf_type et) {
-  switch (et) {
-    ELF_TYPE_X_LIST()
-    default: break;
-  }
-}
+void print(elf_type et) { switch (et) { ELF_TYPE_X_LIST() default: break; } }
 #undef X
 
 // elf_sec_type
 #define X(NAME, VAL) NAME = VAL,
-enum elf_sec_type {
-  ELF_SEC_TYPE_X_LIST()
-};
+enum elf_sec_type { ELF_SEC_TYPE_X_LIST() };
 #undef X
 #define X(NAME, VAL) case VAL: printf("%s", #NAME); break;
-void print(elf_sec_type est) {
-  switch (est) {
-    ELF_SEC_TYPE_X_LIST()
-    default: break;
-  }
-}
+void print(elf_sec_type est) { switch (est) { ELF_SEC_TYPE_X_LIST() default: break; } }
 #undef X
 
 // elf_sec_flags
 #define X(NAME, VAL) NAME = VAL,
-enum elf_sec_flags {
-  ELF_SEC_FLAGS_X_LIST()
-};
+enum elf_sec_flags { ELF_SEC_FLAGS_X_LIST() };
 #undef X
 #define X(NAME, VAL) if (esf & VAL) { printf("%s ", #NAME); }
-void print(elf_sec_flags esf) {
-  ELF_SEC_FLAGS_X_LIST()
-}
+void print(elf_sec_flags esf) { ELF_SEC_FLAGS_X_LIST() }
 #undef X
 
 // elf_sym_bind
 #define X(NAME, VAL) NAME = VAL,
-enum elf_sym_bind {
-  ELF_SYM_BIND_X_LIST()
-};
+enum elf_sym_bind { ELF_SYM_BIND_X_LIST() };
 #undef X
 #define X(NAME, VAL) case VAL: printf("%s", #NAME); break;
-void print(elf_sym_bind esb) {
-  switch (esb) {
-    ELF_SYM_BIND_X_LIST()
-    default: break;
-  }
-}
+void print(elf_sym_bind esb) { switch (esb) { ELF_SYM_BIND_X_LIST() default: break; } }
 #undef X
 
 // elf_sym_type
 #define X(NAME, VAL) NAME = VAL,
-enum elf_sym_type {
-  ELF_SYM_TYPE_X_LIST()
-};
+enum elf_sym_type { ELF_SYM_TYPE_X_LIST() };
 #undef X
 #define X(NAME, VAL) case VAL: printf("%s", #NAME); break;
-void print(elf_sym_type est) {
-  switch (est) {
-    ELF_SYM_TYPE_X_LIST()
-    default: break;
-  }
-}
+void print(elf_sym_type est) { switch (est) { ELF_SYM_TYPE_X_LIST() default: break; } }
 #undef X
-
 
 struct elf_hdr32 {
   uint8_t e_ident_mag[4];
