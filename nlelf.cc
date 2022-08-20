@@ -70,6 +70,31 @@ enum elf_sec_flags {
   ELF_SEC_FLAGS_TLS = 0x400,
 };
 
+enum elf_sym_bind {
+  ELF_SYM_BIND_LOCAL = 0,
+  ELF_SYM_BIND_GLOBAL = 1,
+  ELF_SYM_BIND_WEAK = 2,
+  ELF_SYM_BIND_LOOS = 10,
+  ELF_SYM_BIND_HIOS = 12,
+  ELF_SYM_BIND_LOPROC = 13,
+  ELF_SYM_BIND_HIPROC = 15,
+};
+
+enum elf_sym_type {
+  ELF_SYM_TYPE_NULL = 0,
+  ELF_SYM_TYPE_OBJECT = 1,
+  ELF_SYM_TYPE_FUNC = 2,
+  ELF_SYM_TYPE_SECTION = 3,
+  ELF_SYM_TYPE_FILE = 4,
+  ELF_SYM_TYPE_COMMON = 5,
+  ELF_SYM_TYPE_TLS = 6,
+  ELF_SYM_TYPE_LOOS = 10,
+  ELF_SYM_TYPE_HIOS = 12,
+  ELF_SYM_TYPE_LOPROC = 13,
+  ELF_SYM_TYPE_SPARC_REGISTER = 13,
+  ELF_SYM_TYPE_HIPROC = 15,
+};
+
 struct elf_hdr32 {
   uint8_t e_ident_mag[4];
   uint8_t e_ident_class;
@@ -138,8 +163,8 @@ struct state {
   char const *strtab;
 };
 
-using imm_addr_pq_t =
-  std::priority_queue<uint32_t, std::vector<uint32_t>, std::greater<uint32_t>>;
+using u32_vec_t = std::vector<uint32_t>;
+using imm_addr_pq_t = std::priority_queue<uint32_t, u32_vec_t, std::greater<uint32_t>>;
 
 namespace {
 std::vector<char> load_elf(char const *elf) { // TODO: mmap
@@ -211,23 +236,22 @@ void print(elf_section_hdr32 const& s, char const *sec_names) {
 
   printf("  type:      0x%08x ( ", s.sh_type);
   switch (s.sh_type) {
-    case 0x1: printf("PROGBITS "); break;
-    case 0x2: printf("SYMTAB "); break;
-    case 0x3: printf("STRTAB "); break;
-    case 0x4: printf("RELA "); break;
-    case 0x5: printf("HASH "); break;
-    case 0x6: printf("DYNAMIC "); break;
-    case 0x7: printf("NOTE "); break;
-    case 0x8: printf("NOBITS "); break;
-    case 0x9: printf("REL "); break;
-    case 0x0A: printf("SHLIB "); break;
-    case 0x0B: printf("DYNSYM "); break;
-    case 0x0E: printf("INIT_ARRAY "); break;
-    case 0x0F: printf("FINI_ARRAY "); break;
-    case 0x10: printf("PREINIT_ARRAY "); break;
-    case 0x11: printf("GROUP "); break;
-    case 0x12: printf("SYMTAB_SHNDX "); break;
-    case 0x13: printf("NUM "); break;
+    case ELF_SEC_TYPE_PROGBITS: printf("PROGBITS "); break;
+    case ELF_SEC_TYPE_SYMTAB: printf("SYMTAB "); break;
+    case ELF_SEC_TYPE_STRTAB: printf("STRTAB "); break;
+    case ELF_SEC_TYPE_RELA: printf("RELA "); break;
+    case ELF_SEC_TYPE_HASH: printf("HASH "); break;
+    case ELF_SEC_TYPE_DYNAMIC: printf("DYNAMIC "); break;
+    case ELF_SEC_TYPE_NOTE: printf("NOTE "); break;
+    case ELF_SEC_TYPE_NOBITS: printf("NOBITS "); break;
+    case ELF_SEC_TYPE_REL: printf("REL "); break;
+    case ELF_SEC_TYPE_SHLIB: printf("SHLIB "); break;
+    case ELF_SEC_TYPE_DYNSYM: printf("DYNSYM "); break;
+    case ELF_SEC_TYPE_INIT_ARRAY: printf("INIT_ARRAY "); break;
+    case ELF_SEC_TYPE_FINI_ARRAY: printf("FINI_ARRAY "); break;
+    case ELF_SEC_TYPE_PREINIT_ARRAY: printf("PREINIT_ARRAY "); break;
+    case ELF_SEC_TYPE_GROUP: printf("GROUP "); break;
+    case ELF_SEC_TYPE_SYMTAB_SHNDX: printf("SYMTAB_SHNDX "); break;
     case 0x70000003: printf("ARM_ATTRIBUTES "); break;
     default: break;
   }
@@ -259,6 +283,27 @@ void print(elf_section_hdr32 const& s, char const *sec_names) {
   printf("  entsize:   0x%08x\n", s.sh_entsize);
 }
 
+//void print(elf_symbol32 const *symtab, int n, char const *names) {
+//  for (int i = 0; i < n; ++i) {
+//    elf_symbol32 const& s = symtab[i];
+//    bool const func = (s.st_info & 0xF) == 2;
+//    if (func) { printf("  0x%08x %s\n", s.st_value, &names[s.st_name]); }
+//  }
+//}
+
+void print_functions(u32_vec_t const& func_addrs, state const& s) {
+  elf_symbol32 const *symtab = s.symtab;
+  char const *names = s.strtab;
+  for (auto func_addr : func_addrs) {
+    for (auto i = 0u; i < s.sym_count; ++i) {
+      if (func_addr == symtab[i].st_value) {
+        printf("  0x%08x %4x %s\n", func_addr, symtab[i].st_size, &names[symtab[i].st_name]);
+        break;
+      }
+    }
+  }
+}
+
 elf_section_hdr32 const *find_nl_hdr(elf_section_hdr32 const *sec_hdrs, char const *sec_names, int sec_n) {
   for (int i = 0; i < sec_n; ++i) {
     elf_section_hdr32 const& sh = sec_hdrs[i];
@@ -286,10 +331,9 @@ elf_section_hdr32 const *find_strtab_hdr(elf_section_hdr32 const *sec_hdrs,
   return nullptr;
 }
 
-
 void accumulate_log_str_refs_from_progbits_sec(state const& s,
                                                elf_section_hdr32 const& sh,
-                                               std::vector<uint32_t>& log_str_refs) {
+                                               u32_vec_t& log_str_refs) {
   uint32_t const nl_start = s.nl_hdr->sh_addr;
   uint32_t const nl_end = nl_start + s.nl_hdr->sh_size;
 
@@ -331,8 +375,8 @@ void accumulate_log_str_refs_from_progbits_sec(state const& s,
   }
 }
 
-std::vector<uint32_t> get_log_str_refs(state const& s) {
-  std::vector<uint32_t> log_str_refs;
+u32_vec_t get_log_str_refs(state const& s) {
+  u32_vec_t log_str_refs;
 
   for (auto i = 0u; i < s.elf_hdr->e_shnum; ++i) {
     elf_section_hdr32 const &sh = s.sec_hdrs[i];
@@ -346,6 +390,21 @@ std::vector<uint32_t> get_log_str_refs(state const& s) {
   }
 
   return log_str_refs;
+}
+
+u32_vec_t get_func_addrs(state const& s) {
+  u32_vec_t func_addrs;
+  for (auto i = 0u; i < s.sym_count; ++i) {
+    elf_symbol32 const& sym = s.symtab[i];
+    char const *name = &s.strtab[sym.st_name];
+
+    if ((sym.st_info & 0xF) != ELF_SYM_TYPE_FUNC) { continue; }
+    if (strstr(name, "nanolog_") == name) { continue; }
+    func_addrs.push_back(sym.st_value);
+  }
+
+  std::sort(std::begin(func_addrs), std::end(func_addrs));
+  return func_addrs;
 }
 
 void load(state& s) {
@@ -388,12 +447,11 @@ int main(int, char const *[]) {
   printf("\n");
   printf("%d symbols found\n", s.sym_count);
 
-  //for (auto i = 0u; i < s.sym_count; ++i) {
-  //  char const *name = &s.strtab[s.symtab[i].st_name];
-  //  if (*name) { printf("%s\n", name); }
-  //}
+  u32_vec_t func_addrs = get_func_addrs(s);
+  printf("%d functions\n", (int)func_addrs.size());
+  print_functions(func_addrs, s);
 
-  std::vector<uint32_t> log_str_refs = get_log_str_refs(s);
+  u32_vec_t log_str_refs = get_log_str_refs(s);
   printf("nanolog string refs:\n");
   for (auto log_str_ref : log_str_refs) {
     printf("  0x%08x\n", log_str_ref);
