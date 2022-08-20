@@ -5,97 +5,178 @@
 #include <vector>
 #include <unordered_map>
 
+#define ELF_OSABI_X_LIST() \
+  X(ELF_OSABI_SYSTEM_V, 0x00) \
+  X(ELF_OSABI_HP_UX, 0x01) \
+  X(ELF_OSABI_NETBSD, 0x02) \
+  X(ELF_OSABI_LINUX, 0x03) \
+  X(ELF_OSABI_GNU_HURD, 0x04) \
+  X(ELF_OSABI_SOLARIS, 0x06) \
+  X(ELF_OSABI_AIX, 0x07) \
+  X(ELF_OSABI_IRIX, 0x08) \
+  X(ELF_OSABI_FREEBSD, 0x09) \
+  X(ELF_OSABI_TRU64, 0x0A) \
+  X(ELF_OSABI_NOVELL_MODESTO, 0x0B) \
+  X(ELF_OSABI_OPENBSD, 0x0C) \
+  X(ELF_OSABI_OPENVSM, 0x0D) \
+  X(ELF_OSABI_NONSTOP, 0x0E) \
+  X(ELF_OSABI_AROS, 0x0F) \
+  X(ELF_OSABI_FENIXOS, 0x10) \
+  X(ELF_OSABI_NUXI_CLOUDABI, 0x11) \
+  X(ELF_OSABI_STRATUS_OPENVOS, 0x12)
+
+#define ELF_TYPE_X_LIST() \
+  X(ELF_TYPE_NONE, 0x00) \
+  X(ELF_TYPE_REL, 0x01) \
+  X(ELF_TYPE_EXEC, 0x02) \
+  X(ELF_TYPE_DYN, 0x03) \
+  X(ELF_TYPE_CORE, 0x04) \
+  X(ELF_TYPE_LO_OS, 0xFE00) \
+  X(ELF_TYPE_HI_OS, 0xFEFF) \
+  X(ELF_TYPE_LO_PROC, 0xFF00) \
+  X(ELF_TYPE_HI_PROC, 0xFFFF)
+
+#define ELF_SEC_TYPE_X_LIST() \
+  X(ELF_SEC_TYPE_NULL, 0x0) \
+  X(ELF_SEC_TYPE_PROGBITS, 0x1) \
+  X(ELF_SEC_TYPE_SYMTAB, 0x2) \
+  X(ELF_SEC_TYPE_STRTAB, 0x3) \
+  X(ELF_SEC_TYPE_RELA, 0x4) \
+  X(ELF_SEC_TYPE_HASH, 0x5) \
+  X(ELF_SEC_TYPE_DYNAMIC, 0x6) \
+  X(ELF_SEC_TYPE_NOTE, 0x7) \
+  X(ELF_SEC_TYPE_NOBITS, 0x8) \
+  X(ELF_SEC_TYPE_REL, 0x9) \
+  X(ELF_SEC_TYPE_SHLIB, 0x0A) \
+  X(ELF_SEC_TYPE_DYNSYM, 0x0B) \
+  X(ELF_SEC_TYPE_INIT_ARRAY, 0x0E) \
+  X(ELF_SEC_TYPE_FINI_ARRAY, 0x0F) \
+  X(ELF_SEC_TYPE_PREINIT_ARRAY, 0x10) \
+  X(ELF_SEC_TYPE_GROUP, 0x11) \
+  X(ELF_SEC_TYPE_SYMTAB_SHNDX, 0x12) \
+  X(ELF_SEC_TYPE_ARM_ATTRIBUTES, 0x70000003)
+
+#define ELF_SEC_FLAGS_X_LIST() \
+  X(ELF_SEC_FLAGS_WRITE, 0x1) \
+  X(ELF_SEC_FLAGS_ALLOC, 0x2) \
+  X(ELF_SEC_FLAGS_EXEC, 0x4) \
+  X(ELF_SEC_FLAGS_MERGE, 0x10) \
+  X(ELF_SEC_FLAGS_STRINGS, 0x20) \
+  X(ELF_SEC_FLAGS_INFO_LINK, 0x40) \
+  X(ELF_SEC_FLAGS_LINK_ORDER, 0x80) \
+  X(ELF_SEC_FLAGS_OS_NONCONFORMING, 0x100) \
+  X(ELF_SEC_FLAGS_GROUP, 0x200) \
+  X(ELF_SEC_FLAGS_TLS, 0x400)
+
+#define ELF_SYM_BIND_X_LIST() \
+  X(ELF_SYM_BIND_LOCAL, 0) \
+  X(ELF_SYM_BIND_GLOBAL, 1) \
+  X(ELF_SYM_BIND_WEAK, 2) \
+  X(ELF_SYM_BIND_LOOS, 10) \
+  X(ELF_SYM_BIND_HIOS, 12) \
+  X(ELF_SYM_BIND_LOPROC, 13) \
+  X(ELF_SYM_BIND_HIPROC, 15)
+
+#define ELF_SYM_TYPE_X_LIST() \
+  X(ELF_SYM_TYPE_NULL, 0) \
+  X(ELF_SYM_TYPE_OBJECT, 1) \
+  X(ELF_SYM_TYPE_FUNC, 2) \
+  X(ELF_SYM_TYPE_SECTION, 3) \
+  X(ELF_SYM_TYPE_FILE, 4) \
+  X(ELF_SYM_TYPE_COMMON, 5) \
+  X(ELF_SYM_TYPE_TLS, 6) \
+  X(ELF_SYM_TYPE_LOOS, 10) \
+  X(ELF_SYM_TYPE_HIOS, 12) \
+  X(ELF_SYM_TYPE_LOPROC, 13) \
+  X(ELF_SYM_TYPE_HIPROC, 15)
+
+// elf_osabi
+#define X(NAME, VAL) NAME = VAL,
 enum elf_osabi {
-  ELF_OSABI_SYSTEM_V = 0x00,
-  ELF_OSABI_HP_UX = 0x01,
-  ELF_OSABI_NETBSD = 0x02,
-  ELF_OSABI_LINUX = 0x03,
-  ELF_OSABI_GNU_HURD = 0x04,
-  ELF_OSABI_SOLARIS = 0x06,
-  ELF_OSABI_AIX = 0x07,
-  ELF_OSABI_IRIX = 0x08,
-  ELF_OSABI_FREEBSD = 0x09,
-  ELF_OSABI_TRU64 = 0x0A,
-  ELF_OSABI_NOVELL_MODESTO = 0x0B,
-  ELF_OSABI_OPENBSD = 0x0C,
-  ELF_OSABI_OPENVSM = 0x0D,
-  ELF_OSABI_NONSTOP = 0x0E,
-  ELF_OSABI_AROS = 0x0F,
-  ELF_OSABI_FENIXOS = 0x10,
-  ELF_OSABI_NUXI_CLOUDABI = 0x11,
-  ELF_OSABI_STRATUS_OPENVOS = 0x12,
+  ELF_OSABI_X_LIST()
 };
+#undef X
+#define X(NAME, VAL) case VAL: printf("%s", #NAME); break;
+void print(elf_osabi eo) {
+  switch (eo) {
+    ELF_OSABI_X_LIST()
+    default: break;
+  }
+}
+#undef X
 
+// elf_type
+#define X(NAME, VAL) NAME = VAL,
 enum elf_type {
-  ELF_TYPE_NONE = 0x00,
-  ELF_TYPE_REL = 0x01,
-  ELF_TYPE_EXEC = 0x02,
-  ELF_TYPE_DYN = 0x03,
-  ELF_TYPE_CORE = 0x04,
-  ELF_TYPE_LO_OS = 0xFE00,
-  ELF_TYPE_HI_OS = 0xFEFF,
-  ELF_TYPE_LO_PROC = 0xFF00,
-  ELF_TYPE_HI_PROC = 0xFFFF,
+  ELF_TYPE_X_LIST()
 };
+#undef X
+#define X(NAME, VAL) case VAL: printf("%s", #NAME); break;
+void print(elf_type et) {
+  switch (et) {
+    ELF_TYPE_X_LIST()
+    default: break;
+  }
+}
+#undef X
 
+// elf_sec_type
+#define X(NAME, VAL) NAME = VAL,
 enum elf_sec_type {
-  ELF_SEC_TYPE_NULL = 0x0,
-  ELF_SEC_TYPE_PROGBITS = 0x1,
-  ELF_SEC_TYPE_SYMTAB = 0x2,
-  ELF_SEC_TYPE_STRTAB = 0x3,
-  ELF_SEC_TYPE_RELA = 0x4,
-  ELF_SEC_TYPE_HASH = 0x5,
-  ELF_SEC_TYPE_DYNAMIC = 0x6,
-  ELF_SEC_TYPE_NOTE = 0x7,
-  ELF_SEC_TYPE_NOBITS = 0x8,
-  ELF_SEC_TYPE_REL = 0x9,
-  ELF_SEC_TYPE_SHLIB = 0x0A,
-  ELF_SEC_TYPE_DYNSYM = 0x0B,
-  ELF_SEC_TYPE_INIT_ARRAY = 0x0E,
-  ELF_SEC_TYPE_FINI_ARRAY = 0x0F,
-  ELF_SEC_TYPE_PREINIT_ARRAY = 0x10,
-  ELF_SEC_TYPE_GROUP = 0x11,
-  ELF_SEC_TYPE_SYMTAB_SHNDX = 0x12,
-  ELF_SEC_TYPE_ARM_ATTRIBUTES = 0x70000003,
+  ELF_SEC_TYPE_X_LIST()
 };
+#undef X
+#define X(NAME, VAL) case VAL: printf("%s", #NAME); break;
+void print(elf_sec_type est) {
+  switch (est) {
+    ELF_SEC_TYPE_X_LIST()
+    default: break;
+  }
+}
+#undef X
 
+// elf_sec_flags
+#define X(NAME, VAL) NAME = VAL,
 enum elf_sec_flags {
-  ELF_SEC_FLAGS_WRITE = 0x1,
-  ELF_SEC_FLAGS_ALLOC = 0x2,
-  ELF_SEC_FLAGS_EXEC = 0x4,
-  ELF_SEC_FLAGS_MERGE = 0x10,
-  ELF_SEC_FLAGS_STRINGS = 0x20,
-  ELF_SEC_FLAGS_INFO_LINK = 0x40,
-  ELF_SEC_FLAGS_LINK_ORDER = 0x80,
-  ELF_SEC_FLAGS_OS_NONCONFORMING = 0x100,
-  ELF_SEC_FLAGS_GROUP = 0x200,
-  ELF_SEC_FLAGS_TLS = 0x400,
+  ELF_SEC_FLAGS_X_LIST()
 };
+#undef X
+#define X(NAME, VAL) if (esf & VAL) { printf("%s ", #NAME); }
+void print(elf_sec_flags esf) {
+  ELF_SEC_FLAGS_X_LIST()
+}
+#undef X
 
+// elf_sym_bind
+#define X(NAME, VAL) NAME = VAL,
 enum elf_sym_bind {
-  ELF_SYM_BIND_LOCAL = 0,
-  ELF_SYM_BIND_GLOBAL = 1,
-  ELF_SYM_BIND_WEAK = 2,
-  ELF_SYM_BIND_LOOS = 10,
-  ELF_SYM_BIND_HIOS = 12,
-  ELF_SYM_BIND_LOPROC = 13,
-  ELF_SYM_BIND_HIPROC = 15,
+  ELF_SYM_BIND_X_LIST()
 };
+#undef X
+#define X(NAME, VAL) case VAL: printf("%s", #NAME); break;
+void print(elf_sym_bind esb) {
+  switch (esb) {
+    ELF_SYM_BIND_X_LIST()
+    default: break;
+  }
+}
+#undef X
 
+// elf_sym_type
+#define X(NAME, VAL) NAME = VAL,
 enum elf_sym_type {
-  ELF_SYM_TYPE_NULL = 0,
-  ELF_SYM_TYPE_OBJECT = 1,
-  ELF_SYM_TYPE_FUNC = 2,
-  ELF_SYM_TYPE_SECTION = 3,
-  ELF_SYM_TYPE_FILE = 4,
-  ELF_SYM_TYPE_COMMON = 5,
-  ELF_SYM_TYPE_TLS = 6,
-  ELF_SYM_TYPE_LOOS = 10,
-  ELF_SYM_TYPE_HIOS = 12,
-  ELF_SYM_TYPE_LOPROC = 13,
-  ELF_SYM_TYPE_SPARC_REGISTER = 13,
-  ELF_SYM_TYPE_HIPROC = 15,
+  ELF_SYM_TYPE_X_LIST()
 };
+#undef X
+#define X(NAME, VAL) case VAL: printf("%s", #NAME); break;
+void print(elf_sym_type est) {
+  switch (est) {
+    ELF_SYM_TYPE_X_LIST()
+    default: break;
+  }
+}
+#undef X
+
 
 struct elf_hdr32 {
   uint8_t e_ident_mag[4];
@@ -239,42 +320,14 @@ void print(elf_section_hdr32 const& s, char const *sec_names) {
   printf("ELF Section Header:\n");
   printf("  name:      %s\n", &sec_names[s.sh_name]);
 
-  printf("  type:      0x%08x ( ", s.sh_type);
-  switch (s.sh_type) {
-    case ELF_SEC_TYPE_PROGBITS: printf("PROGBITS "); break;
-    case ELF_SEC_TYPE_SYMTAB: printf("SYMTAB "); break;
-    case ELF_SEC_TYPE_STRTAB: printf("STRTAB "); break;
-    case ELF_SEC_TYPE_RELA: printf("RELA "); break;
-    case ELF_SEC_TYPE_HASH: printf("HASH "); break;
-    case ELF_SEC_TYPE_DYNAMIC: printf("DYNAMIC "); break;
-    case ELF_SEC_TYPE_NOTE: printf("NOTE "); break;
-    case ELF_SEC_TYPE_NOBITS: printf("NOBITS "); break;
-    case ELF_SEC_TYPE_REL: printf("REL "); break;
-    case ELF_SEC_TYPE_SHLIB: printf("SHLIB "); break;
-    case ELF_SEC_TYPE_DYNSYM: printf("DYNSYM "); break;
-    case ELF_SEC_TYPE_INIT_ARRAY: printf("INIT_ARRAY "); break;
-    case ELF_SEC_TYPE_FINI_ARRAY: printf("FINI_ARRAY "); break;
-    case ELF_SEC_TYPE_PREINIT_ARRAY: printf("PREINIT_ARRAY "); break;
-    case ELF_SEC_TYPE_GROUP: printf("GROUP "); break;
-    case ELF_SEC_TYPE_SYMTAB_SHNDX: printf("SYMTAB_SHNDX "); break;
-    case ELF_SEC_TYPE_ARM_ATTRIBUTES: printf("ARM_ATTRIBUTES "); break;
-    default: break;
-  }
-  printf(")\n");
+  printf("  type:      0x%08x ( ", elf_sec_type(s.sh_type));
+  print(elf_sec_type(s.sh_type));
+  printf(" )\n");
 
   printf("  flags:     0x%08x ", s.sh_flags);
   if (s.sh_flags) {
     printf("( ");
-    if (s.sh_flags & 0x1) { printf("WRITE "); }
-    if (s.sh_flags & 0x2) { printf("ALLOC "); }
-    if (s.sh_flags & 0x4) { printf("EXEC "); }
-    if (s.sh_flags & 0x10) { printf("MERGE "); }
-    if (s.sh_flags & 0x20) { printf("STRINGS "); }
-    if (s.sh_flags & 0x40) { printf("INFO_LINK "); }
-    if (s.sh_flags & 0x80) { printf("LINK_ORDER "); }
-    if (s.sh_flags & 0x100) { printf("OS_NONCONFORMING "); }
-    if (s.sh_flags & 0x200) { printf("GROUP "); }
-    if (s.sh_flags & 0x400) { printf("TLS "); }
+    print(elf_sec_flags(s.sh_flags));
     printf(")");
   }
   printf("\n");
