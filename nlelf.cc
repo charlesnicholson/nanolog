@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <queue>
 #include <vector>
+#include <unordered_map>
 
 enum elf_osabi {
   ELF_OSABI_SYSTEM_V = 0x00,
@@ -55,6 +56,7 @@ enum elf_sec_type {
   ELF_SEC_TYPE_PREINIT_ARRAY = 0x10,
   ELF_SEC_TYPE_GROUP = 0x11,
   ELF_SEC_TYPE_SYMTAB_SHNDX = 0x12,
+  ELF_SEC_TYPE_ARM_ATTRIBUTES = 0x70000003,
 };
 
 enum elf_sec_flags {
@@ -151,20 +153,23 @@ struct elf_symbol32 {
   uint16_t st_shndx;
 };
 
+using u32_vec_t = std::vector<uint32_t>;
+using imm_addr_pq_t = std::priority_queue<uint32_t, u32_vec_t, std::greater<uint32_t>>;
+using sym_addr_map_t = std::unordered_map<uint32_t, std::vector<elf_symbol32 const*>>;
+
 struct state {
   std::vector<char> elf;
+  sym_addr_map_t non_nl_funcs_sym_map;
+  std::vector<elf_symbol32 const*> nl_funcs;
+  elf_section_hdr32 const *nl_hdr;
   elf_hdr32 *elf_hdr;
   elf_section_hdr32 const *sec_hdrs;
   elf_prog_hdr32 const *prog_hdrs;
   char const *sec_names;
-  elf_section_hdr32 const *nl_hdr;
   elf_symbol32 const *symtab;
   unsigned sym_count;
   char const *strtab;
 };
-
-using u32_vec_t = std::vector<uint32_t>;
-using imm_addr_pq_t = std::priority_queue<uint32_t, u32_vec_t, std::greater<uint32_t>>;
 
 namespace {
 std::vector<char> load_elf(char const *elf) { // TODO: mmap
@@ -252,7 +257,7 @@ void print(elf_section_hdr32 const& s, char const *sec_names) {
     case ELF_SEC_TYPE_PREINIT_ARRAY: printf("PREINIT_ARRAY "); break;
     case ELF_SEC_TYPE_GROUP: printf("GROUP "); break;
     case ELF_SEC_TYPE_SYMTAB_SHNDX: printf("SYMTAB_SHNDX "); break;
-    case 0x70000003: printf("ARM_ATTRIBUTES "); break;
+    case ELF_SEC_TYPE_ARM_ATTRIBUTES: printf("ARM_ATTRIBUTES "); break;
     default: break;
   }
   printf(")\n");
@@ -283,27 +288,6 @@ void print(elf_section_hdr32 const& s, char const *sec_names) {
   printf("  entsize:   0x%08x\n", s.sh_entsize);
 }
 
-//void print(elf_symbol32 const *symtab, int n, char const *names) {
-//  for (int i = 0; i < n; ++i) {
-//    elf_symbol32 const& s = symtab[i];
-//    bool const func = (s.st_info & 0xF) == 2;
-//    if (func) { printf("  0x%08x %s\n", s.st_value, &names[s.st_name]); }
-//  }
-//}
-
-void print_functions(u32_vec_t const& func_addrs, state const& s) {
-  elf_symbol32 const *symtab = s.symtab;
-  char const *names = s.strtab;
-  for (auto func_addr : func_addrs) {
-    for (auto i = 0u; i < s.sym_count; ++i) {
-      if (func_addr == symtab[i].st_value) {
-        printf("  0x%08x %4x %s\n", func_addr, symtab[i].st_size, &names[symtab[i].st_name]);
-        break;
-      }
-    }
-  }
-}
-
 elf_section_hdr32 const *find_nl_hdr(elf_section_hdr32 const *sec_hdrs, char const *sec_names, int sec_n) {
   for (int i = 0; i < sec_n; ++i) {
     elf_section_hdr32 const& sh = sec_hdrs[i];
@@ -331,62 +315,63 @@ elf_section_hdr32 const *find_strtab_hdr(elf_section_hdr32 const *sec_hdrs,
   return nullptr;
 }
 
-void accumulate_log_str_refs_from_progbits_sec(state const& s,
-                                               elf_section_hdr32 const& sh,
-                                               u32_vec_t& log_str_refs) {
-  uint32_t const nl_start = s.nl_hdr->sh_addr;
-  uint32_t const nl_end = nl_start + s.nl_hdr->sh_size;
+//void accumulate_log_str_refs_from_progbits_sec(state const& s,
+//                                               elf_section_hdr32 const& sh,
+//                                               u32_vec_t& log_str_refs) {
+//  uint32_t const nl_start = s.nl_hdr->sh_addr;
+//  uint32_t const nl_end = nl_start + s.nl_hdr->sh_size;
+//
+//  uint32_t const n = sh.sh_offset + sh.sh_size;
+//  uint32_t i = sh.sh_offset;
+//  imm_addr_pq_t imm_addrs;
+//
+//  while (i < n) {
+//    bool matched = false;
+//    while (!imm_addrs.empty() && (i == imm_addrs.top())) { // pc-rel 32-bit imm load?
+//      matched = true;
+//      imm_addrs.pop();
+//      uint32_t imm;
+//      memcpy(&imm, &s.elf[i], sizeof(imm));
+//      if ((imm >= nl_start) && (imm < nl_end)) { log_str_refs.push_back(i); }
+//    }
+//
+//    if (matched) {
+//      i += 4;
+//      continue;
+//    }
+//
+//    uint16_t inst;
+//    memcpy(&inst, &s.elf[i], 2);
+//
+//    if (((inst & 0xF000) == 0xF000) || ((inst & 0xE800) == 0xE800)) { // 32-bit instr
+//      i += 4;
+//      continue;
+//    }
+//
+//    if ((inst >> 11) != 0b01001) { // load from literal pool = 0b01001...
+//      i += 2;
+//      continue;
+//    }
+//
+//    uint32_t const imm = ((i + 4) & uint32_t(~3)) + ((inst & 0xFF) * 4);
+//    imm_addrs.push(imm);
+//    i += 2;
+//  }
+//}
 
-  uint32_t const n = sh.sh_offset + sh.sh_size;
-  uint32_t i = sh.sh_offset;
-  imm_addr_pq_t imm_addrs;
-
-  while (i < n) {
-    bool matched = false;
-    while (!imm_addrs.empty() && (i == imm_addrs.top())) { // pc-rel 32-bit imm load?
-      matched = true;
-      imm_addrs.pop();
-      uint32_t imm;
-      memcpy(&imm, &s.elf[i], sizeof(imm));
-      if ((imm >= nl_start) && (imm < nl_end)) { log_str_refs.push_back(i); }
-    }
-
-    if (matched) {
-      i += 4;
-      continue;
-    }
-
-    uint16_t inst;
-    memcpy(&inst, &s.elf[i], 2);
-
-    if (((inst & 0xF000) == 0xF000) || ((inst & 0xE800) == 0xE800)) { // 32-bit instr
-      i += 4;
-      continue;
-    }
-
-    if ((inst >> 11) != 0b01001) { // load from literal pool = 0b01001...
-      i += 2;
-      continue;
-    }
-
-    uint32_t const imm = ((i + 4) & uint32_t(~3)) + ((inst & 0xFF) * 4);
-    imm_addrs.push(imm);
-    i += 2;
-  }
+void accumulate_log_str_refs_from_func(state const& s,
+                                       sym_addr_map_t::value_type const& func,
+                                       u32_vec_t& log_str_refs) {
+  (void)s;
+  (void)func;
+  (void)log_str_refs;
 }
 
 u32_vec_t get_log_str_refs(state const& s) {
   u32_vec_t log_str_refs;
 
-  for (auto i = 0u; i < s.elf_hdr->e_shnum; ++i) {
-    elf_section_hdr32 const &sh = s.sec_hdrs[i];
-    if (&sh == s.nl_hdr) { continue; }
-    if (sh.sh_type != ELF_SEC_TYPE_PROGBITS) { continue; }
-    if (!(sh.sh_flags & ELF_SEC_FLAGS_ALLOC)) { continue; }
-    if (sh.sh_size < sizeof(uint32_t)) { continue; }
-
-    printf("get_log_str_refs: searching section %s\n", &s.sec_names[sh.sh_name]);
-    accumulate_log_str_refs_from_progbits_sec(s, sh, log_str_refs);
+  for (const auto& func_syms : s.non_nl_funcs_sym_map) {
+    accumulate_log_str_refs_from_func(s, func_syms, log_str_refs);
   }
 
   return log_str_refs;
@@ -416,10 +401,6 @@ void load(state& s) {
   s.prog_hdrs = reinterpret_cast<elf_prog_hdr32 const*>(s.elf.data() + s.elf_hdr->e_phoff);
   s.sec_names = s.elf.data() + s.sec_hdrs[s.elf_hdr->e_shstrndx].sh_offset;
 
-  // nanolog section
-  s.nl_hdr = find_nl_hdr(s.sec_hdrs, s.sec_names, (int)s.elf_hdr->e_shnum);
-  assert(s.nl_hdr);
-
   // symbol table
   elf_section_hdr32 const *symtab_hdr = find_symtab_hdr(s.sec_hdrs, (int)s.elf_hdr->e_shnum);
   assert(symtab_hdr);
@@ -432,6 +413,28 @@ void load(state& s) {
     find_strtab_hdr(s.sec_hdrs, s.sec_names, (int)s.elf_hdr->e_shnum);
   assert(symtab_hdr);
   s.strtab = s.elf.data() + strtab_hdr->sh_offset;
+
+  // nanolog section
+  s.nl_hdr = find_nl_hdr(s.sec_hdrs, s.sec_names, (int)s.elf_hdr->e_shnum);
+  assert(s.nl_hdr);
+
+  // nanolog functions, and non-nanolog-function-addr-to-symbol-map
+  for (auto i = 0u; i < s.sym_count; ++i) {
+    elf_symbol32 const& sym = s.symtab[i];
+    if ((sym.st_info & 0xF) != ELF_SYM_TYPE_FUNC) { continue; }
+
+    if (strstr(&s.strtab[sym.st_name], "nanolog_") == &s.strtab[sym.st_name]) {
+      s.nl_funcs.push_back(&sym);
+    } else {
+      auto found = s.non_nl_funcs_sym_map.find(sym.st_value);
+      if (found == s.non_nl_funcs_sym_map.end()) {
+        bool inserted;
+        std::tie(found, inserted) = s.non_nl_funcs_sym_map.insert({sym.st_value, {}});
+        assert(inserted);
+      }
+      found->second.push_back(&sym);
+    }
+  }
 }
 }
 
@@ -447,14 +450,20 @@ int main(int, char const *[]) {
   printf("\n");
   printf("%d symbols found\n", s.sym_count);
 
-  u32_vec_t func_addrs = get_func_addrs(s);
-  printf("%d functions\n", (int)func_addrs.size());
-  print_functions(func_addrs, s);
+  printf("\n");
+  printf("Non-nanolog functions:\n");
+  for (auto const& e : s.non_nl_funcs_sym_map) {
+    printf("  0x%08x ", e.first);
+    for (auto const* sym : e.second) {
+      printf("%s ", &s.strtab[sym->st_name]);
+    }
+    printf("\n");
+  }
 
-  u32_vec_t log_str_refs = get_log_str_refs(s);
-  printf("nanolog string refs:\n");
-  for (auto log_str_ref : log_str_refs) {
-    printf("  0x%08x\n", log_str_ref);
+  printf("\n");
+  printf("Nanolog public functions:\n");
+  for (auto const& nl_func : s.nl_funcs) {
+    printf("  0x%08x %s\n", nl_func->st_value, &s.strtab[nl_func->st_name]);
   }
 
   return 0;
