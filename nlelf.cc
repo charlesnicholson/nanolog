@@ -487,8 +487,10 @@ int main(int, char const *[]) {
   printf("\n");
   for (auto i = 0u; i < s.elf_hdr->e_phnum; ++i) { print(s.prog_hdrs[i]); }
   printf("\n");
+  */
   for (auto i = 0u; i < s.elf_hdr->e_shnum; ++i) { print(s.sec_hdrs[i], s.sec_names); }
   printf("\n");
+  /*
   printf("%d symbols found\n", s.sym_count);
 
   printf("\n");
@@ -509,7 +511,21 @@ int main(int, char const *[]) {
 
   printf("\n");
   */
-  get_log_str_refs(s);
+  nl_log_str_refs_t const nl_log_str_refs = get_log_str_refs(s);
+  printf("\n");
+  printf(".nanolog string references:\n");
+  for (const auto& nl_log_str_ref : nl_log_str_refs) {
+    elf_section_hdr32 const& func_sec_hdr = s.sec_hdrs[nl_log_str_ref.func->st_shndx];
+
+    uint32_t const imm32_offset =
+      func_sec_hdr.sh_offset + (nl_log_str_ref.addr - func_sec_hdr.sh_addr);
+
+    uint32_t imm32;
+    memcpy(&imm32, &s.elf[imm32_offset], 4);
+
+    uint32_t log_str_off = s.nl_hdr->sh_offset + (imm32 - s.nl_hdr->sh_addr);
+    printf("  0x%08x %x \"%s\"\n", nl_log_str_ref.addr, imm32, &s.elf[log_str_off]);
+  }
 
   return 0;
 }
