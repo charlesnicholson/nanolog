@@ -213,8 +213,8 @@ struct state {
 };
 
 namespace {
-std::vector<char> load_elf(char const *elf) { // TODO: mmap
-  FILE *f = fopen(elf, "rb");
+std::vector<char> load_file(char const *fn) { // TODO: mmap
+  FILE *f = fopen(fn, "rb");
   assert(f);
   fseek(f, 0, SEEK_END);
   long const len = ftell(f);
@@ -224,6 +224,81 @@ std::vector<char> load_elf(char const *elf) { // TODO: mmap
   fclose(f);
   assert(r == (size_t)len);
   return v;
+}
+
+elf_section_hdr32 const *find_nl_hdr(elf_section_hdr32 const *sec_hdrs,
+                                     char const *sec_names,
+                                     int sec_n) {
+  for (int i = 0; i < sec_n; ++i) {
+    elf_section_hdr32 const& sh = sec_hdrs[i];
+    if (sh.sh_type && !strcmp(".nanolog", &sec_names[sh.sh_name])) { return &sh; }
+  }
+  return nullptr;
+}
+
+elf_section_hdr32 const *find_symtab_hdr(elf_section_hdr32 const *sec_hdrs, int sec_n) {
+  for (int i = 0; i < sec_n; ++i) {
+    if (sec_hdrs[i].sh_type == ELF_SEC_TYPE_SYMTAB) { return &sec_hdrs[i]; }
+  }
+  return nullptr;
+}
+
+elf_section_hdr32 const *find_strtab_hdr(elf_section_hdr32 const *sec_hdrs,
+                                         char const *sec_names,
+                                         int sec_n) {
+  for (int i = 0; i < sec_n; ++i) {
+    elf_section_hdr32 const& sh = sec_hdrs[i];
+    if ((sh.sh_type == ELF_SEC_TYPE_STRTAB) && !strcmp(".strtab", &sec_names[sh.sh_name])) {
+      return &sec_hdrs[i];
+    }
+  }
+  return nullptr;
+}
+
+
+void load_elf(state& s) {
+  s.elf = load_file("nrf52832_xxaa.out");
+  s.elf_hdr = (elf_hdr32*)(s.elf.data());
+  assert(s.elf_hdr->e_shentsize == sizeof(elf_section_hdr32));
+
+  s.sec_hdrs = (elf_section_hdr32 const*)(s.elf.data() + s.elf_hdr->e_shoff);
+  s.prog_hdrs = (elf_prog_hdr32 const*)(s.elf.data() + s.elf_hdr->e_phoff);
+  s.sec_names = s.elf.data() + s.sec_hdrs[s.elf_hdr->e_shstrndx].sh_offset;
+
+  // symbol table
+  elf_section_hdr32 const *symtab_hdr = find_symtab_hdr(s.sec_hdrs, (int)s.elf_hdr->e_shnum);
+  assert(symtab_hdr);
+  assert(symtab_hdr->sh_entsize == sizeof(elf_symbol32));
+  s.symtab = (elf_symbol32 const*)(s.elf.data() + symtab_hdr->sh_offset);
+  s.sym_count = symtab_hdr->sh_size / symtab_hdr->sh_entsize;
+
+  // string table
+  elf_section_hdr32 const *strtab_hdr =
+    find_strtab_hdr(s.sec_hdrs, s.sec_names, (int)s.elf_hdr->e_shnum);
+  assert(symtab_hdr);
+  s.strtab = s.elf.data() + strtab_hdr->sh_offset;
+
+  // nanolog section
+  s.nl_hdr = find_nl_hdr(s.sec_hdrs, s.sec_names, (int)s.elf_hdr->e_shnum);
+  assert(s.nl_hdr);
+
+  // nanolog functions, and non-nanolog-function-addr-to-symbol-map
+  for (auto i = 0u; i < s.sym_count; ++i) {
+    elf_symbol32 const& sym = s.symtab[i];
+    if ((sym.st_info & 0xF) != ELF_SYM_TYPE_FUNC) { continue; }
+
+    if (strstr(&s.strtab[sym.st_name], "nanolog_") == &s.strtab[sym.st_name]) {
+      s.nl_funcs.push_back(&sym);
+    } else {
+      auto found = s.non_nl_funcs_sym_map.find(sym.st_value);
+      if (found == s.non_nl_funcs_sym_map.end()) {
+        bool inserted;
+        std::tie(found, inserted) = s.non_nl_funcs_sym_map.insert({sym.st_value, {}});
+        assert(inserted);
+      }
+      found->second.push_back(&sym);
+    }
+  }
 }
 
 void print(const elf_hdr32& h) {
@@ -301,42 +376,15 @@ void print(elf_section_hdr32 const& s, char const *sec_names) {
   printf("  entsize:   0x%08x\n", s.sh_entsize);
 }
 
-void print(elf_symbol32 const& s, char const *strtab) {
-  printf("ELF Symbol:\n");
-  printf("  name: %s\n", &strtab[s.st_name]);
-  printf("  value: 0x%04x\n", s.st_value);
-  printf("  size: %u\n", s.st_size);
-  printf("  info: 0x%02hhx\n", s.st_info);
-  printf("  other: 0x%02hhx\n", s.st_other);
-  printf("  shndx: %hu\n", s.st_shndx);
-}
-
-elf_section_hdr32 const *find_nl_hdr(elf_section_hdr32 const *sec_hdrs, char const *sec_names, int sec_n) {
-  for (int i = 0; i < sec_n; ++i) {
-    elf_section_hdr32 const& sh = sec_hdrs[i];
-    if (sh.sh_type && !strcmp(".nanolog", &sec_names[sh.sh_name])) { return &sh; }
-  }
-  return nullptr;
-}
-
-elf_section_hdr32 const *find_symtab_hdr(elf_section_hdr32 const *sec_hdrs, int sec_n) {
-  for (int i = 0; i < sec_n; ++i) {
-    if (sec_hdrs[i].sh_type == ELF_SEC_TYPE_SYMTAB) { return &sec_hdrs[i]; }
-  }
-  return nullptr;
-}
-
-elf_section_hdr32 const *find_strtab_hdr(elf_section_hdr32 const *sec_hdrs,
-                                         char const *sec_names,
-                                         int sec_n) {
-  for (int i = 0; i < sec_n; ++i) {
-    elf_section_hdr32 const& sh = sec_hdrs[i];
-    if ((sh.sh_type == ELF_SEC_TYPE_STRTAB) && !strcmp(".strtab", &sec_names[sh.sh_name])) {
-      return &sec_hdrs[i];
-    }
-  }
-  return nullptr;
-}
+//void print(elf_symbol32 const& s, char const *strtab) {
+//  printf("ELF Symbol:\n");
+//  printf("  name: %s\n", &strtab[s.st_name]);
+//  printf("  value: 0x%04x\n", s.st_value);
+//  printf("  size: %u\n", s.st_size);
+//  printf("  info: 0x%02hhx\n", s.st_info);
+//  printf("  other: 0x%02hhx\n", s.st_other);
+//  printf("  shndx: %hu\n", s.st_shndx);
+//}
 
 elf_symbol32 const * get_nl_func(state const& s, uint32_t cand) {
   for (auto const *nl_func : s.nl_funcs) {
@@ -348,8 +396,7 @@ elf_symbol32 const * get_nl_func(state const& s, uint32_t cand) {
 
 void accumulate_log_str_refs_from_func(state const& s,
                                        sym_addr_map_t::value_type const& func,
-                                       u32_vec_t& log_str_refs) {
-  (void)log_str_refs;
+                                       u32_vec_t& nl_log_str_refs) {
 
   elf_symbol32 const& func_sym = *func.second[0];
   elf_section_hdr32 const& func_sec_hdr = s.sec_hdrs[func_sym.st_shndx];
@@ -359,6 +406,7 @@ void accumulate_log_str_refs_from_func(state const& s,
   printf("Scanning %s: (%x-%x):\n", &s.strtab[func_sym.st_name], func_start, func_end);
 
   imm_addr_pq_t imm_addrs;
+  uint32_t last_seen_r0_load = 0;
 
   auto i = func_start;
   while (i < func_end) {
@@ -392,22 +440,22 @@ void accumulate_log_str_refs_from_func(state const& s,
       uint32_t const target = uint32_t(int32_t(i) + int32_t(imm32));
       elf_symbol32 const* nl_func = get_nl_func(s, target);
       if (nl_func) {
-        printf("  Found bl @ %04x: (%x %s)\n",
+        printf("  Found bl @ %04x: (%x %s), r0 = 0x%08x\n",
                i - 4,
                target,
-               &s.strtab[nl_func->st_name]);
+               &s.strtab[nl_func->st_name],
+               last_seen_r0_load);
+        assert(last_seen_r0_load);
+        nl_log_str_refs.push_back(last_seen_r0_load);
       }
       continue;
     }
 
     if ((w0 & 0xF800) == 0x4800) { // ldr rX, [pc, #YY]
       uint32_t const rt = (w0 >> 8u) & 7u;
-      uint32_t const imm8 = ((i + 2) & ~3u) + ((w0 & 0xFF) * 4);
-      uint32_t val;
-      memcpy(&val, &s.elf[imm8 + func_sec_hdr.sh_offset], 4);
-      //printf("  Found imm @ %04x: (%x: 0x%08x) r%d\n", i - 2, imm8, val, (int)rt);
-      (void)rt;
-      imm_addrs.push(imm8);
+      uint32_t const imm = ((i + 2) & ~3u) + ((w0 & 0xFF) * 4);
+      imm_addrs.push(imm);
+      if (!rt) { last_seen_r0_load = imm + func_sec_hdr.sh_addr; }
       continue;
     }
   }
@@ -423,71 +471,11 @@ u32_vec_t get_log_str_refs(state const& s) {
   return log_str_refs;
 }
 
-u32_vec_t get_func_addrs(state const& s) {
-  u32_vec_t func_addrs;
-  for (auto i = 0u; i < s.sym_count; ++i) {
-    elf_symbol32 const& sym = s.symtab[i];
-    char const *name = &s.strtab[sym.st_name];
-
-    if ((sym.st_info & 0xF) != ELF_SYM_TYPE_FUNC) { continue; }
-    if (strstr(name, "nanolog_") == name) { continue; }
-    func_addrs.push_back(sym.st_value);
-  }
-
-  std::sort(std::begin(func_addrs), std::end(func_addrs));
-  return func_addrs;
-}
-
-void load(state& s) {
-  s.elf = load_elf("nrf52832_xxaa.out");
-  s.elf_hdr = reinterpret_cast<elf_hdr32*>(s.elf.data());
-  assert(s.elf_hdr->e_shentsize == sizeof(elf_section_hdr32));
-
-  s.sec_hdrs = reinterpret_cast<elf_section_hdr32 const*>(s.elf.data() + s.elf_hdr->e_shoff);
-  s.prog_hdrs = reinterpret_cast<elf_prog_hdr32 const*>(s.elf.data() + s.elf_hdr->e_phoff);
-  s.sec_names = s.elf.data() + s.sec_hdrs[s.elf_hdr->e_shstrndx].sh_offset;
-
-  // symbol table
-  elf_section_hdr32 const *symtab_hdr = find_symtab_hdr(s.sec_hdrs, (int)s.elf_hdr->e_shnum);
-  assert(symtab_hdr);
-  assert(symtab_hdr->sh_entsize == sizeof(elf_symbol32));
-  s.symtab = reinterpret_cast<elf_symbol32 const*>(s.elf.data() + symtab_hdr->sh_offset);
-  s.sym_count = symtab_hdr->sh_size / symtab_hdr->sh_entsize;
-
-  // string table
-  elf_section_hdr32 const *strtab_hdr =
-    find_strtab_hdr(s.sec_hdrs, s.sec_names, (int)s.elf_hdr->e_shnum);
-  assert(symtab_hdr);
-  s.strtab = s.elf.data() + strtab_hdr->sh_offset;
-
-  // nanolog section
-  s.nl_hdr = find_nl_hdr(s.sec_hdrs, s.sec_names, (int)s.elf_hdr->e_shnum);
-  assert(s.nl_hdr);
-
-  // nanolog functions, and non-nanolog-function-addr-to-symbol-map
-  for (auto i = 0u; i < s.sym_count; ++i) {
-    elf_symbol32 const& sym = s.symtab[i];
-    if ((sym.st_info & 0xF) != ELF_SYM_TYPE_FUNC) { continue; }
-
-    if (strstr(&s.strtab[sym.st_name], "nanolog_") == &s.strtab[sym.st_name]) {
-      s.nl_funcs.push_back(&sym);
-    } else {
-      auto found = s.non_nl_funcs_sym_map.find(sym.st_value);
-      if (found == s.non_nl_funcs_sym_map.end()) {
-        bool inserted;
-        std::tie(found, inserted) = s.non_nl_funcs_sym_map.insert({sym.st_value, {}});
-        assert(inserted);
-      }
-      found->second.push_back(&sym);
-    }
-  }
-}
 }
 
 int main(int, char const *[]) {
   state s;
-  load(s);
-
+  load_elf(s);
   print(*s.elf_hdr);
   printf("\n");
   for (auto i = 0u; i < s.elf_hdr->e_phnum; ++i) { print(s.prog_hdrs[i]); }
