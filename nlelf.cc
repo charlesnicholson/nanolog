@@ -338,49 +338,13 @@ elf_section_hdr32 const *find_strtab_hdr(elf_section_hdr32 const *sec_hdrs,
   return nullptr;
 }
 
-//void accumulate_log_str_refs_from_progbits_sec(state const& s,
-//                                               elf_section_hdr32 const& sh,
-//                                               u32_vec_t& log_str_refs) {
-//  uint32_t const nl_start = s.nl_hdr->sh_addr;
-//  uint32_t const nl_end = nl_start + s.nl_hdr->sh_size;
-//
-//  uint32_t const n = sh.sh_offset + sh.sh_size;
-//  uint32_t i = sh.sh_offset;
-//  imm_addr_pq_t imm_addrs;
-//
-//  while (i < n) {
-//    bool matched = false;
-//    while (!imm_addrs.empty() && (i == imm_addrs.top())) { // pc-rel 32-bit imm load?
-//      matched = true;
-//      imm_addrs.pop();
-//      uint32_t imm;
-//      memcpy(&imm, &s.elf[i], sizeof(imm));
-//      if ((imm >= nl_start) && (imm < nl_end)) { log_str_refs.push_back(i); }
-//    }
-//
-//    if (matched) {
-//      i += 4;
-//      continue;
-//    }
-//
-//    uint16_t inst;
-//    memcpy(&inst, &s.elf[i], 2);
-//
-//    if (((inst & 0xF000) == 0xF000) || ((inst & 0xE800) == 0xE800)) { // 32-bit instr
-//      i += 4;
-//      continue;
-//    }
-//
-//    if ((inst >> 11) != 0b01001) { // load from literal pool = 0b01001...
-//      i += 2;
-//      continue;
-//    }
-//
-//    uint32_t const imm = ((i + 4) & uint32_t(~3)) + ((inst & 0xFF) * 4);
-//    imm_addrs.push(imm);
-//    i += 2;
-//  }
-//}
+elf_symbol32 const * get_nl_func(state const& s, uint32_t cand) {
+  for (auto const *nl_func : s.nl_funcs) {
+    if ((nl_func->st_value & ~1u) == cand) { return nl_func; }
+  }
+
+  return nullptr;
+}
 
 void accumulate_log_str_refs_from_func(state const& s,
                                        sym_addr_map_t::value_type const& func,
@@ -392,7 +356,7 @@ void accumulate_log_str_refs_from_func(state const& s,
   uint32_t const func_start = func_sym.st_value & ~1u;
   uint32_t const func_end = func_start + func_sym.st_size;
 
-  printf("Scanning %4x - %4x (%s):\n", func_start, func_end, &s.strtab[func_sym.st_name]);
+  printf("Scanning %s: (%x-%x):\n", &s.strtab[func_sym.st_name], func_start, func_end);
 
   imm_addr_pq_t imm_addrs;
 
@@ -415,17 +379,24 @@ void accumulate_log_str_refs_from_func(state const& s,
       i += 2;
       if ((w0 & 0xF800) != 0xF000) { continue; }
       if ((w1 & 0xD000) != 0xD000) { continue; }
-      uint32_t const s = (w0 >> 10u) & 1u;
-      uint32_t const sext = ((s ^ 1u) - 1u) & 0xFF000000u;
+      // bl imm, extract target
+      uint32_t const sbit = (w0 >> 10u) & 1u;
+      uint32_t const sext = ((sbit ^ 1u) - 1u) & 0xFF000000u;
       uint32_t const j1 = (w1 >> 13u) & 1u;
       uint32_t const j2 = (w1 >> 11u) & 1u;
-      uint32_t const i1 = uint32_t(!(j1 ^ s)) << 23u;
-      uint32_t const i2 = uint32_t(!(j2 ^ s)) << 22u;
+      uint32_t const i1 = uint32_t(!(j1 ^ sbit)) << 23u;
+      uint32_t const i2 = uint32_t(!(j2 ^ sbit)) << 22u;
       uint32_t const imm10 = (w0 & 0x3FFu) << 12u;
       uint32_t const imm11 = (w1 & 0x7FFu) << 1u;
       uint32_t const imm32 = sext | i1 | i2 | imm10 | imm11;
       uint32_t const target = uint32_t(int32_t(i) + int32_t(imm32));
-      printf("  Found bl @ %04x: %04hx %04hx (%x)\n", i - 4, w0, w1, target);
+      elf_symbol32 const* nl_func = get_nl_func(s, target);
+      if (nl_func) {
+        printf("  Found bl @ %04x: (%x %s)\n",
+               i - 4,
+               target,
+               &s.strtab[nl_func->st_name]);
+      }
       continue;
     }
 
@@ -434,7 +405,8 @@ void accumulate_log_str_refs_from_func(state const& s,
       uint32_t const imm8 = ((i + 2) & ~3u) + ((w0 & 0xFF) * 4);
       uint32_t val;
       memcpy(&val, &s.elf[imm8 + func_sec_hdr.sh_offset], 4);
-      printf("  Found imm @ %04x: (%x: 0x%08x) r%d\n", i - 2, imm8, val, (int)rt);
+      //printf("  Found imm @ %04x: (%x: 0x%08x) r%d\n", i - 2, imm8, val, (int)rt);
+      (void)rt;
       imm_addrs.push(imm8);
       continue;
     }
