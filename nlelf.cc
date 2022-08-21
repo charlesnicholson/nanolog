@@ -440,7 +440,7 @@ void accumulate_log_str_refs_from_func(state const& s,
       uint32_t const target = uint32_t(int32_t(i) + int32_t(imm32));
       elf_symbol32 const* nl_func = get_nl_func(s, target);
       if (nl_func) {
-        printf("  Found bl @ %04x: (%x %s), r0 = 0x%08x\n",
+        printf("  Found bl @ %04x: (%x %s), load r0 from 0x%08x\n",
                i - 4,
                target,
                &s.strtab[nl_func->st_name],
