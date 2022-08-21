@@ -389,11 +389,10 @@ void accumulate_log_str_refs_from_func(state const& s,
 
   elf_symbol32 const& func_sym = *func.second[0];
   elf_section_hdr32 const& func_sec_hdr = s.sec_hdrs[func_sym.st_shndx];
-  uint32_t const func_start = (func_sec_hdr.sh_offset + func_sym.st_value) & uint32_t(~1);
-  uint32_t const func_end = (func_start + func_sym.st_size) & uint32_t(~1);
+  uint32_t const func_start = func_sym.st_value & ~1u;
+  uint32_t const func_end = func_start + func_sym.st_size;
 
   printf("Scanning %4x - %4x (%s):\n", func_start, func_end, &s.strtab[func_sym.st_name]);
-  //print(func_sec_hdr, s.sec_names);
 
   imm_addr_pq_t imm_addrs;
 
@@ -407,44 +406,37 @@ void accumulate_log_str_refs_from_func(state const& s,
     if (on_imm_addr) { i += 4; continue; }
 
     uint16_t w0;
-    memcpy(&w0, &s.elf[i], 2);
+    memcpy(&w0, &s.elf[i + func_sec_hdr.sh_offset], 2);
     i += 2;
-    if ((w0 & 0xF800) == 0x4800) { // ldr rX, [pc, #YY]
-      imm_addrs.push(((i + 4) & uint32_t(~3)) + ((w0 & 0xFF) * 4));
-      continue;
-    }
 
     if (((w0 & 0xF000) == 0xF000) || ((w0 & 0xE800) == 0xE800)) { // 32-bit instr
       uint16_t w1;
-      memcpy(&w1, &s.elf[i], 2);
+      memcpy(&w1, &s.elf[i + func_sec_hdr.sh_offset], 2);
       i += 2;
       if ((w0 & 0xF800) != 0xF000) { continue; }
       if ((w1 & 0xD000) != 0xD000) { continue; }
-
-/*
-  15 14 13 12 11 10 9 8 7 6 5 4 3 2 1 0 15 14 13 12 11 10 9 8 7 6 5 4 3 2 1 0
-   1  1  1  1  0  S imm10                1  1 J1  1 J2 imm11
-
-  I1 = NOT(J1 EOR S);  I2 = NOT(J2 EOR S);
-  imm32 = SignExtend(S:I1:I2:imm10:imm11:'0', 32);
-  toARM = FALSE;
-  if InITBlock() && !LastInITBlock() then UNPREDICTABLE;
-*/
       uint32_t const s = (w0 >> 10u) & 1u;
       uint32_t const sext = ((s ^ 1u) - 1u) & 0xFF000000u;
       uint32_t const j1 = (w1 >> 13u) & 1u;
       uint32_t const j2 = (w1 >> 11u) & 1u;
-      uint32_t const i1 = !(j1 ^ s);
-      uint32_t const i2 = !(j2 ^ s);
-      uint32_t const imm10 = w0 & 0x3FFu;
-      uint32_t const imm11 = w1 & 0x7FFu;
-
-      uint32_t const imm32 =
-        sext | (i1 << 23u) | (i2 << 22u) | (imm10 << 12u) | (imm11 << 1u);
-
+      uint32_t const i1 = uint32_t(!(j1 ^ s)) << 23u;
+      uint32_t const i2 = uint32_t(!(j2 ^ s)) << 22u;
+      uint32_t const imm10 = (w0 & 0x3FFu) << 12u;
+      uint32_t const imm11 = (w1 & 0x7FFu) << 1u;
+      uint32_t const imm32 = sext | i1 | i2 | imm10 | imm11;
       uint32_t const target = uint32_t(int32_t(i) + int32_t(imm32));
+      printf("  Found bl @ %04x: %04hx %04hx (%x)\n", i - 4, w0, w1, target);
+      continue;
+    }
 
-      printf("  Found bl @ %04x: %04hx %04hx (%x %x)\n", i - 4, w0, w1, imm32, target);
+    if ((w0 & 0xF800) == 0x4800) { // ldr rX, [pc, #YY]
+      uint32_t const rt = (w0 >> 8u) & 7u;
+      uint32_t const imm8 = ((i + 2) & ~3u) + ((w0 & 0xFF) * 4);
+      uint32_t val;
+      memcpy(&val, &s.elf[imm8 + func_sec_hdr.sh_offset], 4);
+      printf("  Found imm @ %04x: (%x: 0x%08x) r%d\n", i - 2, imm8, val, (int)rt);
+      imm_addrs.push(imm8);
+      continue;
     }
   }
 }
