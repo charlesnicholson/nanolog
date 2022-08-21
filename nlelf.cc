@@ -432,8 +432,8 @@ void accumulate_log_str_refs_from_func(state const& s,
       uint32_t const sext = ((sbit ^ 1u) - 1u) & 0xFF000000u;
       uint32_t const j1 = (w1 >> 13u) & 1u;
       uint32_t const j2 = (w1 >> 11u) & 1u;
-      uint32_t const i1 = uint32_t(!(j1 ^ sbit)) << 23u;
-      uint32_t const i2 = uint32_t(!(j2 ^ sbit)) << 22u;
+      uint32_t const i1 = (1u - (j1 ^ sbit)) << 23u;
+      uint32_t const i2 = (1u - (j2 ^ sbit)) << 22u;
       uint32_t const imm10 = (w0 & 0x3FFu) << 12u;
       uint32_t const imm11 = (w1 & 0x7FFu) << 1u;
       uint32_t const imm32 = sext | i1 | i2 | imm10 | imm11;
