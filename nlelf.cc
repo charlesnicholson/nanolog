@@ -212,6 +212,13 @@ struct state {
   char const *strtab;
 };
 
+struct nl_log_str_ref {
+  elf_symbol32 const *func; // function the nanolog call was found in.
+  uint32_t addr; // address of the 32-bit immediate load target
+};
+
+using nl_log_str_refs_t = std::vector<nl_log_str_ref>;
+
 namespace {
 std::vector<char> load_file(char const *fn) { // TODO: mmap
   FILE *f = fopen(fn, "rb");
@@ -292,9 +299,9 @@ void load_elf(state& s) {
     } else {
       auto found = s.non_nl_funcs_sym_map.find(sym.st_value);
       if (found == s.non_nl_funcs_sym_map.end()) {
-        bool inserted;
-        std::tie(found, inserted) = s.non_nl_funcs_sym_map.insert({sym.st_value, {}});
-        assert(inserted);
+        bool ok;
+        std::tie(found, ok) = s.non_nl_funcs_sym_map.insert({sym.st_value, {}});
+        assert(ok);
       }
       found->second.push_back(&sym);
     }
@@ -396,7 +403,7 @@ elf_symbol32 const * get_nl_func(state const& s, uint32_t cand) {
 
 void accumulate_log_str_refs_from_func(state const& s,
                                        sym_addr_map_t::value_type const& func,
-                                       u32_vec_t& nl_log_str_refs) {
+                                       nl_log_str_refs_t& nl_log_str_refs) {
 
   elf_symbol32 const& func_sym = *func.second[0];
   elf_section_hdr32 const& func_sec_hdr = s.sec_hdrs[func_sym.st_shndx];
@@ -446,7 +453,7 @@ void accumulate_log_str_refs_from_func(state const& s,
                &s.strtab[nl_func->st_name],
                last_seen_r0_load);
         assert(last_seen_r0_load);
-        nl_log_str_refs.push_back(last_seen_r0_load);
+        nl_log_str_refs.push_back({func.second[0], last_seen_r0_load});
       }
       continue;
     }
@@ -461,8 +468,8 @@ void accumulate_log_str_refs_from_func(state const& s,
   }
 }
 
-u32_vec_t get_log_str_refs(state const& s) {
-  u32_vec_t log_str_refs;
+nl_log_str_refs_t get_log_str_refs(state const& s) {
+  nl_log_str_refs_t log_str_refs;
 
   for (const auto& func_syms : s.non_nl_funcs_sym_map) {
     accumulate_log_str_refs_from_func(s, func_syms, log_str_refs);
@@ -470,12 +477,12 @@ u32_vec_t get_log_str_refs(state const& s) {
 
   return log_str_refs;
 }
-
 }
 
 int main(int, char const *[]) {
   state s;
   load_elf(s);
+  /*
   print(*s.elf_hdr);
   printf("\n");
   for (auto i = 0u; i < s.elf_hdr->e_phnum; ++i) { print(s.prog_hdrs[i]); }
@@ -501,6 +508,7 @@ int main(int, char const *[]) {
   }
 
   printf("\n");
+  */
   get_log_str_refs(s);
 
   return 0;
