@@ -460,7 +460,7 @@ void accumulate_log_str_refs_from_func(state const& s,
 
     if ((w0 & 0xF800) == 0x4800) { // ldr rX, [pc, #YY]
       uint32_t const rt = (w0 >> 8u) & 7u;
-      uint32_t const imm = ((i + 2) & ~3u) + ((w0 & 0xFF) * 4);
+      uint32_t const imm = ((i + 2u) & ~3u) + ((w0 & 0xFFu) << 2u);
       imm_addrs.push(imm);
       if (!rt) { last_seen_r0_load = imm + func_sec_hdr.sh_addr; }
       continue;
