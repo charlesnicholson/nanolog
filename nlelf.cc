@@ -262,7 +262,6 @@ elf_section_hdr32 const *find_strtab_hdr(elf_section_hdr32 const *sec_hdrs,
   return nullptr;
 }
 
-
 void load_elf(state& s) {
   s.elf = load_file("nrf52832_xxaa.out");
   s.elf_hdr = (elf_hdr32*)(s.elf.data());
@@ -401,16 +400,36 @@ elf_symbol32 const * get_nl_func(state const& s, uint32_t cand) {
   return nullptr;
 }
 
+static bool is_32bit_instr(uint16_t const hw1, uint16_t const hw2) {
+  // this could be a single simd instruction
+  bool const dp_imm = ((hw1 & 0xF800) == 0xF000) && ((hw2 & 0x8000) == 0x0000);
+  bool const dp_nimm = (hw1 & 0xEE00) == 0xEA00;
+  bool const ls_mem = (hw1 & 0xFE00) == 0xF800;
+  bool const ls_de_tb = (hw1 & 0xFE40) == 0xE840;
+  bool const lsm_rfe_srs = (hw1 & 0xFE40) == 0xE800;
+  bool const b_misc = ((hw1 & 0xF800) == 0xF000) && ((hw2 & 0x8000) == 0x8000);
+  bool const coproc = (hw1 & 0xFF00) == 0x7F00;
+  return dp_imm || dp_nimm || ls_mem || ls_de_tb || lsm_rfe_srs || b_misc || coproc;
+}
+
+static bool is_bl_imm(uint16_t const hw1, uint16_t const hw2) {
+  return ((hw1 & 0xF800) == 0xF000) && ((hw2 & 0xD000) == 0xD000);
+}
+
+static bool is_ld_lit(uint16_t const inst) {
+  return (inst & 0xF800) == 0x4800;
+}
+
 void accumulate_log_str_refs_from_func(state const& s,
                                        sym_addr_map_t::value_type const& func,
                                        nl_log_str_refs_t& nl_log_str_refs) {
 
   elf_symbol32 const& func_sym = *func.second[0];
   elf_section_hdr32 const& func_sec_hdr = s.sec_hdrs[func_sym.st_shndx];
-  uint32_t const func_start = func_sym.st_value & ~1u;
+  uint32_t const func_start = (func_sym.st_value - func_sec_hdr.sh_addr) & ~1u;
   uint32_t const func_end = func_start + func_sym.st_size;
 
-  printf("Scanning %s: (%x-%x):\n", &s.strtab[func_sym.st_name], func_start, func_end);
+  printf("Scanning %s: %x (%x-%x):\n", &s.strtab[func_sym.st_name], func_sym.st_value, func_start, func_end);
 
   imm_addr_pq_t imm_addrs;
   uint32_t last_seen_r0_load = 0;
@@ -428,37 +447,40 @@ void accumulate_log_str_refs_from_func(state const& s,
     memcpy(&w0, &s.elf[i + func_sec_hdr.sh_offset], 2);
     i += 2;
 
-    if (((w0 & 0xF000) == 0xF000) || ((w0 & 0xE800) == 0xE800)) { // 32-bit instr
+    if (i < func_end) {
       uint16_t w1;
       memcpy(&w1, &s.elf[i + func_sec_hdr.sh_offset], 2);
-      i += 2;
-      if ((w0 & 0xF800) != 0xF000) { continue; }
-      if ((w1 & 0xD000) != 0xD000) { continue; }
-      // bl imm, extract target
-      uint32_t const sbit = (w0 >> 10u) & 1u;
-      uint32_t const sext = ((sbit ^ 1u) - 1u) & 0xFF000000u;
-      uint32_t const j1 = (w1 >> 13u) & 1u;
-      uint32_t const j2 = (w1 >> 11u) & 1u;
-      uint32_t const i1 = (1u - (j1 ^ sbit)) << 23u;
-      uint32_t const i2 = (1u - (j2 ^ sbit)) << 22u;
-      uint32_t const imm10 = (w0 & 0x3FFu) << 12u;
-      uint32_t const imm11 = (w1 & 0x7FFu) << 1u;
-      uint32_t const imm32 = sext | i1 | i2 | imm10 | imm11;
-      uint32_t const target = uint32_t(int32_t(i) + int32_t(imm32));
-      elf_symbol32 const* nl_func = get_nl_func(s, target);
-      if (nl_func) {
-        printf("  Found bl @ %04x: (%x %s), load r0 from 0x%08x\n",
-               i - 4,
-               target,
-               &s.strtab[nl_func->st_name],
-               last_seen_r0_load);
-        assert(last_seen_r0_load);
-        nl_log_str_refs.push_back({func.second[0], last_seen_r0_load});
+
+      if (is_32bit_instr(w0, w1)) {
+        i += 2;
+        if (is_bl_imm(w0, w1)) {
+          uint32_t const sbit = (w0 >> 10u) & 1u;
+          uint32_t const sext = ((sbit ^ 1u) - 1u) & 0xFF000000u;
+          uint32_t const j1 = (w1 >> 13u) & 1u;
+          uint32_t const j2 = (w1 >> 11u) & 1u;
+          uint32_t const i1 = (1u - (j1 ^ sbit)) << 23u;
+          uint32_t const i2 = (1u - (j2 ^ sbit)) << 22u;
+          uint32_t const imm10 = (w0 & 0x3FFu) << 12u;
+          uint32_t const imm11 = (w1 & 0x7FFu) << 1u;
+          uint32_t const imm32 = sext | i1 | i2 | imm10 | imm11;
+          uint32_t const target = i + imm32 + func_sec_hdr.sh_addr;
+
+          elf_symbol32 const* nl_func = get_nl_func(s, target);
+          if (nl_func) {
+            printf("  Found bl @ %x: (%x %s), load r0 from 0x%08x\n",
+                   func_sec_hdr.sh_addr + i - 4,
+                   target,
+                   &s.strtab[nl_func->st_name],
+                   last_seen_r0_load);
+            assert(last_seen_r0_load);
+            nl_log_str_refs.push_back({func.second[0], last_seen_r0_load});
+          }
+          continue;
+        }
       }
-      continue;
     }
 
-    if ((w0 & 0xF800) == 0x4800) { // ldr rX, [pc, #YY]
+    if (is_ld_lit(w0)) { // ldr rX, [pc, #YY]
       uint32_t const rt = (w0 >> 8u) & 7u;
       uint32_t const imm = ((i + 2u) & ~3u) + ((w0 & 0xFFu) << 2u);
       imm_addrs.push(imm);
@@ -490,7 +512,6 @@ int main(int, char const *[]) {
   */
   for (auto i = 0u; i < s.elf_hdr->e_shnum; ++i) { print(s.sec_hdrs[i], s.sec_names); }
   printf("\n");
-  /*
   printf("%d symbols found\n", s.sym_count);
 
   printf("\n");
@@ -510,7 +531,6 @@ int main(int, char const *[]) {
   }
 
   printf("\n");
-  */
   nl_log_str_refs_t const nl_log_str_refs = get_log_str_refs(s);
   printf("\n");
   printf(".nanolog string references:\n");
