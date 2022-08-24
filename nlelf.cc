@@ -2,8 +2,9 @@
 #include <cstdio>
 #include <cstdint>
 #include <queue>
-#include <vector>
+#include <string_view>
 #include <unordered_map>
+#include <vector>
 
 #define ELF_OSABI_X_LIST() \
   X(ELF_OSABI_SYSTEM_V, 0x00) \
@@ -197,6 +198,40 @@ struct elf_symbol32 {
 using u32_vec_t = std::vector<uint32_t>;
 using imm_addr_pq_t = std::priority_queue<uint32_t, u32_vec_t, std::greater<uint32_t>>;
 using sym_addr_map_t = std::unordered_map<uint32_t, std::vector<elf_symbol32 const*>>;
+
+enum class log_str_spec : char {
+  LOG_STR_SPEC_SIGNED_INT,
+  LOG_STR_SPEC_UNSIGNED_INT,
+  LOG_STR_SPEC_OCTAL,
+  LOG_STR_SPEC_HEX,
+  LOG_STR_SPEC_FLOAT,
+  LOG_STR_SPEC_CHAR,
+  LOG_STR_SPEC_STRING,
+  LOG_STR_SPEC_POINTER,
+};
+
+enum class log_str_len : char {
+  LOG_STR_LEN_NONE,
+  LOG_STR_LEN_CHAR,
+  LOG_STR_LEN_SHORT,
+  LOG_STR_LEN_LONG,
+  LOG_STR_LEN_LONGLONG,
+  LOG_STR_LEN_INTMAXT,
+  LOG_STR_LEN_SIZET,
+  LOG_STR_LEN_PTRDIFFT,
+};
+
+struct log_str_arg {
+  log_str_spec spec;
+  log_str_len len;
+};
+
+struct log_str_desc {
+  unsigned guid;
+  std::vector<log_str_arg> args;
+};
+
+using log_str_desc_map_t = std::unordered_map<std::string_view, log_str_desc>;
 
 struct state {
   std::vector<char> elf;
