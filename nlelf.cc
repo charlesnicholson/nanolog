@@ -215,6 +215,8 @@ struct state {
 struct nl_log_str_ref {
   elf_symbol32 const *func; // function the nanolog call was found in.
   uint32_t addr; // address of the 32-bit immediate load target
+  uint32_t imm; // value of the 32-bit immediate load target
+  char const *str; // nanolog format string
 };
 
 using nl_log_str_refs_t = std::vector<nl_log_str_ref>;
@@ -382,15 +384,15 @@ void print(elf_section_hdr32 const& s, char const *sec_names) {
   printf("  entsize:   0x%08x\n", s.sh_entsize);
 }
 
-//void print(elf_symbol32 const& s, char const *strtab) {
-//  printf("ELF Symbol:\n");
-//  printf("  name: %s\n", &strtab[s.st_name]);
-//  printf("  value: 0x%04x\n", s.st_value);
-//  printf("  size: %u\n", s.st_size);
-//  printf("  info: 0x%02hhx\n", s.st_info);
-//  printf("  other: 0x%02hhx\n", s.st_other);
-//  printf("  shndx: %hu\n", s.st_shndx);
-//}
+void print(elf_symbol32 const& s, char const *strtab) {
+  printf("ELF Symbol:\n");
+  printf("  name: %s\n", &strtab[s.st_name]);
+  printf("  value: 0x%04x\n", s.st_value);
+  printf("  size: %u\n", s.st_size);
+  printf("  info: 0x%02hhx\n", s.st_info);
+  printf("  other: 0x%02hhx\n", s.st_other);
+  printf("  shndx: %hu\n", s.st_shndx);
+}
 
 elf_symbol32 const * get_nl_func(state const& s, uint32_t cand) {
   for (auto const *nl_func : s.nl_funcs) {
@@ -467,14 +469,28 @@ void accumulate_log_str_refs_from_func(state const& s,
 
           elf_symbol32 const* nl_func = get_nl_func(s, target);
           if (nl_func) {
-            printf("  Found bl @ %x: (%x %s), load r0 from 0x%08x\n",
+            assert(last_seen_r0_load);
+
+            uint32_t const imm32_offset =
+              func_sec_hdr.sh_offset + (last_seen_r0_load - func_sec_hdr.sh_addr);
+
+            uint32_t nl_str_imm32;
+            memcpy(&nl_str_imm32, &s.elf[imm32_offset], 4);
+
+            uint32_t const log_str_off =
+              s.nl_hdr->sh_offset + (nl_str_imm32 - s.nl_hdr->sh_addr);
+
+            printf("  Found bl @ %x: (%x %s), load r0 from 0x%08x: \"%s\"\n",
                    func_sec_hdr.sh_addr + i - 4,
                    target,
                    &s.strtab[nl_func->st_name],
-                   last_seen_r0_load);
-            assert(last_seen_r0_load);
-            nl_log_str_refs.push_back({func.second[0], last_seen_r0_load});
+                   last_seen_r0_load,
+                   &s.elf[log_str_off]);
+
+            nl_log_str_refs.push_back(
+              {func.second[0], last_seen_r0_load, nl_str_imm32, &s.elf[log_str_off]});
           }
+
           continue;
         }
       }
@@ -504,12 +520,14 @@ nl_log_str_refs_t get_log_str_refs(state const& s) {
 int main(int, char const *[]) {
   state s;
   load_elf(s);
+
   /*
   print(*s.elf_hdr);
   printf("\n");
   for (auto i = 0u; i < s.elf_hdr->e_phnum; ++i) { print(s.prog_hdrs[i]); }
   printf("\n");
   */
+
   for (auto i = 0u; i < s.elf_hdr->e_shnum; ++i) { print(s.sec_hdrs[i], s.sec_names); }
   printf("\n");
   printf("%d symbols found\n", s.sym_count);
@@ -533,18 +551,13 @@ int main(int, char const *[]) {
   printf("\n");
   nl_log_str_refs_t const nl_log_str_refs = get_log_str_refs(s);
   printf("\n");
+
   printf(".nanolog string references:\n");
   for (const auto& nl_log_str_ref : nl_log_str_refs) {
-    elf_section_hdr32 const& func_sec_hdr = s.sec_hdrs[nl_log_str_ref.func->st_shndx];
-
-    uint32_t const imm32_offset =
-      func_sec_hdr.sh_offset + (nl_log_str_ref.addr - func_sec_hdr.sh_addr);
-
-    uint32_t imm32;
-    memcpy(&imm32, &s.elf[imm32_offset], 4);
-
-    uint32_t log_str_off = s.nl_hdr->sh_offset + (imm32 - s.nl_hdr->sh_addr);
-    printf("  0x%08x %x \"%s\"\n", nl_log_str_ref.addr, imm32, &s.elf[log_str_off]);
+    printf("  0x%08x %x \"%s\"\n",
+           nl_log_str_ref.addr,
+           nl_log_str_ref.imm,
+           nl_log_str_ref.str);
   }
 
   return 0;
