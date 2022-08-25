@@ -226,7 +226,6 @@ struct state {
   elf_prog_hdr32 const *prog_hdrs;
   char const *sec_names;
   elf_symbol32 const *symtab;
-  unsigned sym_count;
   char const *strtab;
 };
 
@@ -296,7 +295,6 @@ void load_elf(state& s) {
   assert(symtab_hdr);
   assert(symtab_hdr->sh_entsize == sizeof(elf_symbol32));
   s.symtab = (elf_symbol32 const*)(s.elf.data() + symtab_hdr->sh_offset);
-  s.sym_count = symtab_hdr->sh_size / symtab_hdr->sh_entsize;
 
   // string table
   elf_section_hdr32 const *strtab_hdr =
@@ -309,7 +307,8 @@ void load_elf(state& s) {
   assert(s.nl_hdr);
 
   // nanolog functions, and non-nanolog-function-addr-to-symbol-map
-  for (auto i = 0u; i < s.sym_count; ++i) {
+  auto n = symtab_hdr->sh_size / symtab_hdr->sh_entsize;
+  for (auto i = 0u; i < n; ++i) {
     elf_symbol32 const& sym = s.symtab[i];
     if ((sym.st_info & 0xF) != ELF_SYM_TYPE_FUNC) { continue; }
 
@@ -548,9 +547,7 @@ int main(int, char const *[]) {
 
   for (auto i = 0u; i < s.elf_hdr->e_shnum; ++i) { print(s.sec_hdrs[i], s.sec_names); }
   printf("\n");
-  printf("%d symbols found\n", s.sym_count);
 
-  printf("\n");
   printf("Non-nanolog functions:\n");
   for (auto const& e : s.non_nl_funcs_sym_map) {
     printf("  0x%08x ", e.first);
@@ -559,14 +556,14 @@ int main(int, char const *[]) {
     }
     printf("\n");
   }
-
   printf("\n");
+
   printf("Nanolog public functions:\n");
   for (auto const& nl_func : s.nl_funcs) {
     printf("  0x%08x %s\n", nl_func->st_value & ~1u, &s.strtab[nl_func->st_name]);
   }
-
   printf("\n");
+
   nl_log_str_refs_t const nl_log_str_refs = get_log_str_refs(s);
   printf("\n");
 
