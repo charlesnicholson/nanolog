@@ -2,7 +2,7 @@
 *.dSYM
 *.d
 
-nlelf
+build
 
 # Compiled Object files
 *.slo
