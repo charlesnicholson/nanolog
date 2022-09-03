@@ -7,34 +7,42 @@
 
 #define INST_TYPE_X_LIST() \
   X(PUSH, push) \
+  X(POP, pop) \
   X(NOP, nop) \
-  X(BRANCH, branch)
+  X(BRANCH, branch) \
+  X(BRANCH_XCHG, branch_xchg) \
+  X(SVC, svc)
 
 #define X(ENUM, TYPE) ENUM,
-enum class inst_type {
-  INST_TYPE_X_LIST()
-};
+enum class inst_type { INST_TYPE_X_LIST() };
 #undef X
 
 // Instructions
 
-struct inst_push { uint16_t register_list; }; // 4.6.99
-void print(inst_push const& i) { printf("  PUSH 0x%04x\n", i.register_list); }
+struct inst_push { uint16_t reg_list; };
+void print(inst_push const& i) { printf("  PUSH 0x%04x\n", (unsigned)i.reg_list); }
 
-struct inst_nop {}; // 4.6.88
+struct inst_pop { uint16_t reg_list; };
+void print(inst_pop const& i) { printf("  POP 0x%04x\n", (unsigned)i.reg_list); }
+
+struct inst_nop {};
 void print(inst_nop const&) { printf("  NOP\n"); }
 
-struct inst_branch { uint32_t label; }; // 4.6.12
-void print(inst_branch const& i) { printf("  B %x\n", i.label); }
+struct inst_branch { uint32_t label; };
+void print(inst_branch const& i) { printf("  B %x\n", (unsigned)i.label); }
+
+struct inst_branch_xchg { uint16_t reg; };
+void print(inst_branch_xchg const& i) { printf("  BX %d\n", (unsigned)i.reg); }
+
+struct inst_svc { uint32_t label; };
+void print(inst_svc const&) { printf("  SVC\n"); }
 
 //
 
 #define X(ENUM, TYPE) inst_##TYPE TYPE;
 struct inst {
   inst_type type;
-  union {
-    INST_TYPE_X_LIST()
-  } i;
+  union { INST_TYPE_X_LIST() } i;
   int len; // 2 or 4
 };
 #undef X
@@ -55,6 +63,11 @@ struct reg_state {
 };
 
 namespace {
+int sext(int x, int sign_bit) {
+  int const m = 1 << sign_bit;
+  return (x ^ m) - m;
+}
+
 bool is_16bit_inst(uint16_t w0) {
   /* 3.1 Instruction set encoding
      Table 3-1 Determination of instruction length
@@ -70,17 +83,35 @@ bool parse_16bit_inst(uint16_t const w0, uint32_t addr, inst& out_inst) {
   out_inst.len = 2;
 
   if ((w0 & 0xFE00) == 0xB400) { // 4.6.99 PUSH, T1 encoding (pg 4-211)
-    uint16_t const regs = uint16_t(((w0 & 0x0100u) << 6u) | (w0 & 0x00FFu));
     out_inst.type = inst_type::PUSH;
-    out_inst.i.push = inst_push{ .register_list = regs };
+    out_inst.i.push =
+      inst_push{ .reg_list = uint16_t(((w0 & 0x0100u) << 6u) | (w0 & 0xFFu)) };
+    return true;
+  }
+
+  if ((w0 & 0xFE00) == 0xBC00) { // 4.6.98 POP, T1 encoding (pg 4-209)
+    out_inst.type = inst_type::POP;
+    out_inst.i.pop =
+      inst_pop{ .reg_list = uint16_t(((w0 & 0x100u) << 7) | (w0 & 0xFFu)) };
+    return true;
+  }
+
+  if ((w0 & 0xFF00) == 0xDF00) { // 4.6.12 B, T1 encoding (pg 4-38)
+    out_inst.type = inst_type::SVC;
+    out_inst.i.svc = inst_svc{ .label = uint32_t(sext((w0 & 0xff) << 1, 8)) };
     return true;
   }
 
   if ((w0 & 0xF800) == 0xE000) { // 4.6.12 B, T2 encoding (pg 4-38)
     out_inst.type = inst_type::BRANCH;
-    int const sext = 1 << 11;
-    int const imm32 = (int((w0 & 0x7ff) << 1) ^ sext) - sext;
-    out_inst.i.branch = inst_branch{ .label = uint32_t(int(addr + 4) + imm32) };
+    out_inst.i.branch =
+      inst_branch{ .label = uint32_t(int(addr + 4) + sext((w0 & 0x7FF) << 1, 11)) };
+    return true;
+  }
+
+  if ((w0 & 0xFF80) == 0x4700) { // 4.6.20 BX, T1 encoding (pg 4-54)
+    out_inst.type = inst_type::BRANCH_XCHG;
+    out_inst.i.branch_xchg = inst_branch_xchg{ .reg = uint16_t((w0 >> 3u) & 0xFu)};
     return true;
   }
 
