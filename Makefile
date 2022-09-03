@@ -1,7 +1,11 @@
 BUILD_DIR := build
 OS := $(shell uname)
 
-UNCLOG_SRCS := unclog/unclog.cc unclog/nl_print.cc unclog/nl_elf.cc
+UNCLOG_SRCS := unclog/unclog.cc \
+			   unclog/nl_print.cc \
+			   unclog/nl_elf.cc \
+			   unclog/nl_thumb2.cc
+
 UNCLOG_OBJS := $(UNCLOG_SRCS:%=$(BUILD_DIR)/%.o)
 UNCLOG_DEPS := $(UNCLOG_OBJS:.o=.d)
 
@@ -18,7 +22,8 @@ CXXFLAGS += -Wno-c++98-compat-pedantic \
 			-Wno-missing-prototypes \
 			-Wno-old-style-cast \
 			-Wno-covered-switch-default \
-			-Wno-cast-align
+			-Wno-cast-align \
+			-Wno-unused-function
 endif
 
 $(BUILD_DIR)/bin/unclog: $(UNCLOG_OBJS) Makefile

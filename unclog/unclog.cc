@@ -1,5 +1,6 @@
 #include "nl_elf.h"
 #include "nl_print.h"
+#include "nl_thumb2.h"
 
 #include <cassert>
 #include <cstdio>
@@ -112,7 +113,7 @@ void print(nl_str_desc const &d) {
   }
 }
 
-elf_symbol32 const * get_nl_func(state const& s, uint32_t cand) {
+elf_symbol32 const *get_nl_func(state const& s, uint32_t cand) {
   for (auto const *nl_func : s.nl_funcs) {
     if ((nl_func->st_value & ~1u) == cand) { return nl_func; }
   }
@@ -297,22 +298,27 @@ int main(int, char const *[]) {
   }
   printf("\n");
 
-  nl_str_refs_t const nl_str_refs = get_log_str_refs(s);
-  printf("\n");
-
-  printf(".nanolog string references:\n");
-  for (auto const& nl_str_ref : nl_str_refs) {
-    printf("  0x%08x %x \"%s\"\n",
-           nl_str_ref.addr,
-           nl_str_ref.imm,
-           nl_str_ref.str);
+  for (auto const& func_syms : s.non_nl_funcs_sym_map) {
+    thumb2_find_log_strs_in_func(e, *func_syms.second[0]);
   }
-  printf("\n");
-
-  nl_str_desc_map_t const nl_str_desc_map = build_nl_str_desc_map(nl_str_refs);
-  for (auto const& nl_str_desc : nl_str_desc_map) {
-    print(nl_str_desc.second);
-  }
-
   return 0;
+
+  //nl_str_refs_t const nl_str_refs = get_log_str_refs(s);
+  //printf("\n");
+
+  //printf(".nanolog string references:\n");
+  //for (auto const& nl_str_ref : nl_str_refs) {
+  //  printf("  0x%08x %x \"%s\"\n",
+  //         nl_str_ref.addr,
+  //         nl_str_ref.imm,
+  //         nl_str_ref.str);
+  //}
+  //printf("\n");
+
+  //nl_str_desc_map_t const nl_str_desc_map = build_nl_str_desc_map(nl_str_refs);
+  //for (auto const& nl_str_desc : nl_str_desc_map) {
+  //  print(nl_str_desc.second);
+  //}
+
+  //return 0;
 }
