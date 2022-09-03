@@ -111,7 +111,7 @@ bool is_16bit_inst(uint16_t w0) {
      0b11100 Thumb 16-bit unconditional branch instruction
      0b111xx Thumb 32-bit instructions, defined in Thumb-2
      0bxxxxx Thumb 16-bit instructions. */
-  if ((w0 & 0xF000) == 0xE000) { return true; }
+  if ((w0 & 0xF800) == 0xE000) { return true; }
   if ((w0 & 0xE000) == 0xE000) { return false; }
   return true;
 }
@@ -222,8 +222,11 @@ bool thumb2_find_log_strs_in_func(elf const& e,
     paths.pop();
 
     inst decoded_inst;
-    parse_inst(&e.bytes[func_ofs], s.addr, decoded_inst);
-    print(decoded_inst);
+    if (parse_inst(&e.bytes[func_ofs], s.addr, decoded_inst)) {
+      print(decoded_inst);
+    } else {
+      printf("  Unknown\n");
+    }
   }
 
   return true;
