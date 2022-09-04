@@ -57,6 +57,7 @@ char const *s_reg_names[] = {
   X(BRANCH_XCHG, branch_xchg) \
   X(LOAD_LIT, load_lit) \
   X(LSHIFT_LOG, lshift_log) \
+  X(MOV, mov) \
   X(MOVS, movs) \
   X(SVC, svc)
 
@@ -73,7 +74,8 @@ struct inst_branch_link_xchg { uint32_t label; };
 struct inst_branch_xchg { uint8_t reg; };
 struct inst_load_lit { uint32_t label; uint8_t reg; };
 struct inst_lshift_log { uint8_t dst_reg, src_reg, imm; };
-struct inst_movs { uint8_t imm; uint8_t reg; };
+struct inst_mov { uint8_t dst_reg, src_reg; };
+struct inst_movs { uint8_t imm, reg; };
 struct inst_svc { uint32_t label; };
 
 void print(inst_push const& p) {
@@ -97,6 +99,10 @@ void print(inst_load_lit const& l) {
 
 void print(inst_lshift_log const& l) {
   printf("  LSL %s %s #%d\n", s_reg_names[l.dst_reg], s_reg_names[l.src_reg], (int)l.imm);
+}
+
+void print(inst_mov const& m) {
+  printf("  MOV %s %s\n", s_reg_names[m.dst_reg], s_reg_names[m.src_reg]);
 }
 
 void print(inst_movs const& m) {
@@ -198,6 +204,14 @@ bool parse_16bit_inst(uint16_t const w0, uint32_t const addr, inst& out_inst) {
     out_inst.type = inst_type::MOVS;
     out_inst.i.movs =
       inst_movs{ .imm = uint8_t(w0 & 0xFFu), .reg = uint8_t((w0 >> 8u) & 7u) };
+    return true;
+  }
+
+  if ((w0 & 0xFF00) == 0x4600) { // 4.6.77 MOV (register), T1 encoding (pg 4-168)
+    out_inst.type = inst_type::MOV;
+    out_inst.i.mov =
+      inst_mov{ .src_reg = uint8_t((w0 >> 3u) & 0xFu),
+                .dst_reg = uint8_t((w0 & 7u) | ((w0 & 8u) >> 4u)) };
     return true;
   }
 
