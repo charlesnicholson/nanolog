@@ -55,6 +55,9 @@ char const *s_reg_names[] = {
   X(BRANCH_LINK, branch_link) \
   X(BRANCH_LINK_XCHG, branch_link_xchg) \
   X(BRANCH_XCHG, branch_xchg) \
+  X(LOAD_LIT, load_lit) \
+  X(LSHIFT_LOG, lshift_log) \
+  X(MOVS, movs) \
   X(SVC, svc)
 
 #define X(ENUM, TYPE) ENUM,
@@ -67,11 +70,14 @@ struct inst_nop {};
 struct inst_branch { uint32_t label; cond_code cc; };
 struct inst_branch_link { uint32_t label; };
 struct inst_branch_link_xchg { uint32_t label; };
-struct inst_branch_xchg { uint16_t reg; };
+struct inst_branch_xchg { uint8_t reg; };
+struct inst_load_lit { uint32_t label; uint8_t reg; };
+struct inst_lshift_log { uint8_t dst_reg, src_reg, imm; };
+struct inst_movs { uint8_t imm; uint8_t reg; };
 struct inst_svc { uint32_t label; };
 
 void print(inst_push const& p) {
-  printf("  PUSH 0x%04x { ", p.reg_list);
+  printf("  PUSH { ");
   for (int i = 0; i < 16; ++i) {
     if (p.reg_list & (1 << i)) { printf("%s ", s_reg_names[i]); }
   }
@@ -80,14 +86,23 @@ void print(inst_push const& p) {
 
 void print(inst_pop const& i) { printf("  POP 0x%04x\n", (unsigned)i.reg_list); }
 void print(inst_nop const&) { printf("  NOP\n"); }
-
-void print(inst_branch const& i) {
-  printf("  B (%s) %x\n", cond_code_name(i.cc), (unsigned)i.label);
-}
-
+void print(inst_branch const& i) { printf("  B %s %x\n", cond_code_name(i.cc), i.label); }
 void print(inst_branch_link const& i) { printf("  BL %x\n", (unsigned)i.label); }
 void print(inst_branch_link_xchg const& i) { printf("  BLX %x\n", (unsigned)i.label); }
 void print(inst_branch_xchg const& i) { printf("  BX %d\n", (unsigned)i.reg); }
+
+void print(inst_load_lit const& l) {
+  printf("  LDR %s, %x\n", s_reg_names[l.reg], l.label);
+}
+
+void print(inst_lshift_log const& l) {
+  printf("  LSL %s %s #%d\n", s_reg_names[l.dst_reg], s_reg_names[l.src_reg], (int)l.imm);
+}
+
+void print(inst_movs const& m) {
+  printf("  MOVS %s, #%d\n", s_reg_names[m.reg], (int)m.imm);
+}
+
 void print(inst_svc const&) { printf("  SVC\n"); }
 
 // Instruction (tagged union)
@@ -164,7 +179,31 @@ bool parse_16bit_inst(uint16_t const w0, uint32_t const addr, inst& out_inst) {
 
   if ((w0 & 0xFF80) == 0x4700) { // 4.6.20 BX, T1 encoding (pg 4-54)
     out_inst.type = inst_type::BRANCH_XCHG;
-    out_inst.i.branch_xchg = inst_branch_xchg{ .reg = uint16_t((w0 >> 3u) & 0xFu)};
+    out_inst.i.branch_xchg = inst_branch_xchg{ .reg = uint8_t((w0 >> 3u) & 0xFu)};
+    return true;
+  }
+
+  if ((w0 & 0xF800) == 0x4800) { // 4.6.44 LDR (literal), T1 encoding (pg 4-102)
+    out_inst.type = inst_type::LOAD_LIT;
+    out_inst.i.load_lit =
+      inst_load_lit{ .label = ((w0 & 0xFFu) << 2u) + ((addr + 4u) & ~3u),
+                     .reg = uint8_t((w0 >> 8u) & 7u) };
+    return true;
+  }
+
+  if ((w0 & 0xF800) == 0) { // 4.6.68 LSL (immediate), T1 encoding (pg 4-150)
+    out_inst.type = inst_type::LSHIFT_LOG;
+    out_inst.i.lshift_log =
+      inst_lshift_log{ .dst_reg = uint8_t(w0 & 7u),
+                       .src_reg = uint8_t((w0 >> 3u) & 7u),
+                       .imm = uint8_t((w0 >> 6u) & 0x1Fu) };
+    return true;
+  }
+
+  if ((w0 & 0xF800) == 0x2000) { // 4.6.76 MOV (immediate), T1 encoding (pg 4-166)
+    out_inst.type = inst_type::MOVS;
+    out_inst.i.movs =
+      inst_movs{ .imm = uint8_t(w0 & 0xFFu), .reg = uint8_t((w0 >> 8u) & 7u) };
     return true;
   }
 
@@ -193,7 +232,7 @@ bool parse_32bit_inst(uint16_t const w0,
     uint32_t const imm11 = (w1 & 0x7FFu) << 1u;
     uint32_t const imm32 = sext | i1 | i2 | imm10 | imm11;
     out_inst.type = inst_type::BRANCH_LINK;
-    out_inst.i.branch_link = inst_branch_link{ .label = addr + imm32 };
+    out_inst.i.branch_link = inst_branch_link{ .label = addr + 4 + imm32 };
     return true;
   }
 
@@ -218,9 +257,10 @@ bool thumb2_find_log_strs_in_func(elf const& e,
   uint32_t const func_end = func_start + func.st_size;
   uint32_t const func_ofs = func_sec_hdr.sh_offset;
 
-  printf("Scanning %s: %x (%x-%x):\n",
+  printf("Scanning %s: addr %x, len %x, range %x-%x:\n",
          &e.strtab[func.st_name],
          func.st_value,
+         func.st_size,
          func_start,
          func_end);
 
