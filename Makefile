@@ -2,7 +2,6 @@ BUILD_DIR := build
 OS := $(shell uname)
 
 UNCLOG_SRCS := unclog/unclog.cc \
-			   unclog/nl_print.cc \
 			   unclog/nl_elf.cc \
 			   unclog/nl_thumb2.cc
 

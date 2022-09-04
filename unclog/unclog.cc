@@ -1,5 +1,4 @@
 #include "nl_elf.h"
-#include "nl_print.h"
 #include "nl_thumb2.h"
 
 #include <cassert>
@@ -60,7 +59,7 @@ elf_section_hdr32 const *find_nl_hdr(elf_section_hdr32 const *sec_hdrs,
 }
 
 bool load(state& s) {
-  if (!load_elf(s.elf, "nrf52832_xxaa.out")) { return false; }
+  if (!nl_elf_load(s.elf, "nrf52832_xxaa.out")) { return false; }
   elf const& e = s.elf;
 
   // nanolog section
@@ -279,7 +278,9 @@ int main(int, char const *[]) {
   printf("\n");
   */
 
-  for (auto i = 0u; i < e.elf_hdr->e_shnum; ++i) { nl_print(e.sec_hdrs[i], e.sec_names); }
+  for (auto i = 0u; i < e.elf_hdr->e_shnum; ++i) {
+    nl_elf_print(e.sec_hdrs[i], e.sec_names);
+  }
   printf("\n");
 
   printf("Non-nanolog functions:\n");
