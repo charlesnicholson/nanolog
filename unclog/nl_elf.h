@@ -191,3 +191,4 @@ void nl_elf_print(elf_hdr32 const& h);
 void nl_elf_print(elf_prog_hdr32 const& p);
 void nl_elf_print(elf_section_hdr32 const& s, char const *sec_names);
 void nl_elf_print(elf_symbol32 const& s, char const *strtab);
+
