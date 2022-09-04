@@ -10,22 +10,10 @@ namespace {
 // Condition Codes
 
 #define CONDITION_CODE_X_LIST() \
-  X(EQ, 0b0000) \
-  X(NE, 0b0001) \
-  X(CS, 0b0010) \
-  X(CC, 0b0011) \
-  X(MI, 0b0100) \
-  X(PL, 0b0101) \
-  X(VS, 0b0110) \
-  X(VC, 0b0111) \
-  X(HS, 0b1000) \
-  X(LS, 0b1001) \
-  X(GE, 0b1010) \
-  X(LT, 0b1011) \
-  X(GT, 0b1100) \
-  X(LE, 0b1101) \
-  X(AL1, 0b1110) \
-  X(AL2, 0b1111)
+  X(EQ, 0b0000) X(NE, 0b0001) X(CS, 0b0010) X(CC, 0b0011) \
+  X(MI, 0b0100) X(PL, 0b0101) X(VS, 0b0110) X(VC, 0b0111) \
+  X(HS, 0b1000) X(LS, 0b1001) X(GE, 0b1010) X(LT, 0b1011) \
+  X(GT, 0b1100) X(LE, 0b1101) X(AL1, 0b1110) X(AL2, 0b1111)
 
 #define X(NAME, VAL) NAME = VAL,
 enum class cond_code : uint8_t { CONDITION_CODE_X_LIST() };
@@ -62,7 +50,7 @@ char const *s_reg_names[] = {
   X(SVC, svc)
 
 #define X(ENUM, TYPE) ENUM,
-enum class inst_type { INST_TYPE_X_LIST() };
+enum class inst_type : uint8_t { INST_TYPE_X_LIST() };
 #undef X
 
 struct inst_push { uint16_t reg_list; };
@@ -259,8 +247,7 @@ bool parse_inst(char const *text, uint32_t addr, inst& out_inst) {
 }
 
 struct reg_state {
-  uint32_t addr;
-  uint32_t regs[16];
+  uint32_t addr, regs[16];
   uint16_t known = 0;
 };
 
