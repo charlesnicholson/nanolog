@@ -5,6 +5,8 @@
 #include <cassert>
 #include <stack>
 
+namespace {
+
 // Condition Codes
 
 #define CONDITION_CODE_X_LIST() \
@@ -26,15 +28,22 @@
   X(AL2, 0b1111)
 
 #define X(NAME, VAL) NAME = VAL,
-enum class cond_code { CONDITION_CODE_X_LIST() };
+enum class cond_code : uint8_t { CONDITION_CODE_X_LIST() };
 #undef X
 
 #define X(NAME, VAL) case cond_code::NAME: return #NAME;
-char const *cond_code_name(unsigned cc) {
-  switch (cond_code(cc)) { CONDITION_CODE_X_LIST() }
+char const *cond_code_name(cond_code cc) {
+  switch (cc) { CONDITION_CODE_X_LIST() }
   return "unknown";
 }
 #undef X
+
+// Registers
+
+char const *s_reg_names[] = {
+  "R0", "R1", "R2",  "R3",  "R4",  "R5", "R6", "R7",
+  "R8", "R9", "R10", "R11", "R12", "SP", "LR", "PC",
+};
 
 // Instructions
 
@@ -55,13 +64,20 @@ enum class inst_type { INST_TYPE_X_LIST() };
 struct inst_push { uint16_t reg_list; };
 struct inst_pop { uint16_t reg_list; };
 struct inst_nop {};
-struct inst_branch { uint32_t label; uint8_t cc; };
+struct inst_branch { uint32_t label; cond_code cc; };
 struct inst_branch_link { uint32_t label; };
 struct inst_branch_link_xchg { uint32_t label; };
 struct inst_branch_xchg { uint16_t reg; };
 struct inst_svc { uint32_t label; };
 
-void print(inst_push const& i) { printf("  PUSH 0x%04x\n", (unsigned)i.reg_list); }
+void print(inst_push const& p) {
+  printf("  PUSH 0x%04x { ", p.reg_list);
+  for (int i = 0; i < 16; ++i) {
+    if (p.reg_list & (1 << i)) { printf("%s ", s_reg_names[i]); }
+  }
+  printf("}\n");
+}
+
 void print(inst_pop const& i) { printf("  POP 0x%04x\n", (unsigned)i.reg_list); }
 void print(inst_nop const&) { printf("  NOP\n"); }
 
@@ -99,18 +115,10 @@ struct reg_state {
   uint16_t known = 0;
 };
 
-namespace {
-int sext(int x, int sign_bit) {
-  int const m = 1 << sign_bit;
-  return (x ^ m) - m;
-}
+int sext(int x, int sign_bit) { int const m = 1 << sign_bit; return (x ^ m) - m; }
 
 bool is_16bit_inst(uint16_t w0) {
-  /* 3.1 Instruction set encoding
-     Table 3-1 Determination of instruction length
-     0b11100 Thumb 16-bit unconditional branch instruction
-     0b111xx Thumb 32-bit instructions, defined in Thumb-2
-     0bxxxxx Thumb 16-bit instructions. */
+  // 3.1 Instruction set encoding, Table 3-1 (pg 3-2)
   if ((w0 & 0xF800) == 0xE000) { return true; }
   if ((w0 & 0xE000) == 0xE000) { return false; }
   return true;
@@ -134,14 +142,14 @@ bool parse_16bit_inst(uint16_t const w0, uint32_t const addr, inst& out_inst) {
   }
 
   if ((w0 & 0xFF00) == 0xDF00) { // 4.6.12 B, T1 encoding (pg 4-38)
-    unsigned const cond = (w0 >> 8u) & 0xFu;
+    cond_code const cc = (cond_code)((w0 >> 8u) & 0xFu);
     uint32_t const label = uint32_t(sext((w0 & 0xFF) << 1, 8));
-    if (cond == 0xFu) { // cc 0b1111 == SVC, 4.6.181 SVC (pg 4-375)
+    if ((uint8_t)cc == 0xFu) { // cc 0b1111 == SVC, 4.6.181 SVC (pg 4-375)
       out_inst.type = inst_type::SVC;
       out_inst.i.svc = inst_svc{ .label = label };
     } else {
       out_inst.type = inst_type::BRANCH;
-      out_inst.i.branch = inst_branch{ .label = label, .cc = uint8_t(cond) };
+      out_inst.i.branch = inst_branch{ .label = label, .cc = cc };
     }
     return true;
   }
@@ -150,7 +158,7 @@ bool parse_16bit_inst(uint16_t const w0, uint32_t const addr, inst& out_inst) {
     out_inst.type = inst_type::BRANCH;
     out_inst.i.branch =
       inst_branch{ .label = uint32_t(int(addr + 4) + sext((w0 & 0x7FF) << 1, 11)),
-                   .cc = uint8_t(cond_code::AL1) };
+                   .cc = cond_code::AL1 };
     return true;
   }
 
@@ -166,6 +174,7 @@ bool parse_16bit_inst(uint16_t const w0, uint32_t const addr, inst& out_inst) {
     return true;
   }
 
+  printf("  Unknown: %04x\n", w0);
   return false;
 }
 
@@ -188,6 +197,7 @@ bool parse_32bit_inst(uint16_t const w0,
     return true;
   }
 
+  printf("  Unknown: %04x %04x\n", w0, w1);
   return false;
 }
 
@@ -224,8 +234,6 @@ bool thumb2_find_log_strs_in_func(elf const& e,
     inst decoded_inst;
     if (parse_inst(&e.bytes[func_ofs], s.addr, decoded_inst)) {
       print(decoded_inst);
-    } else {
-      printf("  Unknown\n");
     }
   }
 
