@@ -38,17 +38,18 @@ char const *s_reg_names[] = {
 #define INST_TYPE_X_LIST() \
   X(ADD_SP_IMM, add_sp_imm) \
   X(ADR, adr) \
-  X(PUSH, push) \
-  X(POP, pop) \
-  X(NOP, nop) \
   X(BRANCH, branch) \
   X(BRANCH_LINK, branch_link) \
   X(BRANCH_LINK_XCHG, branch_link_xchg) \
   X(BRANCH_XCHG, branch_xchg) \
+  X(CBNZ, cmp_branch_nz) \
   X(LOAD_LIT, load_lit) \
   X(LSHIFT_LOG, lshift_log) \
   X(MOV, mov) \
   X(MOVS, movs) \
+  X(NOP, nop) \
+  X(PUSH, push) \
+  X(POP, pop) \
   X(STORE_IMM, store_imm) \
   X(SVC, svc)
 
@@ -58,17 +59,18 @@ enum class inst_type : uint8_t { INST_TYPE_X_LIST() };
 
 struct inst_add_sp_imm { uint8_t src_reg, imm; };
 struct inst_adr { uint8_t dst_reg, imm; };
-struct inst_push { uint16_t reg_list; };
-struct inst_pop { uint16_t reg_list; };
-struct inst_nop {};
 struct inst_branch { uint32_t label; cond_code cc; };
 struct inst_branch_link { uint32_t label; };
 struct inst_branch_link_xchg { uint32_t label; };
 struct inst_branch_xchg { uint8_t reg; };
+struct inst_cmp_branch_nz { uint8_t reg, label; };
 struct inst_load_lit { uint32_t label; uint8_t reg; };
 struct inst_lshift_log { uint8_t dst_reg, src_reg, imm; };
 struct inst_mov { uint8_t dst_reg, src_reg; };
 struct inst_movs { uint8_t imm, reg; };
+struct inst_push { uint16_t reg_list; };
+struct inst_pop { uint16_t reg_list; };
+struct inst_nop {};
 struct inst_store_imm { uint8_t src_reg, dst_reg; uint16_t imm; };
 struct inst_svc { uint32_t label; };
 
@@ -107,6 +109,10 @@ void print(inst_branch const& i) {
 void print(inst_branch_link const& i) { printf("  BL %x\n", (unsigned)i.label); }
 void print(inst_branch_link_xchg const& i) { printf("  BLX %x\n", (unsigned)i.label); }
 void print(inst_branch_xchg const& i) { printf("  BX %s\n", s_reg_names[i.reg]); }
+
+void print(inst_cmp_branch_nz const& c) {
+  printf("  CBNZ %s, %x\n", s_reg_names[c.reg], (unsigned)c.label);
+}
 
 void print(inst_load_lit const& l) {
   printf("  LDR %s, %x\n", s_reg_names[l.reg], l.label);
@@ -214,6 +220,15 @@ bool parse_16bit_inst(uint16_t const w0, uint32_t const addr, inst& out_inst) {
   if ((w0 & 0xFF80) == 0x4700) { // 4.6.20 BX, T1 encoding (pg 4-54)
     out_inst.type = inst_type::BRANCH_XCHG;
     out_inst.i.branch_xchg = inst_branch_xchg{ .reg = uint8_t((w0 >> 3u) & 0xFu)};
+    return true;
+  }
+
+  if ((w0 & 0xFD00) == 0xB900) { // 4.6.22 CBNZ, T1 encoding (pg 4-58)
+    out_inst.type = inst_type::CBNZ;
+    out_inst.i.cmp_branch_nz =
+      inst_cmp_branch_nz{
+        .reg = uint8_t(w0 & 7u),
+        .label = uint8_t(2 + ((w0 >> 2u) & 0x1Eu) | ((w0 >> 3u) & 0x40u)) };
     return true;
   }
 
