@@ -88,23 +88,36 @@ void print(inst_push const& p) {
   printf("}\n");
 }
 
-void print(inst_pop const& i) { printf("  POP 0x%04x\n", (unsigned)i.reg_list); }
+void print(inst_pop const& p) {
+  printf("  POP { ");
+  for (int i = 0; i < 16; ++i) {
+    if (p.reg_list & (1 << i)) { printf("%s ", s_reg_names[i]); }
+  }
+  printf("}\n");
+}
+
 void print(inst_nop const&) { printf("  NOP\n"); }
-void print(inst_branch const& i) { printf("  B %s %x\n", cond_code_name(i.cc), i.label); }
+
+void print(inst_branch const& i) {
+  printf("  B%s %x\n",
+         (i.cc != cond_code::AL1 && i.cc != cond_code::AL2) ? cond_code_name(i.cc) : "",
+         i.label);
+}
+
 void print(inst_branch_link const& i) { printf("  BL %x\n", (unsigned)i.label); }
 void print(inst_branch_link_xchg const& i) { printf("  BLX %x\n", (unsigned)i.label); }
-void print(inst_branch_xchg const& i) { printf("  BX %d\n", (unsigned)i.reg); }
+void print(inst_branch_xchg const& i) { printf("  BX %s\n", s_reg_names[i.reg]); }
 
 void print(inst_load_lit const& l) {
   printf("  LDR %s, %x\n", s_reg_names[l.reg], l.label);
 }
 
 void print(inst_lshift_log const& l) {
-  printf("  LSL %s %s #%d\n", s_reg_names[l.dst_reg], s_reg_names[l.src_reg], (int)l.imm);
+  printf("  LSL %s, %s, #%d\n", s_reg_names[l.dst_reg], s_reg_names[l.src_reg], (int)l.imm);
 }
 
 void print(inst_mov const& m) {
-  printf("  MOV %s %s\n", s_reg_names[m.dst_reg], s_reg_names[m.src_reg]);
+  printf("  MOV %s, %s\n", s_reg_names[m.dst_reg], s_reg_names[m.src_reg]);
 }
 
 void print(inst_movs const& m) {
