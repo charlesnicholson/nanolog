@@ -36,6 +36,8 @@ char const *s_reg_names[] = {
 // Instructions
 
 #define INST_TYPE_X_LIST() \
+  X(ADD_SP_IMM, add_sp_imm) \
+  X(ADR, adr) \
   X(PUSH, push) \
   X(POP, pop) \
   X(NOP, nop) \
@@ -47,12 +49,15 @@ char const *s_reg_names[] = {
   X(LSHIFT_LOG, lshift_log) \
   X(MOV, mov) \
   X(MOVS, movs) \
+  X(STORE_IMM, store_imm) \
   X(SVC, svc)
 
 #define X(ENUM, TYPE) ENUM,
 enum class inst_type : uint8_t { INST_TYPE_X_LIST() };
 #undef X
 
+struct inst_add_sp_imm { uint8_t src_reg, imm; };
+struct inst_adr { uint8_t dst_reg, imm; };
 struct inst_push { uint16_t reg_list; };
 struct inst_pop { uint16_t reg_list; };
 struct inst_nop {};
@@ -64,7 +69,16 @@ struct inst_load_lit { uint32_t label; uint8_t reg; };
 struct inst_lshift_log { uint8_t dst_reg, src_reg, imm; };
 struct inst_mov { uint8_t dst_reg, src_reg; };
 struct inst_movs { uint8_t imm, reg; };
+struct inst_store_imm { uint8_t src_reg, dst_reg; uint16_t imm; };
 struct inst_svc { uint32_t label; };
+
+void print(inst_add_sp_imm const& a) {
+  printf("  ADD %s, [SP, #%d]\n", s_reg_names[a.src_reg], (int)a.imm);
+}
+
+void print(inst_adr const& a) {
+  printf("  ADR %s, PC, #%d\n", s_reg_names[a.dst_reg], (int)a.imm);
+}
 
 void print(inst_push const& p) {
   printf("  PUSH { ");
@@ -96,6 +110,11 @@ void print(inst_mov const& m) {
 void print(inst_movs const& m) {
   printf("  MOVS %s, #%d\n", s_reg_names[m.reg], (int)m.imm);
 }
+
+void print(inst_store_imm const& i) {
+  printf("  STR %s, [%s, #%d]\n",
+         s_reg_names[i.src_reg], s_reg_names[i.dst_reg], (int)i.imm);
+};
 
 void print(inst_svc const&) { printf("  SVC\n"); }
 
@@ -129,6 +148,20 @@ bool is_16bit_inst(uint16_t w0) {
 
 bool parse_16bit_inst(uint16_t const w0, uint32_t const addr, inst& out_inst) {
   out_inst.len = 2;
+
+  if ((w0 & 0xF800) == 0xA800) { // 4.5.5 ADD (SP + immediate), T1 encoding (pg 4-24)
+    out_inst.type = inst_type::ADD_SP_IMM;
+    out_inst.i.add_sp_imm =
+      inst_add_sp_imm{ .src_reg = uint8_t((w0 >> 8u) & 7u), .imm = uint8_t(w0 & 0xFFu) };
+    return true;
+  }
+
+  if ((w0 & 0xF800) == 0xA000) { // 4.6.7 ADR, T1 encoding (pg 4-28)
+    out_inst.type = inst_type::ADR;
+    out_inst.i.adr =
+      inst_adr{ .dst_reg = uint8_t((w0 >> 8u) & 7u), .imm = uint8_t((w0 & 0xFFu) << 2u) };
+    return true;
+  }
 
   if ((w0 & 0xFE00) == 0xB400) { // 4.6.99 PUSH, T1 encoding (pg 4-211)
     out_inst.type = inst_type::PUSH;
@@ -206,6 +239,15 @@ bool parse_16bit_inst(uint16_t const w0, uint32_t const addr, inst& out_inst) {
   if (w0 == 0xBF00) { // 4.6.88 NOP (pg 4-189)
     out_inst.type = inst_type::NOP;
     out_inst.i.nop = inst_nop{};
+    return true;
+  }
+
+  if ((w0 & 0xF800) == 0x9000) { // 4.6.162 STR (immediate), T2 encoding (pg 4-337)
+    out_inst.type = inst_type::STORE_IMM;
+    out_inst.i.store_imm =
+      inst_store_imm{ .dst_reg = 13,
+                      .src_reg = uint8_t((w0 >> 8u) & 7u),
+                      .imm = uint8_t(w0 & 0xFFu) };
     return true;
   }
 
