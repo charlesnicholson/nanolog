@@ -122,13 +122,7 @@ void print(inst const& i) {
 }
 #undef X
 
-//
-
-struct reg_state {
-  uint32_t addr;
-  uint32_t regs[16];
-  uint16_t known = 0;
-};
+// Instruction decoding
 
 int sext(int x, int sign_bit) { int const m = 1 << sign_bit; return (x ^ m) - m; }
 
@@ -249,6 +243,12 @@ bool parse_inst(char const *text, uint32_t addr, inst& out_inst) {
   return parse_32bit_inst(w0, w1, addr, out_inst);
 }
 }
+
+struct reg_state {
+  uint32_t addr;
+  uint32_t regs[16];
+  uint16_t known = 0;
+};
 
 bool thumb2_find_log_strs_in_func(elf const& e,
                                   elf_symbol32 const& func) {
