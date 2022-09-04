@@ -94,7 +94,7 @@ void print(inst_svc const&) { printf("  SVC\n"); }
 
 #define X(ENUM, TYPE) inst_##TYPE TYPE;
 struct inst {
-  int len; // 2 or 4
+  unsigned len; // 2 or 4
   inst_type type;
   union { INST_TYPE_X_LIST() } i;
 };
@@ -231,9 +231,11 @@ bool thumb2_find_log_strs_in_func(elf const& e,
     reg_state s = paths.top();
     paths.pop();
 
-    inst decoded_inst;
-    if (parse_inst(&e.bytes[func_ofs], s.addr, decoded_inst)) {
+    while (s.addr < func_end) {
+      inst decoded_inst;
+      if (!parse_inst(&e.bytes[func_ofs], s.addr, decoded_inst)) { break; }
       print(decoded_inst);
+      s.addr += decoded_inst.len;
     }
   }
 
