@@ -43,6 +43,7 @@ char const *s_reg_names[] = {
   X(BRANCH_LINK_XCHG, branch_link_xchg) \
   X(BRANCH_XCHG, branch_xchg) \
   X(CBNZ, cmp_branch_nz) \
+  X(CBZ, cmp_branch_z) \
   X(LOAD_LIT, load_lit) \
   X(LSHIFT_LOG, lshift_log) \
   X(MOV, mov) \
@@ -64,6 +65,7 @@ struct inst_branch_link { uint32_t label; };
 struct inst_branch_link_xchg { uint32_t label; };
 struct inst_branch_xchg { uint8_t reg; };
 struct inst_cmp_branch_nz { uint8_t reg, label; };
+struct inst_cmp_branch_z { uint8_t reg, label; };
 struct inst_load_lit { uint32_t label; uint8_t reg; };
 struct inst_lshift_log { uint8_t dst_reg, src_reg, imm; };
 struct inst_mov { uint8_t dst_reg, src_reg; };
@@ -112,6 +114,10 @@ void print(inst_branch_xchg const& i) { printf("  BX %s\n", s_reg_names[i.reg]);
 
 void print(inst_cmp_branch_nz const& c) {
   printf("  CBNZ %s, %x\n", s_reg_names[c.reg], (unsigned)c.label);
+}
+
+void print(inst_cmp_branch_z const& c) {
+  printf("  CBZ %s, %x\n", s_reg_names[c.reg], (unsigned)c.label);
 }
 
 void print(inst_load_lit const& l) {
@@ -232,6 +238,16 @@ bool parse_16bit_inst(uint16_t const w0, uint32_t const addr, inst& out_inst) {
     return true;
   }
 
+  if ((w0 & 0xFD00) == 0xB100) { // 4.6.23 CBZ, T1 encoding (pg 4-60)
+    out_inst.type = inst_type::CBZ;
+    out_inst.i.cmp_branch_z =
+      inst_cmp_branch_z{
+        .reg = uint8_t(w0 & 7u),
+        .label = uint8_t(2 + ((w0 >> 2u) & 0x1Eu) | ((w0 >> 3u) & 0x40u)) };
+    return true;
+  }
+
+  // TODO: read label + imm, pass func start addr to parse
   if ((w0 & 0xF800) == 0x4800) { // 4.6.44 LDR (literal), T1 encoding (pg 4-102)
     out_inst.type = inst_type::LOAD_LIT;
     out_inst.i.load_lit =
