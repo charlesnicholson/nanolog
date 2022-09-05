@@ -1,8 +1,10 @@
+build
+disasm.txt
+
 # Prerequisites
 *.dSYM
 *.d
 
-build
 
 # Compiled Object files
 *.slo
