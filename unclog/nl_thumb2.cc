@@ -202,7 +202,7 @@ bool parse_16bit_inst(uint16_t const w0, uint32_t const addr, inst& out_inst) {
     return true;
   }
 
-  if ((w0 & 0xFF00) == 0xDF00) { // 4.6.12 B, T1 encoding (pg 4-38)
+  if ((w0 & 0xF000) == 0xD000) { // 4.6.12 B, T1 encoding (pg 4-38)
     cond_code const cc = (cond_code)((w0 >> 8u) & 0xFu);
     uint32_t const label = uint32_t(sext((w0 & 0xFF) << 1, 8));
     if ((uint8_t)cc == 0xFu) { // cc 0b1111 == SVC, 4.6.181 SVC (pg 4-375)
@@ -351,7 +351,7 @@ bool thumb2_find_log_strs_in_func(elf const& e,
          func_start,
          func_end);
 
-  std::stack<reg_state> paths;
+  std::stack<reg_state, std::vector<reg_state>> paths;
   paths.push(reg_state{.addr = func_start});
 
   while (!paths.empty()) {
