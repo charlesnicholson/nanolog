@@ -10,7 +10,7 @@ namespace {
   fseek(f, 0, SEEK_END);
   size_t const len = (size_t)ftell(f);
   rewind(f);
-  bytes_ptr_t contents{new char[len]};
+  bytes_ptr_t contents{new (std::align_val_t{16}) char[len]};
   size_t const r = fread(&contents[0], 1, len, f);
   fclose(f);
   assert(r == (size_t)len);
