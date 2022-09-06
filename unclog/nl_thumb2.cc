@@ -44,6 +44,8 @@ char const *s_reg_names[] = {
   X(BRANCH_XCHG, branch_xchg) \
   X(CBNZ, cmp_branch_nz) \
   X(CBZ, cmp_branch_z) \
+  X(CMP_IMM, cmp_imm) \
+  X(LOAD_BYTE_IMM, load_byte_imm) \
   X(LOAD_LIT, load_lit) \
   X(LSHIFT_LOG, lshift_log) \
   X(MOV, mov) \
@@ -51,6 +53,7 @@ char const *s_reg_names[] = {
   X(NOP, nop) \
   X(PUSH, push) \
   X(POP, pop) \
+  X(STORE_BYTE_IMM, store_byte_imm) \
   X(STORE_IMM, store_imm) \
   X(SVC, svc)
 
@@ -66,6 +69,8 @@ struct inst_branch_link_xchg { uint32_t label; };
 struct inst_branch_xchg { uint8_t reg; };
 struct inst_cmp_branch_nz { uint8_t reg, label; };
 struct inst_cmp_branch_z { uint8_t reg, label; };
+struct inst_cmp_imm { uint8_t reg, imm; };
+struct inst_load_byte_imm { uint8_t dst_reg, src_reg, imm; };
 struct inst_load_lit { uint32_t label; uint8_t reg; };
 struct inst_lshift_log { uint8_t dst_reg, src_reg, imm; };
 struct inst_mov { uint8_t dst_reg, src_reg; };
@@ -73,6 +78,7 @@ struct inst_mov_imm { uint32_t imm; uint8_t reg; };
 struct inst_push { uint16_t reg_list; };
 struct inst_pop { uint16_t reg_list; };
 struct inst_nop {};
+struct inst_store_byte_imm { uint8_t src_reg, dst_reg, imm; };
 struct inst_store_imm { uint8_t src_reg, dst_reg; uint16_t imm; };
 struct inst_svc { uint32_t label; };
 
@@ -120,6 +126,17 @@ void print(inst_cmp_branch_z const& c) {
   printf("  CBZ %s, %x\n", s_reg_names[c.reg], (unsigned)c.label);
 }
 
+void print(inst_cmp_imm const& c) {
+  printf("  CMP_IMM %s, #%d\n", s_reg_names[c.reg], (int)c.imm);
+}
+
+void print(inst_load_byte_imm const& l) {
+  printf("  LDRB_IMM %s, [%s, #%d]\n",
+         s_reg_names[l.dst_reg],
+         s_reg_names[l.src_reg],
+         (int)l.imm);
+};
+
 void print(inst_load_lit const& l) {
   printf("  LDR %s, %x\n", s_reg_names[l.reg], l.label);
 }
@@ -136,9 +153,18 @@ void print(inst_mov_imm const& m) {
   printf("  MOV_IMM %s, #%d\n", s_reg_names[m.reg], (int)m.imm);
 }
 
-void print(inst_store_imm const& i) {
-  printf("  STR %s, [%s, #%d]\n",
-         s_reg_names[i.src_reg], s_reg_names[i.dst_reg], (int)i.imm);
+void print(inst_store_byte_imm const& s) {
+  printf("  STRB_IMM %s, [%s, #%d]\n",
+         s_reg_names[s.dst_reg],
+         s_reg_names[s.src_reg],
+         (int)s.imm);
+};
+
+void print(inst_store_imm const& s) {
+  printf("  STR_IMM %s, [%s, #%d]\n",
+         s_reg_names[s.src_reg],
+         s_reg_names[s.dst_reg],
+         (int)s.imm);
 };
 
 void print(inst_svc const&) { printf("  SVC\n"); }
@@ -263,12 +289,28 @@ bool parse_16bit_inst(uint16_t const w0, uint32_t const addr, inst& out_inst) {
     return true;
   }
 
+  if ((w0 & 0xF800) == 0x2800) { // 4.6.29 CMP (immediate), T1 encoding (pg 4-72)
+    out_inst.type = inst_type::CMP_IMM;
+    out_inst.i.cmp_imm =
+      inst_cmp_imm{ .reg = uint8_t((w0 >> 8u) & 7u), .imm = uint8_t(w0 & 0xFFu) };
+    return true;
+  }
+
   // TODO: read label + imm, pass func start addr to parse
   if ((w0 & 0xF800) == 0x4800) { // 4.6.44 LDR (literal), T1 encoding (pg 4-102)
     out_inst.type = inst_type::LOAD_LIT;
     out_inst.i.load_lit =
       inst_load_lit{ .label = ((w0 & 0xFFu) << 2u) + ((addr + 4u) & ~3u),
                      .reg = uint8_t((w0 >> 8u) & 7u) };
+    return true;
+  }
+
+  if ((w0 & 0xF800) == 0x7800) { // 4.6.46 LDRB (immediate), T1 encoding (pg 4-106)
+    out_inst.type = inst_type::LOAD_BYTE_IMM;
+    out_inst.i.load_byte_imm =
+      inst_load_byte_imm{ .dst_reg = uint8_t(w0 & 7u),
+                          .src_reg = uint8_t((w0 >> 3u) & 7u),
+                          .imm = (uint8_t)((w0 >> 6u) & 0x1Fu) };
     return true;
   }
 
@@ -308,6 +350,15 @@ bool parse_16bit_inst(uint16_t const w0, uint32_t const addr, inst& out_inst) {
       inst_store_imm{ .dst_reg = 13,
                       .src_reg = uint8_t((w0 >> 8u) & 7u),
                       .imm = uint8_t(w0 & 0xFFu) };
+    return true;
+  }
+
+  if ((w0 & 0xF800) == 0x7000) { // 4.6.164 STRB (immediate), T1 encoding (pg 4-341)
+    out_inst.type = inst_type::STORE_BYTE_IMM;
+    out_inst.i.store_byte_imm =
+      inst_store_byte_imm{ .dst_reg = uint8_t(w0 & 7u),
+                           .src_reg = uint8_t((w0 >> 3u) & 7u),
+                           .imm = uint8_t((w0 >> 6u) & 0x1Fu) };
     return true;
   }
 
@@ -388,6 +439,7 @@ bool thumb2_find_log_strs_in_func(elf const& e,
     while (s.addr < func_end) {
       inst decoded_inst;
       if (!parse_inst(&e.bytes[func_ofs], s.addr, decoded_inst)) { break; }
+      printf("  %x ", s.addr);
       print(decoded_inst);
       s.addr += decoded_inst.len;
     }
