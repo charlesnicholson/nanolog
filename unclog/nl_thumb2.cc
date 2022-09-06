@@ -56,6 +56,7 @@ char const *s_reg_names[] = {
   X(NOP, nop) \
   X(PUSH, push) \
   X(POP, pop) \
+  X(RSHIFT_LOG, rshift_log) \
   X(STORE_BYTE_IMM, store_byte_imm) \
   X(STORE_IMM, store_imm) \
   X(SVC, svc) \
@@ -85,6 +86,7 @@ struct inst_mov_imm { uint32_t imm; uint8_t reg; };
 struct inst_push { uint16_t reg_list; };
 struct inst_pop { uint16_t reg_list; };
 struct inst_nop {};
+struct inst_rshift_log { uint8_t dst_reg, src_reg, imm; };
 struct inst_store_byte_imm { uint8_t src_reg, dst_reg, imm; };
 struct inst_store_imm { uint8_t src_reg, dst_reg; uint16_t imm; };
 struct inst_svc { uint32_t label; };
@@ -115,6 +117,13 @@ void print(inst_pop const& p) {
 }
 
 void print(inst_nop const&) { printf("  NOP\n"); }
+
+void print(inst_rshift_log const& r) {
+  printf("  LSR %s, %s, #%d\n",
+         s_reg_names[r.dst_reg],
+         s_reg_names[r.src_reg],
+         (int)r.imm);
+}
 
 void print(inst_branch const& i) {
   printf("  B%s %x\n",
@@ -363,6 +372,16 @@ bool parse_16bit_inst(uint16_t const w0, uint32_t const addr, inst& out_inst) {
       .dst_reg = uint8_t(w0 & 7u),
       .src_reg = uint8_t((w0 >> 3u) & 7u),
       .imm = uint8_t((w0 >> 6u) & 0x1Fu) };
+    return true;
+  }
+
+  if ((w0 & 0xF800) == 0x800u) { // 4.6.70 LSR (immediate), T1 encoding (pg 4-154)
+    uint8_t const imm5 = uint8_t((w0 >> 6u) & 0x1Fu);
+    out_inst.type = inst_type::RSHIFT_LOG;
+    out_inst.i.rshift_log = inst_rshift_log{
+      .dst_reg = uint8_t(w0 & 7u),
+      .src_reg = uint8_t((w0 >> 3u) & 7u),
+      .imm = imm5 ? imm5 : uint8_t(32u) };
     return true;
   }
 
