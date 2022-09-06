@@ -40,12 +40,14 @@ char const *s_reg_names[] = {
   X(ADR, adr) \
   X(BRANCH, branch) \
   X(BRANCH_LINK, branch_link) \
-  X(BRANCH_LINK_XCHG, branch_link_xchg) \
+  X(BRANCH_LINK_XCHG_REG, branch_link_xchg_reg) \
   X(BRANCH_XCHG, branch_xchg) \
   X(CBNZ, cmp_branch_nz) \
   X(CBZ, cmp_branch_z) \
   X(CMP_IMM, cmp_imm) \
   X(LOAD_BYTE_IMM, load_byte_imm) \
+  X(LOAD_HALF_IMM, load_half_imm) \
+  X(LOAD_IMM, load_imm) \
   X(LOAD_LIT, load_lit) \
   X(LSHIFT_LOG, lshift_log) \
   X(MOV, mov) \
@@ -65,12 +67,14 @@ struct inst_add_sp_imm { uint8_t src_reg, imm; };
 struct inst_adr { uint8_t dst_reg, imm; };
 struct inst_branch { uint32_t label; cond_code cc; };
 struct inst_branch_link { uint32_t label; };
-struct inst_branch_link_xchg { uint32_t label; };
+struct inst_branch_link_xchg_reg { uint8_t reg; };
 struct inst_branch_xchg { uint8_t reg; };
 struct inst_cmp_branch_nz { uint8_t reg, label; };
 struct inst_cmp_branch_z { uint8_t reg, label; };
 struct inst_cmp_imm { uint8_t reg, imm; };
 struct inst_load_byte_imm { uint8_t dst_reg, src_reg, imm; };
+struct inst_load_half_imm { uint8_t dst_reg, src_reg, imm; };
+struct inst_load_imm { uint8_t dst_reg, src_reg, imm; };
 struct inst_load_lit { uint32_t label; uint8_t reg; };
 struct inst_lshift_log { uint8_t dst_reg, src_reg, imm; };
 struct inst_mov { uint8_t dst_reg, src_reg; };
@@ -115,7 +119,11 @@ void print(inst_branch const& i) {
 }
 
 void print(inst_branch_link const& i) { printf("  BL %x\n", (unsigned)i.label); }
-void print(inst_branch_link_xchg const& i) { printf("  BLX %x\n", (unsigned)i.label); }
+
+void print(inst_branch_link_xchg_reg const& b) {
+  printf("  BLX %s\n", s_reg_names[b.reg]);
+}
+
 void print(inst_branch_xchg const& i) { printf("  BX %s\n", s_reg_names[i.reg]); }
 
 void print(inst_cmp_branch_nz const& c) {
@@ -136,6 +144,20 @@ void print(inst_load_byte_imm const& l) {
          s_reg_names[l.src_reg],
          (int)l.imm);
 };
+
+void print(inst_load_imm const& l) {
+  printf("  LDR_IMM %s, [%s, #%d]\n",
+         s_reg_names[l.dst_reg],
+         s_reg_names[l.src_reg],
+         (int)l.imm);
+}
+
+void print(inst_load_half_imm const& l) {
+  printf("  LDRH_IMM %s, [%s, #%d]\n",
+         s_reg_names[l.dst_reg],
+         s_reg_names[l.src_reg],
+         (int)l.imm);
+}
 
 void print(inst_load_lit const& l) {
   printf("  LDR %s, %x\n", s_reg_names[l.reg], l.label);
@@ -230,20 +252,6 @@ bool parse_16bit_inst(uint16_t const w0, uint32_t const addr, inst& out_inst) {
     return true;
   }
 
-  if ((w0 & 0xFE00) == 0xB400) { // 4.6.99 PUSH, T1 encoding (pg 4-211)
-    out_inst.type = inst_type::PUSH;
-    out_inst.i.push =
-      inst_push{ .reg_list = uint16_t(((w0 & 0x0100u) << 6u) | (w0 & 0xFFu)) };
-    return true;
-  }
-
-  if ((w0 & 0xFE00) == 0xBC00) { // 4.6.98 POP, T1 encoding (pg 4-209)
-    out_inst.type = inst_type::POP;
-    out_inst.i.pop =
-      inst_pop{ .reg_list = uint16_t(((w0 & 0x100u) << 7) | (w0 & 0xFFu)) };
-    return true;
-  }
-
   if ((w0 & 0xF000) == 0xD000) { // 4.6.12 B, T1 encoding (pg 4-38)
     cond_code const cc = (cond_code)((w0 >> 8u) & 0xFu);
     uint32_t const label = uint32_t(sext((w0 & 0xFF) << 1, 8));
@@ -262,6 +270,13 @@ bool parse_16bit_inst(uint16_t const w0, uint32_t const addr, inst& out_inst) {
     out_inst.i.branch = inst_branch{
       .label = uint32_t(int(addr + 4) + sext((w0 & 0x7FF) << 1, 11)),
       .cc = cond_code::AL1 };
+    return true;
+  }
+
+  if ((w0 & 0xFF80) == 0x4780) { // 4.6.19 BLX (register), T1 encoding (pg 4-52)
+    out_inst.type = inst_type::BRANCH_LINK_XCHG_REG;
+    out_inst.i.branch_link_xchg_reg = inst_branch_link_xchg_reg{
+      .reg = uint8_t((w0 >> 3u) & 7u) };
     return true;
   }
 
@@ -294,6 +309,15 @@ bool parse_16bit_inst(uint16_t const w0, uint32_t const addr, inst& out_inst) {
     return true;
   }
 
+  if ((w0 & 0xF800) == 0x6800) { // 4.6.43 LDR (immediate), T1 encoding (pg 4-100)
+    out_inst.type = inst_type::LOAD_IMM;
+    out_inst.i.load_imm = inst_load_imm{
+      .dst_reg = uint8_t(w0 & 7u),
+      .src_reg = uint8_t((w0 >> 3u) & 7u),
+      .imm = uint8_t(((w0 >> 6u) & 0x1Fu) << 2u) };
+    return true;
+  }
+
   // TODO: read label + imm, pass func start addr to parse
   if ((w0 & 0xF800) == 0x4800) { // 4.6.44 LDR (literal), T1 encoding (pg 4-102)
     out_inst.type = inst_type::LOAD_LIT;
@@ -309,6 +333,15 @@ bool parse_16bit_inst(uint16_t const w0, uint32_t const addr, inst& out_inst) {
       .dst_reg = uint8_t(w0 & 7u),
       .src_reg = uint8_t((w0 >> 3u) & 7u),
       .imm = (uint8_t)((w0 >> 6u) & 0x1Fu) };
+    return true;
+  }
+
+  if ((w0 & 0xF800) == 0x8800) { // 4.6.55 LDRH (immediate), T1 encoding (pg 4-124)
+    out_inst.type = inst_type::LOAD_HALF_IMM;
+    out_inst.i.load_half_imm = inst_load_half_imm{
+      .dst_reg = uint8_t(w0 & 7u),
+      .src_reg = uint8_t((w0 >> 3u) & 7u),
+      .imm = (uint8_t)(((w0 >> 6u) & 0x1Fu) << 1u) };
     return true;
   }
 
@@ -339,6 +372,20 @@ bool parse_16bit_inst(uint16_t const w0, uint32_t const addr, inst& out_inst) {
   if (w0 == 0xBF00) { // 4.6.88 NOP (pg 4-189)
     out_inst.type = inst_type::NOP;
     out_inst.i.nop = inst_nop{};
+    return true;
+  }
+
+  if ((w0 & 0xFE00) == 0xBC00) { // 4.6.98 POP, T1 encoding (pg 4-209)
+    out_inst.type = inst_type::POP;
+    out_inst.i.pop =
+      inst_pop{ .reg_list = uint16_t(((w0 & 0x100u) << 7) | (w0 & 0xFFu)) };
+    return true;
+  }
+
+  if ((w0 & 0xFE00) == 0xB400) { // 4.6.99 PUSH, T1 encoding (pg 4-211)
+    out_inst.type = inst_type::PUSH;
+    out_inst.i.push =
+      inst_push{ .reg_list = uint16_t(((w0 & 0x0100u) << 6u) | (w0 & 0xFFu)) };
     return true;
   }
 
