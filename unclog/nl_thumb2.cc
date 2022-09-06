@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <cassert>
 #include <stack>
+#include <vector>
 
 namespace {
 

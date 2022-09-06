@@ -4,17 +4,17 @@
 #include <cstdlib>
 
 namespace {
-bool load_file(char const *fn, std::vector<char>& contents) {
+  bytes_ptr_t load_file(char const *fn) {
   FILE *f = fopen(fn, "rb");
-  if (!f) { return false; }
+  if (!f) { return bytes_ptr_t(); }
   fseek(f, 0, SEEK_END);
-  long const len = ftell(f);
+  size_t const len = (size_t)ftell(f);
   rewind(f);
-  contents.resize((unsigned long)len);
-  size_t const r = fread(contents.data(), 1, (size_t)len, f);
+  bytes_ptr_t contents{new char[len]};
+  size_t const r = fread(&contents[0], 1, len, f);
   fclose(f);
   assert(r == (size_t)len);
-  return true;
+  return contents;
 }
 
 elf_section_hdr32 const *find_symtab_hdr(elf_section_hdr32 const *sec_hdrs, int sec_n) {
@@ -39,14 +39,15 @@ elf_section_hdr32 const *find_strtab_hdr(elf_section_hdr32 const *sec_hdrs,
 }
 
 bool nl_elf_load(elf& e, char const* filename) {
-  if (!load_file(filename, e.bytes)) { return false; }
+  e.bytes = load_file(filename);
+  if (!e.bytes) { return false; }
 
   e.elf_hdr = (elf_hdr32*)&e.bytes[0];
   assert(e.elf_hdr->e_shentsize == sizeof(elf_section_hdr32));
 
   e.sec_hdrs = (elf_section_hdr32 const*)&e.bytes[e.elf_hdr->e_shoff];
   e.prog_hdrs = (elf_prog_hdr32 const*)&e.bytes[e.elf_hdr->e_phoff];
-  e.sec_names = e.bytes.data() + e.sec_hdrs[e.elf_hdr->e_shstrndx].sh_offset;
+  e.sec_names = &e.bytes[0] + e.sec_hdrs[e.elf_hdr->e_shstrndx].sh_offset;
 
   // symbol table
   e.symtab_hdr = find_symtab_hdr(e.sec_hdrs, (int)e.elf_hdr->e_shnum);
