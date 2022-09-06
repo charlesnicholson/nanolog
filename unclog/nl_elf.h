@@ -1,7 +1,7 @@
 #pragma once
 
 #include <cstdint>
-#include <vector>
+#include <memory>
 
 #define ELF_OSABI_X_LIST() \
   X(ELF_OSABI_SYSTEM_V, 0x00) \
@@ -168,8 +168,10 @@ struct elf_symbol32 {
   uint16_t st_shndx;
 };
 
+using bytes_ptr_t = std::unique_ptr<char[]>;
+
 struct elf {
-  std::vector<char> bytes;
+  bytes_ptr_t bytes;
   elf_hdr32 *elf_hdr;
   elf_section_hdr32 const *sec_hdrs;
   elf_prog_hdr32 const *prog_hdrs;
