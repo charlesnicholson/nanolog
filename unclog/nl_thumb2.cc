@@ -45,6 +45,7 @@ char const *s_reg_names[] = {
   X(CBNZ, cmp_branch_nz) \
   X(CBZ, cmp_branch_z) \
   X(CMP_IMM, cmp_imm) \
+  X(COUNT_LEADING_ZEROS, count_leading_zeros) \
   X(LOAD_BYTE_IMM, load_byte_imm) \
   X(LOAD_HALF_IMM, load_half_imm) \
   X(LOAD_IMM, load_imm) \
@@ -73,6 +74,7 @@ struct inst_branch_xchg { uint8_t reg; };
 struct inst_cmp_branch_nz { uint8_t reg, label; };
 struct inst_cmp_branch_z { uint8_t reg, label; };
 struct inst_cmp_imm { uint8_t reg, imm; };
+struct inst_count_leading_zeros { uint8_t dst_reg, src_reg; };
 struct inst_load_byte_imm { uint8_t dst_reg, src_reg, imm; };
 struct inst_load_half_imm { uint8_t dst_reg, src_reg, imm; };
 struct inst_load_imm { uint8_t dst_reg, src_reg, imm; };
@@ -138,6 +140,10 @@ void print(inst_cmp_branch_z const& c) {
 
 void print(inst_cmp_imm const& c) {
   printf("  CMP_IMM %s, #%d\n", s_reg_names[c.reg], (int)c.imm);
+}
+
+void print(inst_count_leading_zeros const& c) {
+  printf("  CLZ %s, %s\n", s_reg_names[c.dst_reg], s_reg_names[c.src_reg]);
 }
 
 void print(inst_load_byte_imm const& l) {
@@ -434,6 +440,15 @@ bool parse_32bit_inst(uint16_t const w0,
     uint32_t const imm32 = sext | i1 | i2 | imm10 | imm11;
     out_inst.type = inst_type::BRANCH_LINK;
     out_inst.i.branch_link = inst_branch_link{ .label = addr + 4 + imm32 };
+    return true;
+  }
+
+  // 4.6.26 CLZ, T1 encoding (pg 4-66)
+  if (((w0 & 0xFFF0) == 0xFAB0) && ((w1 & 0xF0F0) == 0xF080)) {
+    out_inst.type = inst_type::COUNT_LEADING_ZEROS;
+    out_inst.i.count_leading_zeros = inst_count_leading_zeros{
+      .src_reg = uint8_t(w1 & 7u),
+      .dst_reg = uint8_t((w1 >> 8u) & 0xFu) };
     return true;
   }
 
