@@ -221,9 +221,9 @@ uint32_t decode_imm12(uint32_t imm12) {
       case 3: return (imm8 << 24) | (imm8 << 16) | (imm8 << 8) | imm8;
     }
   }
-  uint32_t const unrot = 0x80u | (imm12 & 0x7Fu);
+  uint32_t const x = 0x80u | (imm12 & 0x7Fu);
   uint32_t const n = (imm12 >> 7u) & 0x1Fu;
-  return (unrot >> n) | (unrot << (32 - n));
+  return (x >> n) | (x << (32 - n)); // rotate into place
 }
 
 int sext(int x, int sign_bit) { int const m = 1 << sign_bit; return (x ^ m) - m; }
