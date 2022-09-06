@@ -259,9 +259,9 @@ bool parse_16bit_inst(uint16_t const w0, uint32_t const addr, inst& out_inst) {
 
   if ((w0 & 0xF800) == 0xE000) { // 4.6.12 B, T2 encoding (pg 4-38)
     out_inst.type = inst_type::BRANCH;
-    out_inst.i.branch =
-      inst_branch{ .label = uint32_t(int(addr + 4) + sext((w0 & 0x7FF) << 1, 11)),
-                   .cc = cond_code::AL1 };
+    out_inst.i.branch = inst_branch{
+      .label = uint32_t(int(addr + 4) + sext((w0 & 0x7FF) << 1, 11)),
+      .cc = cond_code::AL1 };
     return true;
   }
 
@@ -273,19 +273,17 @@ bool parse_16bit_inst(uint16_t const w0, uint32_t const addr, inst& out_inst) {
 
   if ((w0 & 0xFD00) == 0xB900) { // 4.6.22 CBNZ, T1 encoding (pg 4-58)
     out_inst.type = inst_type::CBNZ;
-    out_inst.i.cmp_branch_nz =
-      inst_cmp_branch_nz{
-        .reg = uint8_t(w0 & 7u),
-        .label = uint8_t(2 + ((w0 >> 2u) & 0x1Eu) | ((w0 >> 3u) & 0x40u)) };
+    out_inst.i.cmp_branch_nz = inst_cmp_branch_nz{
+      .reg = uint8_t(w0 & 7u),
+      .label = uint8_t(2 + ((w0 >> 2u) & 0x1Eu) | ((w0 >> 3u) & 0x40u)) };
     return true;
   }
 
   if ((w0 & 0xFD00) == 0xB100) { // 4.6.23 CBZ, T1 encoding (pg 4-60)
     out_inst.type = inst_type::CBZ;
-    out_inst.i.cmp_branch_z =
-      inst_cmp_branch_z{
-        .reg = uint8_t(w0 & 7u),
-        .label = uint8_t(2 + ((w0 >> 2u) & 0x1Eu) | ((w0 >> 3u) & 0x40u)) };
+    out_inst.i.cmp_branch_z = inst_cmp_branch_z{
+      .reg = uint8_t(w0 & 7u),
+      .label = uint8_t(2 + ((w0 >> 2u) & 0x1Eu) | ((w0 >> 3u) & 0x40u)) };
     return true;
   }
 
@@ -299,27 +297,27 @@ bool parse_16bit_inst(uint16_t const w0, uint32_t const addr, inst& out_inst) {
   // TODO: read label + imm, pass func start addr to parse
   if ((w0 & 0xF800) == 0x4800) { // 4.6.44 LDR (literal), T1 encoding (pg 4-102)
     out_inst.type = inst_type::LOAD_LIT;
-    out_inst.i.load_lit =
-      inst_load_lit{ .label = ((w0 & 0xFFu) << 2u) + ((addr + 4u) & ~3u),
-                     .reg = uint8_t((w0 >> 8u) & 7u) };
+    out_inst.i.load_lit = inst_load_lit{
+      .label = ((w0 & 0xFFu) << 2u) + ((addr + 4u) & ~3u),
+      .reg = uint8_t((w0 >> 8u) & 7u) };
     return true;
   }
 
   if ((w0 & 0xF800) == 0x7800) { // 4.6.46 LDRB (immediate), T1 encoding (pg 4-106)
     out_inst.type = inst_type::LOAD_BYTE_IMM;
-    out_inst.i.load_byte_imm =
-      inst_load_byte_imm{ .dst_reg = uint8_t(w0 & 7u),
-                          .src_reg = uint8_t((w0 >> 3u) & 7u),
-                          .imm = (uint8_t)((w0 >> 6u) & 0x1Fu) };
+    out_inst.i.load_byte_imm = inst_load_byte_imm{
+      .dst_reg = uint8_t(w0 & 7u),
+      .src_reg = uint8_t((w0 >> 3u) & 7u),
+      .imm = (uint8_t)((w0 >> 6u) & 0x1Fu) };
     return true;
   }
 
   if ((w0 & 0xF800) == 0) { // 4.6.68 LSL (immediate), T1 encoding (pg 4-150)
     out_inst.type = inst_type::LSHIFT_LOG;
-    out_inst.i.lshift_log =
-      inst_lshift_log{ .dst_reg = uint8_t(w0 & 7u),
-                       .src_reg = uint8_t((w0 >> 3u) & 7u),
-                       .imm = uint8_t((w0 >> 6u) & 0x1Fu) };
+    out_inst.i.lshift_log = inst_lshift_log{
+      .dst_reg = uint8_t(w0 & 7u),
+      .src_reg = uint8_t((w0 >> 3u) & 7u),
+      .imm = uint8_t((w0 >> 6u) & 0x1Fu) };
     return true;
   }
 
@@ -332,9 +330,9 @@ bool parse_16bit_inst(uint16_t const w0, uint32_t const addr, inst& out_inst) {
 
   if ((w0 & 0xFF00) == 0x4600) { // 4.6.77 MOV (register), T1 encoding (pg 4-168)
     out_inst.type = inst_type::MOV;
-    out_inst.i.mov =
-      inst_mov{ .src_reg = uint8_t((w0 >> 3u) & 0xFu),
-                .dst_reg = uint8_t((w0 & 7u) | ((w0 & 8u) >> 4u)) };
+    out_inst.i.mov = inst_mov{
+      .src_reg = uint8_t((w0 >> 3u) & 0xFu),
+      .dst_reg = uint8_t((w0 & 7u) | ((w0 & 8u) >> 4u)) };
     return true;
   }
 
@@ -346,19 +344,19 @@ bool parse_16bit_inst(uint16_t const w0, uint32_t const addr, inst& out_inst) {
 
   if ((w0 & 0xF800) == 0x9000) { // 4.6.162 STR (immediate), T2 encoding (pg 4-337)
     out_inst.type = inst_type::STORE_IMM;
-    out_inst.i.store_imm =
-      inst_store_imm{ .dst_reg = 13,
-                      .src_reg = uint8_t((w0 >> 8u) & 7u),
-                      .imm = uint8_t(w0 & 0xFFu) };
+    out_inst.i.store_imm = inst_store_imm{
+      .dst_reg = 13,
+      .src_reg = uint8_t((w0 >> 8u) & 7u),
+      .imm = uint8_t(w0 & 0xFFu) };
     return true;
   }
 
   if ((w0 & 0xF800) == 0x7000) { // 4.6.164 STRB (immediate), T1 encoding (pg 4-341)
     out_inst.type = inst_type::STORE_BYTE_IMM;
-    out_inst.i.store_byte_imm =
-      inst_store_byte_imm{ .dst_reg = uint8_t(w0 & 7u),
-                           .src_reg = uint8_t((w0 >> 3u) & 7u),
-                           .imm = uint8_t((w0 >> 6u) & 0x1Fu) };
+    out_inst.i.store_byte_imm = inst_store_byte_imm{
+      .dst_reg = uint8_t(w0 & 7u),
+      .src_reg = uint8_t((w0 >> 3u) & 7u),
+      .imm = uint8_t((w0 >> 6u) & 0x1Fu) };
     return true;
   }
 
