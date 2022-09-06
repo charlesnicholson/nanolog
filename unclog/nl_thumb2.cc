@@ -57,7 +57,8 @@ char const *s_reg_names[] = {
   X(POP, pop) \
   X(STORE_BYTE_IMM, store_byte_imm) \
   X(STORE_IMM, store_imm) \
-  X(SVC, svc)
+  X(SVC, svc) \
+  X(TABLE_BRANCH_BYTE, table_branch_byte)
 
 #define X(ENUM, TYPE) ENUM,
 enum class inst_type : uint8_t { INST_TYPE_X_LIST() };
@@ -85,6 +86,7 @@ struct inst_nop {};
 struct inst_store_byte_imm { uint8_t src_reg, dst_reg, imm; };
 struct inst_store_imm { uint8_t src_reg, dst_reg; uint16_t imm; };
 struct inst_svc { uint32_t label; };
+struct inst_table_branch_byte { uint8_t base_reg, idx_reg; };
 
 void print(inst_add_sp_imm const& a) {
   printf("  ADD %s, [SP, #%d]\n", s_reg_names[a.src_reg], (int)a.imm);
@@ -190,6 +192,10 @@ void print(inst_store_imm const& s) {
 };
 
 void print(inst_svc const&) { printf("  SVC\n"); }
+
+void print(inst_table_branch_byte const& t) {
+  printf(" TBB [%s, %s]\n", s_reg_names[t.base_reg], s_reg_names[t.idx_reg]);
+}
 
 // Instruction (tagged union)
 
@@ -438,6 +444,15 @@ bool parse_32bit_inst(uint16_t const w0,
     out_inst.type = inst_type::MOV_IMM;
     out_inst.i.mov_imm =
       inst_mov_imm{ .imm = decode_imm12(imm12), .reg = uint8_t((w1 >> 8u) & 7u) };
+    return true;
+  }
+
+  // 4.6.168 TBB, T1 encoding (pg 4-389)
+  if (((w0 & 0xFFF0) == 0xE8D0) && ((w1 & 0xF0) == 0)) {
+    out_inst.type = inst_type::TABLE_BRANCH_BYTE;
+    out_inst.i.table_branch_byte = inst_table_branch_byte{
+      .base_reg = uint8_t(w0 & 7u),
+      .idx_reg = uint8_t(w1 & 7u) };
     return true;
   }
 
