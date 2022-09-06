@@ -47,7 +47,7 @@ char const *s_reg_names[] = {
   X(LOAD_LIT, load_lit) \
   X(LSHIFT_LOG, lshift_log) \
   X(MOV, mov) \
-  X(MOVS, movs) \
+  X(MOV_IMM, mov_imm) \
   X(NOP, nop) \
   X(PUSH, push) \
   X(POP, pop) \
@@ -69,7 +69,7 @@ struct inst_cmp_branch_z { uint8_t reg, label; };
 struct inst_load_lit { uint32_t label; uint8_t reg; };
 struct inst_lshift_log { uint8_t dst_reg, src_reg, imm; };
 struct inst_mov { uint8_t dst_reg, src_reg; };
-struct inst_movs { uint8_t imm, reg; };
+struct inst_mov_imm { uint32_t imm; uint8_t reg; };
 struct inst_push { uint16_t reg_list; };
 struct inst_pop { uint16_t reg_list; };
 struct inst_nop {};
@@ -132,8 +132,8 @@ void print(inst_mov const& m) {
   printf("  MOV %s, %s\n", s_reg_names[m.dst_reg], s_reg_names[m.src_reg]);
 }
 
-void print(inst_movs const& m) {
-  printf("  MOVS %s, #%d\n", s_reg_names[m.reg], (int)m.imm);
+void print(inst_mov_imm const& m) {
+  printf("  MOV_IMM %s, #%d\n", s_reg_names[m.reg], (int)m.imm);
 }
 
 void print(inst_store_imm const& i) {
@@ -161,6 +161,22 @@ void print(inst const& i) {
 #undef X
 
 // Instruction decoding
+
+uint32_t decode_imm12(uint32_t imm12) {
+  // 4.2.2 Operation (pg 4-9)
+  if ((imm12 & 0xC00u) == 0) {
+    uint32_t const imm8{imm12 & 0xFFu};
+    switch ((imm12 >> 8u) & 3u) {
+      case 0: return imm12;
+      case 1: return (imm8 << 16) | imm8;
+      case 2: return (imm8 << 24) | (imm8 << 8);
+      case 3: return (imm8 << 24) | (imm8 << 16) | (imm8 << 8) | imm8;
+    }
+  }
+  uint32_t const unrot = 0x80u | (imm12 & 0x7Fu);
+  uint32_t const n = (imm12 >> 7u) & 0x1Fu;
+  return (unrot >> n) | (unrot << (32 - n));
+}
 
 int sext(int x, int sign_bit) { int const m = 1 << sign_bit; return (x ^ m) - m; }
 
@@ -266,9 +282,9 @@ bool parse_16bit_inst(uint16_t const w0, uint32_t const addr, inst& out_inst) {
   }
 
   if ((w0 & 0xF800) == 0x2000) { // 4.6.76 MOV (immediate), T1 encoding (pg 4-166)
-    out_inst.type = inst_type::MOVS;
-    out_inst.i.movs =
-      inst_movs{ .imm = uint8_t(w0 & 0xFFu), .reg = uint8_t((w0 >> 8u) & 7u) };
+    out_inst.type = inst_type::MOV_IMM;
+    out_inst.i.mov_imm =
+      inst_mov_imm{ .imm = uint8_t(w0 & 0xFFu), .reg = uint8_t((w0 >> 8u) & 7u) };
     return true;
   }
 
@@ -305,7 +321,8 @@ bool parse_32bit_inst(uint16_t const w0,
                       inst& out_inst) {
   out_inst.len = 4;
 
-  if (((w0 & 0xF800) == 0xF000) && ((w1 & 0xD000) == 0xD000)) { // 4.6.18 BL T1 (pg 4-50)
+  // 4.6.18 BL, T1 encoding (pg 4-50)
+  if (((w0 & 0xF800) == 0xF000) && ((w1 & 0xD000) == 0xD000)) {
     uint32_t const sbit = (w0 >> 10u) & 1u;
     uint32_t const sext = ((sbit ^ 1u) - 1u) & 0xFF000000u;
     uint32_t const i1 = (1u - (((w1 >> 13u) & 1u) ^ sbit)) << 23u;
@@ -315,6 +332,16 @@ bool parse_32bit_inst(uint16_t const w0,
     uint32_t const imm32 = sext | i1 | i2 | imm10 | imm11;
     out_inst.type = inst_type::BRANCH_LINK;
     out_inst.i.branch_link = inst_branch_link{ .label = addr + 4 + imm32 };
+    return true;
+  }
+
+  // 4.6.76 MOV (immediate), T2 encoding (pg 4-166)
+  if (((w0 & 0xFBEF) == 0xF04F) && (w1 & 0x8000) == 0) {
+    unsigned const imm12 =
+      (w1 & 0xFFu) | ((w1 >> 4u) & 0x700u) | (unsigned(w0 << 2u) & 0x1000u);
+    out_inst.type = inst_type::MOV_IMM;
+    out_inst.i.mov_imm =
+      inst_mov_imm{ .imm = decode_imm12(imm12), .reg = uint8_t((w1 >> 8u) & 7u) };
     return true;
   }
 
