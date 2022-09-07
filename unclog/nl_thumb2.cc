@@ -47,6 +47,7 @@ char const *s_reg_names[] = {
   X(CBZ, cmp_branch_z) \
   X(CMP_IMM, cmp_imm) \
   X(COUNT_LEADING_ZEROS, count_leading_zeros) \
+  X(LOAD_BYTE_REG, load_byte_reg) \
   X(LOAD_BYTE_IMM, load_byte_imm) \
   X(LOAD_HALF_IMM, load_half_imm) \
   X(LOAD_IMM, load_imm) \
@@ -78,6 +79,7 @@ struct inst_cmp_branch_z { uint8_t reg, label; };
 struct inst_cmp_imm { uint8_t reg, imm; };
 struct inst_count_leading_zeros { uint8_t dst_reg, src_reg; };
 struct inst_load_byte_imm { uint8_t dst_reg, src_reg, imm; };
+struct inst_load_byte_reg { uint8_t dst_reg, base_reg, ofs_reg; };
 struct inst_load_half_imm { uint8_t dst_reg, src_reg, imm; };
 struct inst_load_imm { uint8_t dst_reg, src_reg, imm; };
 struct inst_load_lit { uint32_t label; uint8_t reg; };
@@ -162,6 +164,13 @@ void print(inst_load_byte_imm const& l) {
          s_reg_names[l.src_reg],
          (int)l.imm);
 };
+
+void print(inst_load_byte_reg const& l) {
+  printf("  LDRB_REG %s, [%s, %s]\n",
+         s_reg_names[l.dst_reg],
+         s_reg_names[l.base_reg],
+         s_reg_names[l.ofs_reg]);
+}
 
 void print(inst_load_imm const& l) {
   printf("  LDR_IMM %s, [%s, #%d]\n",
@@ -358,6 +367,15 @@ bool parse_16bit_inst(uint16_t const w0, uint32_t const addr, inst& out_inst) {
     return true;
   }
 
+  if ((w0 & 0xFE00) == 0x5C00) { // 4.6.48 LDRB (register), T1 encoding (pg 4-110)
+    out_inst.type = inst_type::LOAD_BYTE_REG;
+    out_inst.i.load_byte_reg = inst_load_byte_reg {
+      .dst_reg = uint8_t(w0 & 7u),
+      .base_reg = uint8_t((w0 >> 3u) & 7u),
+      .ofs_reg = uint8_t((w0 >> 6u) & 7u) };
+    return true;
+  }
+
   if ((w0 & 0xF800) == 0x8800) { // 4.6.55 LDRH (immediate), T1 encoding (pg 4-124)
     out_inst.type = inst_type::LOAD_HALF_IMM;
     out_inst.i.load_half_imm = inst_load_half_imm{
@@ -479,6 +497,15 @@ bool parse_32bit_inst(uint16_t const w0,
     out_inst.type = inst_type::MOV_IMM;
     out_inst.i.mov_imm =
       inst_mov_imm{ .imm = decode_imm12(imm12), .reg = uint8_t((w1 >> 8u) & 7u) };
+    return true;
+  }
+
+  if ((w0 & 0xFFF0) == 0xF8C0) { // 4.6.162 STR (immediate), T3 encoding (4-337)
+    out_inst.type = inst_type::STORE_IMM;
+    out_inst.i.store_imm = inst_store_imm{
+      .src_reg = uint8_t(w1 >> 12u),
+      .dst_reg = uint8_t(w0 & 0xFu),
+      .imm = uint16_t(w1 & 0xFFFu) };
     return true;
   }
 
