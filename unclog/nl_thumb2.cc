@@ -6,6 +6,10 @@
 #include <stack>
 #include <vector>
 
+using u8 = uint8_t;
+using u16 = uint16_t;
+using u32 = uint32_t;
+
 namespace {
 
 // Condition Codes
@@ -17,7 +21,7 @@ namespace {
   X(GT, 0b1100) X(LE, 0b1101) X(AL1, 0b1110) X(AL2, 0b1111)
 
 #define X(NAME, VAL) NAME = VAL,
-enum class cond_code : uint8_t { CONDITION_CODE_X_LIST() };
+enum class cond_code : u8 { CONDITION_CODE_X_LIST() };
 #undef X
 
 #define X(NAME, VAL) case cond_code::NAME: return #NAME;
@@ -66,36 +70,36 @@ char const *s_rn[] = {
   X(TABLE_BRANCH_BYTE, table_branch_byte)
 
 #define X(ENUM, TYPE) ENUM,
-enum class inst_type : uint8_t { INST_TYPE_X_LIST() };
+enum class inst_type : u8 { INST_TYPE_X_LIST() };
 #undef X
 
-struct inst_add_sp_imm { uint8_t src_reg, imm; };
-struct inst_adr { uint8_t dst_reg, imm; };
-struct inst_branch { uint32_t label; cond_code cc; };
-struct inst_branch_link { uint32_t label; };
-struct inst_branch_link_xchg_reg { uint8_t reg; };
-struct inst_branch_xchg { uint8_t reg; };
-struct inst_cmp_branch_nz { uint8_t reg, label; };
-struct inst_cmp_branch_z { uint8_t reg, label; };
-struct inst_cmp_imm { uint8_t reg, imm; };
-struct inst_count_leading_zeros { uint8_t dst_reg, src_reg; };
-struct inst_load_byte_imm { uint8_t dst_reg, src_reg, imm; };
-struct inst_load_byte_reg { uint8_t dst_reg, base_reg, ofs_reg; };
-struct inst_load_half_imm { uint8_t dst_reg, src_reg, imm; };
-struct inst_load_imm { uint16_t imm; uint8_t dst_reg, src_reg; };
-struct inst_load_lit { uint32_t label; uint8_t reg; };
-struct inst_lshift_log_imm { uint8_t dst_reg, src_reg, imm; };
-struct inst_lshift_log_reg { uint8_t dst_reg, src_reg; };
-struct inst_mov { uint8_t dst_reg, src_reg; };
-struct inst_mov_imm { uint32_t imm; uint8_t reg; };
-struct inst_push { uint16_t reg_list; };
-struct inst_pop { uint16_t reg_list; };
+struct inst_add_sp_imm { u8 src_reg, imm; };
+struct inst_adr { u8 dst_reg, imm; };
+struct inst_branch { u32 label; cond_code cc; };
+struct inst_branch_link { u32 label; };
+struct inst_branch_link_xchg_reg { u8 reg; };
+struct inst_branch_xchg { u8 reg; };
+struct inst_cmp_branch_nz { u8 reg, label; };
+struct inst_cmp_branch_z { u8 reg, label; };
+struct inst_cmp_imm { u8 reg, imm; };
+struct inst_count_leading_zeros { u8 dst_reg, src_reg; };
+struct inst_load_byte_imm { u8 dst_reg, src_reg, imm; };
+struct inst_load_byte_reg { u8 dst_reg, base_reg, ofs_reg; };
+struct inst_load_half_imm { u8 dst_reg, src_reg, imm; };
+struct inst_load_imm { u16 imm; u8 dst_reg, src_reg; };
+struct inst_load_lit { u32 label; u8 reg; };
+struct inst_lshift_log_imm { u8 dst_reg, src_reg, imm; };
+struct inst_lshift_log_reg { u8 dst_reg, src_reg; };
+struct inst_mov { u8 dst_reg, src_reg; };
+struct inst_mov_imm { u32 imm; u8 reg; };
+struct inst_push { u16 reg_list; };
+struct inst_pop { u16 reg_list; };
 struct inst_nop {};
-struct inst_rshift_log { uint8_t dst_reg, src_reg, imm; };
-struct inst_store_byte_imm { uint8_t src_reg, dst_reg, imm; };
-struct inst_store_imm { uint8_t src_reg, dst_reg; uint16_t imm; };
-struct inst_svc { uint32_t label; };
-struct inst_table_branch_byte { uint8_t base_reg, idx_reg; };
+struct inst_rshift_log { u8 dst_reg, src_reg, imm; };
+struct inst_store_byte_imm { u8 src_reg, dst_reg, imm; };
+struct inst_store_imm { u8 src_reg, dst_reg; u16 imm; };
+struct inst_svc { u32 label; };
+struct inst_table_branch_byte { u8 base_reg, idx_reg; };
 
 void print(inst_add_sp_imm const& a) {
   printf("  ADD %s, [SP, #%d]\n", s_rn[a.src_reg], (int)a.imm);
@@ -211,9 +215,9 @@ void print(inst_table_branch_byte const& t) {
 
 #define X(ENUM, TYPE) inst_##TYPE TYPE;
 struct inst {
-  uint8_t len; // 2 or 4
-  inst_type type;
   union { INST_TYPE_X_LIST() } i;
+  inst_type type;
+  u8 len; // 2 or 4
 };
 #undef X
 
@@ -226,10 +230,10 @@ void print(inst const& i) {
 
 // Instruction decoding
 
-uint32_t decode_imm12(uint32_t imm12) {
+u32 decode_imm12(u32 imm12) {
   // 4.2.2 Operation (pg 4-9)
   if ((imm12 & 0xC00u) == 0) {
-    uint32_t const imm8{imm12 & 0xFFu};
+    u32 const imm8{imm12 & 0xFFu};
     switch ((imm12 >> 8u) & 3u) {
       case 0: return imm12;
       case 1: return (imm8 << 16) | imm8;
@@ -237,41 +241,39 @@ uint32_t decode_imm12(uint32_t imm12) {
       case 3: return (imm8 << 24) | (imm8 << 16) | (imm8 << 8) | imm8;
     }
   }
-  uint32_t const x = 0x80u | (imm12 & 0x7Fu);
-  uint32_t const n = (imm12 >> 7u) & 0x1Fu;
+  u32 const x = 0x80u | (imm12 & 0x7Fu);
+  u32 const n = (imm12 >> 7u) & 0x1Fu;
   return (x >> n) | (x << (32 - n)); // rotate into place
 }
 
 int sext(int x, int sign_bit) { int const m = 1 << sign_bit; return (x ^ m) - m; }
 
-bool is_16bit_inst(uint16_t w0) {
+bool is_16bit_inst(u16 w0) {
   // 3.1 Instruction set encoding, Table 3-1 (pg 3-2)
-  if ((w0 & 0xF800u) == 0xE000u) { return true; }
-  if ((w0 & 0xE000u) == 0xE000u) { return false; }
-  return true;
+  return ((w0 & 0xF800u) == 0xE000u) || ((w0 & 0xE000u) != 0xE000u);
 }
 
-bool parse_16bit_inst(uint16_t const w0, uint32_t const addr, inst& out_inst) {
+bool parse_16bit_inst(u16 const w0, u32 const addr, inst& out_inst) {
   out_inst.len = 2;
 
   if ((w0 & 0xF800u) == 0xA800u) { // 4.5.5 ADD (SP + immediate), T1 encoding (pg 4-24)
     out_inst.type = inst_type::ADD_SP_IMM;
     out_inst.i.add_sp_imm =
-      inst_add_sp_imm{ .src_reg = uint8_t((w0 >> 8u) & 7u), .imm = uint8_t(w0 & 0xFFu) };
+      inst_add_sp_imm{ .src_reg = u8((w0 >> 8u) & 7u), .imm = u8(w0 & 0xFFu) };
     return true;
   }
 
   if ((w0 & 0xF800u) == 0xA000u) { // 4.6.7 ADR, T1 encoding (pg 4-28)
     out_inst.type = inst_type::ADR;
     out_inst.i.adr =
-      inst_adr{ .dst_reg = uint8_t((w0 >> 8u) & 7u), .imm = uint8_t((w0 & 0xFFu) << 2u) };
+      inst_adr{ .dst_reg = u8((w0 >> 8u) & 7u), .imm = u8((w0 & 0xFFu) << 2u) };
     return true;
   }
 
   if ((w0 & 0xF000u) == 0xD000u) { // 4.6.12 B, T1 encoding (pg 4-38)
     cond_code const cc = (cond_code)((w0 >> 8u) & 0xFu);
-    uint32_t const label = uint32_t(sext((w0 & 0xFF) << 1, 8));
-    if ((uint8_t)cc == 0xFu) { // cc 0b1111 == SVC, 4.6.181 SVC (pg 4-375)
+    u32 const label = u32(sext((w0 & 0xFF) << 1, 8));
+    if ((u8)cc == 0xFu) { // cc 0b1111 == SVC, 4.6.181 SVC (pg 4-375)
       out_inst.type = inst_type::SVC;
       out_inst.i.svc = inst_svc{ .label = label };
     } else {
@@ -284,53 +286,51 @@ bool parse_16bit_inst(uint16_t const w0, uint32_t const addr, inst& out_inst) {
   if ((w0 & 0xF800u) == 0xE000u) { // 4.6.12 B, T2 encoding (pg 4-38)
     out_inst.type = inst_type::BRANCH;
     out_inst.i.branch = inst_branch{
-      .label = uint32_t(int(addr + 4) + sext((w0 & 0x7FF) << 1, 11)),
-      .cc = cond_code::AL1 };
+      .label = u32(int(addr + 4) + sext((w0 & 0x7FF) << 1, 11)), .cc = cond_code::AL1 };
     return true;
   }
 
   if ((w0 & 0xFF80u) == 0x4780u) { // 4.6.19 BLX (register), T1 encoding (pg 4-52)
     out_inst.type = inst_type::BRANCH_LINK_XCHG_REG;
-    out_inst.i.branch_link_xchg_reg = inst_branch_link_xchg_reg{
-      .reg = uint8_t((w0 >> 3u) & 7u) };
+    out_inst.i.branch_link_xchg_reg =
+      inst_branch_link_xchg_reg{ .reg = u8((w0 >> 3u) & 7u) };
     return true;
   }
 
   if ((w0 & 0xFF80u) == 0x4700u) { // 4.6.20 BX, T1 encoding (pg 4-54)
     out_inst.type = inst_type::BRANCH_XCHG;
-    out_inst.i.branch_xchg = inst_branch_xchg{ .reg = uint8_t((w0 >> 3u) & 0xFu)};
+    out_inst.i.branch_xchg = inst_branch_xchg{ .reg = u8((w0 >> 3u) & 0xFu)};
     return true;
   }
 
   if ((w0 & 0xFD00u) == 0xB900u) { // 4.6.22 CBNZ, T1 encoding (pg 4-58)
     out_inst.type = inst_type::CBNZ;
     out_inst.i.cmp_branch_nz = inst_cmp_branch_nz{
-      .reg = uint8_t(w0 & 7u),
-      .label = uint8_t(2 + ((w0 >> 2u) & 0x1Eu) | ((w0 >> 3u) & 0x40u)) };
+      .reg = u8(w0 & 7u), .label = u8(2 + ((w0 >> 2u) & 0x1Eu) | ((w0 >> 3u) & 0x40u)) };
     return true;
   }
 
   if ((w0 & 0xFD00u) == 0xB100u) { // 4.6.23 CBZ, T1 encoding (pg 4-60)
     out_inst.type = inst_type::CBZ;
     out_inst.i.cmp_branch_z = inst_cmp_branch_z{
-      .reg = uint8_t(w0 & 7u),
-      .label = uint8_t(2 + ((w0 >> 2u) & 0x1Eu) | ((w0 >> 3u) & 0x40u)) };
+      .reg = u8(w0 & 7u),
+      .label = u8(2 + ((w0 >> 2u) & 0x1Eu) | ((w0 >> 3u) & 0x40u)) };
     return true;
   }
 
   if ((w0 & 0xF800u) == 0x2800u) { // 4.6.29 CMP (immediate), T1 encoding (pg 4-72)
     out_inst.type = inst_type::CMP_IMM;
     out_inst.i.cmp_imm =
-      inst_cmp_imm{ .reg = uint8_t((w0 >> 8u) & 7u), .imm = uint8_t(w0 & 0xFFu) };
+      inst_cmp_imm{ .reg = u8((w0 >> 8u) & 7u), .imm = u8(w0 & 0xFFu) };
     return true;
   }
 
   if ((w0 & 0xF800u) == 0x6800u) { // 4.6.43 LDR (immediate), T1 encoding (pg 4-100)
     out_inst.type = inst_type::LOAD_IMM;
     out_inst.i.load_imm = inst_load_imm{
-      .dst_reg = uint8_t(w0 & 7u),
-      .src_reg = uint8_t((w0 >> 3u) & 7u),
-      .imm = uint8_t(((w0 >> 6u) & 0x1Fu) << 2u) };
+      .dst_reg = u8(w0 & 7u),
+      .src_reg = u8((w0 >> 3u) & 7u),
+      .imm = u8(((w0 >> 6u) & 0x1Fu) << 2u) };
     return true;
   }
 
@@ -338,77 +338,72 @@ bool parse_16bit_inst(uint16_t const w0, uint32_t const addr, inst& out_inst) {
   if ((w0 & 0xF800u) == 0x4800u) { // 4.6.44 LDR (literal), T1 encoding (pg 4-102)
     out_inst.type = inst_type::LOAD_LIT;
     out_inst.i.load_lit = inst_load_lit{
-      .label = ((w0 & 0xFFu) << 2u) + ((addr + 4u) & ~3u),
-      .reg = uint8_t((w0 >> 8u) & 7u) };
+      .label = ((w0 & 0xFFu) << 2u) + ((addr + 4u) & ~3u), .reg = u8((w0 >> 8u) & 7u) };
     return true;
   }
 
   if ((w0 & 0xF800u) == 0x7800u) { // 4.6.46 LDRB (immediate), T1 encoding (pg 4-106)
     out_inst.type = inst_type::LOAD_BYTE_IMM;
     out_inst.i.load_byte_imm = inst_load_byte_imm{
-      .dst_reg = uint8_t(w0 & 7u),
-      .src_reg = uint8_t((w0 >> 3u) & 7u),
-      .imm = (uint8_t)((w0 >> 6u) & 0x1Fu) };
+      .dst_reg = u8(w0 & 7u),
+      .src_reg = u8((w0 >> 3u) & 7u),
+      .imm = (u8)((w0 >> 6u) & 0x1Fu) };
     return true;
   }
 
   if ((w0 & 0xFE00u) == 0x5C00u) { // 4.6.48 LDRB (register), T1 encoding (pg 4-110)
     out_inst.type = inst_type::LOAD_BYTE_REG;
     out_inst.i.load_byte_reg = inst_load_byte_reg {
-      .dst_reg = uint8_t(w0 & 7u),
-      .base_reg = uint8_t((w0 >> 3u) & 7u),
-      .ofs_reg = uint8_t((w0 >> 6u) & 7u) };
+      .dst_reg = u8(w0 & 7u),
+      .base_reg = u8((w0 >> 3u) & 7u),
+      .ofs_reg = u8((w0 >> 6u) & 7u) };
     return true;
   }
 
   if ((w0 & 0xF800u) == 0x8800u) { // 4.6.55 LDRH (immediate), T1 encoding (pg 4-124)
     out_inst.type = inst_type::LOAD_HALF_IMM;
     out_inst.i.load_half_imm = inst_load_half_imm{
-      .dst_reg = uint8_t(w0 & 7u),
-      .src_reg = uint8_t((w0 >> 3u) & 7u),
-      .imm = (uint8_t)(((w0 >> 6u) & 0x1Fu) << 1u) };
+      .dst_reg = u8(w0 & 7u),
+      .src_reg = u8((w0 >> 3u) & 7u),
+      .imm = (u8)(((w0 >> 6u) & 0x1Fu) << 1u) };
     return true;
   }
 
   if ((w0 & 0xF800u) == 0) { // 4.6.68 LSL (immediate), T1 encoding (pg 4-150)
     out_inst.type = inst_type::LSHIFT_LOG_IMM;
     out_inst.i.lshift_log_imm = inst_lshift_log_imm{
-      .dst_reg = uint8_t(w0 & 7u),
-      .src_reg = uint8_t((w0 >> 3u) & 7u),
-      .imm = uint8_t((w0 >> 6u) & 0x1Fu) };
+      .dst_reg = u8(w0 & 7u),
+      .src_reg = u8((w0 >> 3u) & 7u),
+      .imm = u8((w0 >> 6u) & 0x1Fu) };
     return true;
   }
 
   if ((w0 & 0xFFC0u) == 0x4080u) { // 4.6.69 LSL (register), T1 encoding (pg 4-152)
     out_inst.type = inst_type::LSHIFT_LOG_REG;
-    out_inst.i.lshift_log_reg = inst_lshift_log_reg{
-      .dst_reg = uint8_t(w0 & 7u),
-      .src_reg = uint8_t((w0 >> 3u) & 7u) };
+    out_inst.i.lshift_log_reg =
+      inst_lshift_log_reg{ .dst_reg = u8(w0 & 7u), .src_reg = u8((w0 >> 3u) & 7u) };
     return true;
   }
 
   if ((w0 & 0xF800u) == 0x800u) { // 4.6.70 LSR (immediate), T1 encoding (pg 4-154)
-    uint8_t const imm5 = uint8_t((w0 >> 6u) & 0x1Fu);
+    u8 const imm5 = u8((w0 >> 6u) & 0x1Fu);
     out_inst.type = inst_type::RSHIFT_LOG;
     out_inst.i.rshift_log = inst_rshift_log{
-      .dst_reg = uint8_t(w0 & 7u),
-      .src_reg = uint8_t((w0 >> 3u) & 7u),
-      .imm = imm5 ? imm5 : uint8_t(32u) };
+      .dst_reg = u8(w0 & 7u), .src_reg = u8((w0 >> 3u) & 7u), .imm = imm5 ? imm5 : u8(32) };
     return true;
   }
 
   if ((w0 & 0xF800u) == 0x2000u) { // 4.6.76 MOV (immediate), T1 encoding (pg 4-166)
     out_inst.type = inst_type::MOV_IMM;
     out_inst.i.mov_imm =
-      inst_mov_imm{ .imm = uint8_t(w0 & 0xFFu), .reg = uint8_t((w0 >> 8u) & 7u) };
+      inst_mov_imm{ .imm = u8(w0 & 0xFFu), .reg = u8((w0 >> 8u) & 7u) };
     return true;
   }
 
   if ((w0 & 0xFF00u) == 0x4600u) { // 4.6.77 MOV (register), T1 encoding (pg 4-168)
     out_inst.type = inst_type::MOV;
     out_inst.i.mov = inst_mov{
-      .src_reg = uint8_t((w0 >> 3u) & 0xFu),
-      .dst_reg = uint8_t((w0 & 7u) | ((w0 & 8u) >> 4u)) };
+      .src_reg = u8((w0 >> 3u) & 0xFu), .dst_reg = u8((w0 & 7u) | ((w0 & 8u) >> 4u)) };
     return true;
   }
 
@@ -421,32 +416,30 @@ bool parse_16bit_inst(uint16_t const w0, uint32_t const addr, inst& out_inst) {
   if ((w0 & 0xFE00u) == 0xBC00u) { // 4.6.98 POP, T1 encoding (pg 4-209)
     out_inst.type = inst_type::POP;
     out_inst.i.pop =
-      inst_pop{ .reg_list = uint16_t(((w0 & 0x100u) << 7) | (w0 & 0xFFu)) };
+      inst_pop{ .reg_list = u16(((w0 & 0x100u) << 7) | (w0 & 0xFFu)) };
     return true;
   }
 
   if ((w0 & 0xFE00u) == 0xB400u) { // 4.6.99 PUSH, T1 encoding (pg 4-211)
     out_inst.type = inst_type::PUSH;
     out_inst.i.push =
-      inst_push{ .reg_list = uint16_t(((w0 & 0x0100u) << 6u) | (w0 & 0xFFu)) };
+      inst_push{ .reg_list = u16(((w0 & 0x0100u) << 6u) | (w0 & 0xFFu)) };
     return true;
   }
 
   if ((w0 & 0xF800u) == 0x9000u) { // 4.6.162 STR (immediate), T2 encoding (pg 4-337)
     out_inst.type = inst_type::STORE_IMM;
     out_inst.i.store_imm = inst_store_imm{
-      .dst_reg = 13,
-      .src_reg = uint8_t((w0 >> 8u) & 7u),
-      .imm = uint8_t(w0 & 0xFFu) };
+      .dst_reg = 13, .src_reg = u8((w0 >> 8u) & 7u), .imm = u8(w0 & 0xFFu) };
     return true;
   }
 
   if ((w0 & 0xF800u) == 0x7000u) { // 4.6.164 STRB (immediate), T1 encoding (pg 4-341)
     out_inst.type = inst_type::STORE_BYTE_IMM;
     out_inst.i.store_byte_imm = inst_store_byte_imm{
-      .dst_reg = uint8_t(w0 & 7u),
-      .src_reg = uint8_t((w0 >> 3u) & 7u),
-      .imm = uint8_t((w0 >> 6u) & 0x1Fu) };
+      .dst_reg = u8(w0 & 7u),
+      .src_reg = u8((w0 >> 3u) & 7u),
+      .imm = u8((w0 >> 6u) & 0x1Fu) };
     return true;
   }
 
@@ -454,21 +447,21 @@ bool parse_16bit_inst(uint16_t const w0, uint32_t const addr, inst& out_inst) {
   return false;
 }
 
-bool parse_32bit_inst(uint16_t const w0,
-                      uint16_t const w1,
-                      uint32_t const addr,
+bool parse_32bit_inst(u16 const w0,
+                      u16 const w1,
+                      u32 const addr,
                       inst& out_inst) {
   out_inst.len = 4;
 
   // 4.6.18 BL, T1 encoding (pg 4-50)
   if (((w0 & 0xF800) == 0xF000) && ((w1 & 0xD000) == 0xD000)) {
-    uint32_t const sbit = (w0 >> 10u) & 1u;
-    uint32_t const sext = ((sbit ^ 1u) - 1u) & 0xFF000000u;
-    uint32_t const i1 = (1u - (((w1 >> 13u) & 1u) ^ sbit)) << 23u;
-    uint32_t const i2 = (1u - (((w1 >> 11u) & 1u) ^ sbit)) << 22u;
-    uint32_t const imm10 = (w0 & 0x3FFu) << 12u;
-    uint32_t const imm11 = (w1 & 0x7FFu) << 1u;
-    uint32_t const imm32 = sext | i1 | i2 | imm10 | imm11;
+    u32 const sbit = (w0 >> 10u) & 1u;
+    u32 const sext = ((sbit ^ 1u) - 1u) & 0xFF000000u;
+    u32 const i1 = (1u - (((w1 >> 13u) & 1u) ^ sbit)) << 23u;
+    u32 const i2 = (1u - (((w1 >> 11u) & 1u) ^ sbit)) << 22u;
+    u32 const imm10 = (w0 & 0x3FFu) << 12u;
+    u32 const imm11 = (w1 & 0x7FFu) << 1u;
+    u32 const imm32 = sext | i1 | i2 | imm10 | imm11;
     out_inst.type = inst_type::BRANCH_LINK;
     out_inst.i.branch_link = inst_branch_link{ .label = addr + 4 + imm32 };
     return true;
@@ -478,17 +471,14 @@ bool parse_32bit_inst(uint16_t const w0,
   if (((w0 & 0xFFF0) == 0xFAB0) && ((w1 & 0xF0F0) == 0xF080)) {
     out_inst.type = inst_type::COUNT_LEADING_ZEROS;
     out_inst.i.count_leading_zeros = inst_count_leading_zeros{
-      .src_reg = uint8_t(w1 & 7u),
-      .dst_reg = uint8_t((w1 >> 8u) & 0xFu) };
+      .src_reg = u8(w1 & 7u), .dst_reg = u8((w1 >> 8u) & 0xFu) };
     return true;
   }
 
   if ((w0 & 0xFFF0) == 0xF8D0) { // 4.6.43 LDR (immediate), T3 encoding (pg 4-100)
     out_inst.type = inst_type::LOAD_IMM;
     out_inst.i.load_imm = inst_load_imm{
-      .src_reg = uint8_t(w0 & 0xFu),
-      .dst_reg = uint8_t((w1 >> 12u) & 7u),
-      .imm = uint16_t(w1 & 0xFFFu) };
+      .src_reg = u8(w0 & 0xFu), .dst_reg = u8((w1 >> 12u) & 7u), .imm = u16(w1 & 0xFFFu) };
     return true;
   }
 
@@ -498,25 +488,24 @@ bool parse_32bit_inst(uint16_t const w0,
       (w1 & 0xFFu) | ((w1 >> 4u) & 0x700u) | (unsigned(w0 << 2u) & 0x1000u);
     out_inst.type = inst_type::MOV_IMM;
     out_inst.i.mov_imm =
-      inst_mov_imm{ .imm = decode_imm12(imm12), .reg = uint8_t((w1 >> 8u) & 7u) };
+      inst_mov_imm{ .imm = decode_imm12(imm12), .reg = u8((w1 >> 8u) & 7u) };
     return true;
   }
 
   if ((w0 & 0xFFF0) == 0xF8C0) { // 4.6.162 STR (immediate), T3 encoding (4-337)
     out_inst.type = inst_type::STORE_IMM;
     out_inst.i.store_imm = inst_store_imm{
-      .src_reg = uint8_t(w1 >> 12u),
-      .dst_reg = uint8_t(w0 & 0xFu),
-      .imm = uint16_t(w1 & 0xFFFu) };
+      .src_reg = u8(w1 >> 12u),
+      .dst_reg = u8(w0 & 0xFu),
+      .imm = u16(w1 & 0xFFFu) };
     return true;
   }
 
   // 4.6.168 TBB, T1 encoding (pg 4-389)
   if (((w0 & 0xFFF0) == 0xE8D0) && ((w1 & 0xF0) == 0)) {
     out_inst.type = inst_type::TABLE_BRANCH_BYTE;
-    out_inst.i.table_branch_byte = inst_table_branch_byte{
-      .base_reg = uint8_t(w0 & 7u),
-      .idx_reg = uint8_t(w1 & 7u) };
+    out_inst.i.table_branch_byte =
+      inst_table_branch_byte{ .base_reg = u8(w0 & 7u), .idx_reg = u8(w1 & 7u) };
     return true;
   }
 
@@ -524,8 +513,8 @@ bool parse_32bit_inst(uint16_t const w0,
   return false;
 }
 
-bool parse_inst(char const *text, uint32_t addr, inst& out_inst) {
-  uint16_t w0, w1;
+bool parse_inst(char const *text, u32 addr, inst& out_inst) {
+  u16 w0, w1;
   memcpy(&w0, text + addr, 2);
   if (is_16bit_inst(w0)) { return parse_16bit_inst(w0, addr, out_inst); }
   memcpy(&w1, text + addr + 2, 2);
@@ -534,16 +523,16 @@ bool parse_inst(char const *text, uint32_t addr, inst& out_inst) {
 }
 
 struct reg_state {
-  uint32_t addr, regs[16];
-  uint16_t known = 0;
+  u32 addr, regs[16];
+  u16 known = 0;
 };
 
 bool thumb2_find_log_strs_in_func(elf const& e,
                                   elf_symbol32 const& func) {
   elf_section_hdr32 const& func_sec_hdr = e.sec_hdrs[func.st_shndx];
-  uint32_t const func_start = (func.st_value - func_sec_hdr.sh_addr) & ~1u;
-  uint32_t const func_end = func_start + func.st_size;
-  uint32_t const func_ofs = func_sec_hdr.sh_offset;
+  u32 const func_start = (func.st_value - func_sec_hdr.sh_addr) & ~1u;
+  u32 const func_end = func_start + func.st_size;
+  u32 const func_ofs = func_sec_hdr.sh_offset;
 
   printf("Scanning %s: addr %x, len %x, range %x-%x:\n",
          &e.strtab[func.st_name],
