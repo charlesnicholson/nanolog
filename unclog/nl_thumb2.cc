@@ -81,7 +81,7 @@ struct inst_count_leading_zeros { uint8_t dst_reg, src_reg; };
 struct inst_load_byte_imm { uint8_t dst_reg, src_reg, imm; };
 struct inst_load_byte_reg { uint8_t dst_reg, base_reg, ofs_reg; };
 struct inst_load_half_imm { uint8_t dst_reg, src_reg, imm; };
-struct inst_load_imm { uint8_t dst_reg, src_reg, imm; };
+struct inst_load_imm { uint16_t imm; uint8_t dst_reg, src_reg; };
 struct inst_load_lit { uint32_t label; uint8_t reg; };
 struct inst_lshift_log { uint8_t dst_reg, src_reg, imm; };
 struct inst_mov { uint8_t dst_reg, src_reg; };
@@ -226,7 +226,7 @@ void print(inst_table_branch_byte const& t) {
 
 #define X(ENUM, TYPE) inst_##TYPE TYPE;
 struct inst {
-  unsigned len; // 2 or 4
+  uint8_t len; // 2 or 4
   inst_type type;
   union { INST_TYPE_X_LIST() } i;
 };
@@ -490,6 +490,15 @@ bool parse_32bit_inst(uint16_t const w0,
     return true;
   }
 
+  if ((w0 & 0xFFF0) == 0xF8D0) { // 4.6.43 LDR (immediate), T3 encoding (pg 4-100)
+    out_inst.type = inst_type::LOAD_IMM;
+    out_inst.i.load_imm = inst_load_imm{
+      .src_reg = uint8_t(w0 & 0xFu),
+      .dst_reg = uint8_t((w1 >> 12u) & 7u),
+      .imm = uint16_t(w1 & 0xFFFu) };
+    return true;
+  }
+
   // 4.6.76 MOV (immediate), T2 encoding (pg 4-166)
   if (((w0 & 0xFBEF) == 0xF04F) && (w1 & 0x8000) == 0) {
     unsigned const imm12 =
@@ -523,10 +532,9 @@ bool parse_32bit_inst(uint16_t const w0,
 }
 
 bool parse_inst(char const *text, uint32_t addr, inst& out_inst) {
-  uint16_t w0;
+  uint16_t w0, w1;
   memcpy(&w0, text + addr, 2);
   if (is_16bit_inst(w0)) { return parse_16bit_inst(w0, addr, out_inst); }
-  uint16_t w1;
   memcpy(&w1, text + addr + 2, 2);
   return parse_32bit_inst(w0, w1, addr, out_inst);
 }
