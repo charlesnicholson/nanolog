@@ -38,11 +38,23 @@ char const *s_rn[] = {
   "R8", "R9", "R10", "R11", "R12", "SP", "LR", "PC",
 };
 
+// Immediate Shift
+
+#define SHIFT_X_LIST() X(LSL) X(LSR) X(ASR) X(RRX) X(ROR)
+#define X(NAME) NAME,
+enum class imm_shift_type : u8 {SHIFT_X_LIST()};
+#undef X
+#define X(NAME) #NAME,
+char const *s_sn[] = { SHIFT_X_LIST() };
+#undef X
+struct imm_shift { imm_shift_type t; u8 n; };
+
 // Instructions
 
 #define INST_TYPE_X_LIST() \
   X(ADD_SP_IMM, add_sp_imm) \
   X(ADR, adr) \
+  X(BIT_CLEAR_REG, bit_clear_reg) \
   X(BRANCH, branch) \
   X(BRANCH_LINK, branch_link) \
   X(BRANCH_LINK_XCHG_REG, branch_link_xchg_reg) \
@@ -75,6 +87,7 @@ enum class inst_type : u8 { INST_TYPE_X_LIST() };
 
 struct inst_add_sp_imm { u8 src_reg, imm; };
 struct inst_adr { u8 dst_reg, imm; };
+struct inst_bit_clear_reg { u8 dst_reg, op1_reg, op2_reg; imm_shift shift; };
 struct inst_branch { u32 label; cond_code cc; };
 struct inst_branch_link { u32 label; };
 struct inst_branch_link_xchg_reg { u8 reg; };
@@ -130,6 +143,15 @@ void print(inst_nop const&) { printf("  NOP\n"); }
 void print(inst_rshift_log const& r) {
   printf("  LSR %s, %s, #%d\n", s_rn[r.dst_reg], s_rn[r.src_reg], (int)r.imm);
 }
+
+void print(inst_bit_clear_reg const& b) {
+  printf("  BIC_REG %s, %s, %s, <%s #%d>\n",
+         s_rn[b.dst_reg],
+         s_rn[b.op1_reg],
+         s_rn[b.op2_reg],
+         s_sn[(int)b.shift.t],
+         (int)b.shift.n);
+};
 
 void print(inst_branch const& i) {
   printf("  B%s %x\n",
@@ -244,6 +266,19 @@ u32 decode_imm12(u32 imm12) {
   u32 const x = 0x80u | (imm12 & 0x7Fu);
   u32 const n = (imm12 >> 7u) & 0x1Fu;
   return (x >> n) | (x << (32 - n)); // rotate into place
+}
+
+imm_shift decode_imm_shift(u8 const type, u8 const imm5) {
+  // 4.3.2 Shift Operations (pg 4-11)
+  switch (type & 3u) {
+    case 0b00: return imm_shift{ .t = imm_shift_type::LSL, .n = imm5 };
+    case 0b01: return imm_shift{ .t = imm_shift_type::LSR, .n = imm5 ? imm5 : u8(32) };
+    case 0b10: return imm_shift{ .t = imm_shift_type::ASR, .n = imm5 ? imm5 : u8(32) };
+    case 0b11:
+      if (imm5 == 0u) { return imm_shift{ .t = imm_shift_type::RRX, .n = 1 }; }
+      return imm_shift{ .t = imm_shift_type::ROR, .n = imm5 };
+  }
+  __builtin_unreachable();
 }
 
 int sext(int x, int sign_bit) { int const m = 1 << sign_bit; return (x ^ m) - m; }
@@ -452,6 +487,18 @@ bool parse_32bit_inst(u16 const w0,
                       u32 const addr,
                       inst& out_inst) {
   out_inst.len = 4;
+
+  if ((w0 & 0xFF70u) == 0xEA20u) { // 4.6.16 BIC, T2 encoding (pg 4-46)
+    out_inst.type = inst_type::BIT_CLEAR_REG;
+    out_inst.i.bit_clear_reg = inst_bit_clear_reg{
+      .dst_reg = u8((w1 >> 8u) & 0xFu),
+      .op1_reg = u8(w0 & 0xFu),
+      .op2_reg = u8(w1 & 0xFu),
+      .shift =
+        decode_imm_shift(u8((w1 >> 4u) & 3u), u8(((w1 >> 6u) & 3u) | ((w1 >> 12u) & 7u))),
+    };
+    return true;
+  }
 
   // 4.6.18 BL, T1 encoding (pg 4-50)
   if (((w0 & 0xF800) == 0xF000) && ((w1 & 0xD000) == 0xD000)) {
