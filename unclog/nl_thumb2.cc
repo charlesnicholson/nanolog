@@ -87,7 +87,7 @@ enum class inst_type : u8 { INST_TYPE_X_LIST() };
 
 struct inst_add_sp_imm { u8 src_reg, imm; };
 struct inst_adr { u8 dst_reg, imm; };
-struct inst_bit_clear_reg { u8 dst_reg, op1_reg, op2_reg; imm_shift shift; };
+struct inst_bit_clear_reg { imm_shift shift; u8 dst_reg, op1_reg, op2_reg; };
 struct inst_branch { u32 label; cond_code cc; };
 struct inst_branch_link { u32 label; };
 struct inst_branch_link_xchg_reg { u8 reg; };
@@ -108,7 +108,7 @@ struct inst_mov_imm { u32 imm; u8 reg; };
 struct inst_push { u16 reg_list; };
 struct inst_pop { u16 reg_list; };
 struct inst_nop {};
-struct inst_rshift_log { u8 dst_reg, src_reg, imm; };
+struct inst_rshift_log { imm_shift shift; u8 dst_reg, src_reg; };
 struct inst_store_byte_imm { u8 src_reg, dst_reg, imm; };
 struct inst_store_imm { u8 src_reg, dst_reg; u16 imm; };
 struct inst_svc { u32 label; };
@@ -141,7 +141,7 @@ void print(inst_pop const& p) {
 void print(inst_nop const&) { printf("  NOP\n"); }
 
 void print(inst_rshift_log const& r) {
-  printf("  LSR %s, %s, #%d\n", s_rn[r.dst_reg], s_rn[r.src_reg], (int)r.imm);
+  printf("  LSR %s, %s, #%d\n", s_rn[r.dst_reg], s_rn[r.src_reg], (int)r.shift.n);
 }
 
 void print(inst_bit_clear_reg const& b) {
@@ -421,10 +421,11 @@ bool parse_16bit_inst(u16 const w0, u32 const addr, inst& out_inst) {
   }
 
   if ((w0 & 0xF800u) == 0x800u) { // 4.6.70 LSR (immediate), T1 encoding (pg 4-154)
-    u8 const imm5 = u8((w0 >> 6u) & 0x1Fu);
     out_inst.type = inst_type::RSHIFT_LOG;
     out_inst.i.rshift_log = inst_rshift_log{
-      .dst_reg = u8(w0 & 7u), .src_reg = u8((w0 >> 3u) & 7u), .imm = imm5 ? imm5 : u8(32) };
+      .dst_reg = u8(w0 & 7u),
+      .src_reg = u8((w0 >> 3u) & 7u),
+      .shift = decode_imm_shift(0b01, u8((w0 >> 6u) & 0x1Fu)) };
     return true;
   }
 
