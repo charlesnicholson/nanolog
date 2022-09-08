@@ -79,6 +79,7 @@ struct imm_shift { imm_shift_type t; u8 n; };
   X(RSHIFT_LOG, rshift_log) \
   X(STORE_BYTE_IMM, store_byte_imm) \
   X(STORE_IMM, store_imm) \
+  X(SUB_REG, sub_reg) \
   X(SVC, svc) \
   X(TABLE_BRANCH_BYTE, table_branch_byte)
 
@@ -113,6 +114,7 @@ struct inst_nop {};
 struct inst_rshift_log { imm_shift shift; u8 dst_reg, src_reg; };
 struct inst_store_byte_imm { u8 src_reg, dst_reg, imm; };
 struct inst_store_imm { u8 src_reg, dst_reg; u16 imm; };
+struct inst_sub_reg { imm_shift shift; u8 dst_reg, op1_reg, op2_reg; };
 struct inst_svc { u32 label; };
 struct inst_table_branch_byte { u8 base_reg, idx_reg; };
 
@@ -222,6 +224,11 @@ void print(inst_store_byte_imm const& s) {
 
 void print(inst_store_imm const& s) {
   printf("  STR_IMM %s, [%s, #%d]\n", s_rn[s.src_reg], s_rn[s.dst_reg], int(s.imm));
+};
+
+void print(inst_sub_reg const& s) {
+  printf("  SUB_REG %s, %s, %s <%s #%u>\n", s_rn[s.dst_reg], s_rn[s.op1_reg],
+    s_rn[s.op2_reg], s_sn[int(s.shift.t)], unsigned(s.shift.n));
 };
 
 void print(inst_svc const&) { printf("  SVC\n"); }
@@ -481,6 +488,16 @@ bool parse_16bit_inst(u16 const w0, u32 const addr, inst& out_inst) {
       .dst_reg = u8(w0 & 7u),
       .src_reg = u8((w0 >> 3u) & 7u),
       .imm = u8((w0 >> 6u) & 0x1Fu) };
+    return true;
+  }
+
+  if ((w0 & 0xFE00u) == 0x1A00u) { // 4.6.177 SUB (register), T1 encoding (pg 4-367)
+    out_inst.type = inst_type::SUB_REG;
+    out_inst.i.sub_reg = inst_sub_reg{
+      .dst_reg = u8(w0 & 7u),
+      .op1_reg = u8((w0 >> 3u) & 7u),
+      .op2_reg = u8((w0 >> 6u) & 7u),
+      .shift = decode_imm_shift(0b00, 0) };
     return true;
   }
 
