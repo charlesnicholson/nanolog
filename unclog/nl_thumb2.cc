@@ -502,7 +502,7 @@ bool parse_32bit_inst(u16 const w0,
   }
 
   // 4.6.18 BL, T1 encoding (pg 4-50)
-  if (((w0 & 0xF800) == 0xF000) && ((w1 & 0xD000) == 0xD000)) {
+  if (((w0 & 0xF800u) == 0xF000u) && ((w1 & 0xD000u) == 0xD000u)) {
     u32 const sbit = (w0 >> 10u) & 1u;
     u32 const sext = ((sbit ^ 1u) - 1u) & 0xFF000000u;
     u32 const i1 = (1u - (((w1 >> 13u) & 1u) ^ sbit)) << 23u;
@@ -516,14 +516,14 @@ bool parse_32bit_inst(u16 const w0,
   }
 
   // 4.6.26 CLZ, T1 encoding (pg 4-66)
-  if (((w0 & 0xFFF0) == 0xFAB0) && ((w1 & 0xF0F0) == 0xF080)) {
+  if (((w0 & 0xFFF0u) == 0xFAB0u) && ((w1 & 0xF0F0u) == 0xF080u)) {
     out_inst.type = inst_type::COUNT_LEADING_ZEROS;
     out_inst.i.count_leading_zeros = inst_count_leading_zeros{
       .src_reg = u8(w1 & 7u), .dst_reg = u8((w1 >> 8u) & 0xFu) };
     return true;
   }
 
-  if ((w0 & 0xFFF0) == 0xF8D0) { // 4.6.43 LDR (immediate), T3 encoding (pg 4-100)
+  if ((w0 & 0xFFF0u) == 0xF8D0u) { // 4.6.43 LDR (immediate), T3 encoding (pg 4-100)
     out_inst.type = inst_type::LOAD_IMM;
     out_inst.i.load_imm = inst_load_imm{
       .src_reg = u8(w0 & 0xFu), .dst_reg = u8((w1 >> 12u) & 7u), .imm = u16(w1 & 0xFFFu) };
@@ -531,7 +531,7 @@ bool parse_32bit_inst(u16 const w0,
   }
 
   // 4.6.76 MOV (immediate), T2 encoding (pg 4-166)
-  if (((w0 & 0xFBEF) == 0xF04F) && (w1 & 0x8000) == 0) {
+  if (((w0 & 0xFBEFu) == 0xF04Fu) && (w1 & 0x8000u) == 0) {
     unsigned const imm12 =
       (w1 & 0xFFu) | ((w1 >> 4u) & 0x700u) | (unsigned(w0 << 2u) & 0x1000u);
     out_inst.type = inst_type::MOV_IMM;
@@ -540,7 +540,14 @@ bool parse_32bit_inst(u16 const w0,
     return true;
   }
 
-  if ((w0 & 0xFFF0) == 0xF8C0) { // 4.6.162 STR (immediate), T3 encoding (4-337)
+  // 4.6.88 NOP, T2 encoding (pg 4-189)
+  if (((w0 & 0xFFF0u) == 0xF3A0u) && ((w1 & 0xD7FFu) == 0x8000u)) {
+    out_inst.type = inst_type::NOP;
+    out_inst.i.nop = inst_nop{};
+    return true;
+  }
+
+  if ((w0 & 0xFFF0u) == 0xF8C0u) { // 4.6.162 STR (immediate), T3 encoding (4-337)
     out_inst.type = inst_type::STORE_IMM;
     out_inst.i.store_imm = inst_store_imm{
       .src_reg = u8(w1 >> 12u),
@@ -550,7 +557,7 @@ bool parse_32bit_inst(u16 const w0,
   }
 
   // 4.6.168 TBB, T1 encoding (pg 4-389)
-  if (((w0 & 0xFFF0) == 0xE8D0) && ((w1 & 0xF0) == 0)) {
+  if (((w0 & 0xFFF0u) == 0xE8D0u) && ((w1 & 0xF0u) == 0)) {
     out_inst.type = inst_type::TABLE_BRANCH_BYTE;
     out_inst.i.table_branch_byte =
       inst_table_branch_byte{ .base_reg = u8(w0 & 7u), .idx_reg = u8(w1 & 7u) };
