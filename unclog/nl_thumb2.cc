@@ -69,6 +69,7 @@ struct imm_shift { imm_shift_type t; u8 n; };
   X(LOAD_HALF_IMM, load_half_imm) \
   X(LOAD_IMM, load_imm) \
   X(LOAD_LIT, load_lit) \
+  X(LOAD_MULT_INC_AFTER, load_mult_inc_after) \
   X(LSHIFT_LOG_IMM, lshift_log_imm) \
   X(LSHIFT_LOG_REG, lshift_log_reg) \
   X(MOV, mov) \
@@ -104,6 +105,7 @@ struct inst_load_byte_reg { u8 dst_reg, base_reg, ofs_reg; };
 struct inst_load_half_imm { u8 dst_reg, src_reg, imm; };
 struct inst_load_imm { u16 imm; u8 dst_reg, src_reg; };
 struct inst_load_lit { u32 label; u8 reg; };
+struct inst_load_mult_inc_after { u16 regs; u8 base_reg; };
 struct inst_lshift_log_imm { u8 dst_reg, src_reg, imm; };
 struct inst_lshift_log_reg { u8 dst_reg, src_reg; };
 struct inst_mov { u8 dst_reg, src_reg; };
@@ -133,17 +135,13 @@ void print(inst_and_reg const a) {
 
 void print(inst_push const& p) {
   printf("  PUSH { ");
-  for (int i = 0; i < 16; ++i) {
-    if (p.reg_list & (1 << i)) { printf("%s ", s_rn[i]); }
-  }
+  for (int i = 0; i < 16; ++i) { if (p.reg_list & (1 << i)) { printf("%s ", s_rn[i]); } }
   printf("}\n");
 }
 
 void print(inst_pop const& p) {
   printf("  POP { ");
-  for (int i = 0; i < 16; ++i) {
-    if (p.reg_list & (1 << i)) { printf("%s ", s_rn[i]); }
-  }
+  for (int i = 0; i < 16; ++i) { if (p.reg_list & (1 << i)) { printf("%s ", s_rn[i]); } }
   printf("}\n");
 }
 
@@ -160,8 +158,8 @@ void print(inst_bit_clear_reg const& b) {
 
 void print(inst_branch const& i) {
   printf("  B%s %x\n",
-         (i.cc != cond_code::AL1 && i.cc != cond_code::AL2) ? cond_code_name(i.cc) : "",
-         i.label);
+    (i.cc != cond_code::AL1 && i.cc != cond_code::AL2) ? cond_code_name(i.cc) : "",
+    i.label);
 }
 
 void print(inst_branch_link const& i) { printf("  BL %x\n", unsigned(i.label)); }
@@ -201,6 +199,12 @@ void print(inst_load_half_imm const& l) {
 }
 
 void print(inst_load_lit const& l) { printf("  LDR %s, %x\n", s_rn[l.reg], l.label); }
+
+void print(inst_load_mult_inc_after const& l) {
+  printf("  LDMIA %s!, { ", s_rn[l.base_reg]);
+  for (int i = 0; i < 16; ++i) { if (l.regs & (1 << i)) { printf("%s ", s_rn[i]); } }
+  printf("}\n");
+};
 
 void print(inst_lshift_log_imm const& l) {
   printf("  LSL_IMM %s, %s, #%d\n", s_rn[l.dst_reg], s_rn[l.src_reg], int(l.imm));
@@ -542,6 +546,12 @@ bool parse_32bit_inst(u16 const w0,
     out_inst.type = inst_type::COUNT_LEADING_ZEROS;
     out_inst.i.count_leading_zeros = inst_count_leading_zeros{
       .src_reg = u8(w1 & 7u), .dst_reg = u8((w1 >> 8u) & 0xFu) };
+    return true;
+  }
+
+  if (w0 == 0xE8BDu) { // 4.6.98 POP, T2 encoding (pg 4-209)
+    out_inst.type = inst_type::POP;
+    out_inst.i.pop = inst_pop{ .reg_list = uint16_t(w1 & 0xDFFFu) };
     return true;
   }
 
