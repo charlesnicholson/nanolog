@@ -54,6 +54,7 @@ struct imm_shift { imm_shift_type t; u8 n; };
 #define INST_TYPE_X_LIST() \
   X(ADD_SP_IMM, add_sp_imm) \
   X(ADR, adr) \
+  X(AND_REG, and_reg) \
   X(BIT_CLEAR_REG, bit_clear_reg) \
   X(BRANCH, branch) \
   X(BRANCH_LINK, branch_link) \
@@ -68,6 +69,7 @@ struct imm_shift { imm_shift_type t; u8 n; };
   X(LOAD_HALF_IMM, load_half_imm) \
   X(LOAD_IMM, load_imm) \
   X(LOAD_LIT, load_lit) \
+  X(LOAD_MULT_INC_AFTER, load_mult_inc_after) \
   X(LSHIFT_LOG_IMM, lshift_log_imm) \
   X(LSHIFT_LOG_REG, lshift_log_reg) \
   X(MOV, mov) \
@@ -78,6 +80,7 @@ struct imm_shift { imm_shift_type t; u8 n; };
   X(RSHIFT_LOG, rshift_log) \
   X(STORE_BYTE_IMM, store_byte_imm) \
   X(STORE_IMM, store_imm) \
+  X(SUB_REG, sub_reg) \
   X(SVC, svc) \
   X(TABLE_BRANCH_BYTE, table_branch_byte)
 
@@ -87,6 +90,7 @@ enum class inst_type : u8 { INST_TYPE_X_LIST() };
 
 struct inst_add_sp_imm { u8 src_reg, imm; };
 struct inst_adr { u8 dst_reg, imm; };
+struct inst_and_reg { imm_shift shift; u8 dst_reg, op1_reg, op2_reg; };
 struct inst_bit_clear_reg { imm_shift shift; u8 dst_reg, op1_reg, op2_reg; };
 struct inst_branch { u32 label; cond_code cc; };
 struct inst_branch_link { u32 label; };
@@ -101,6 +105,7 @@ struct inst_load_byte_reg { u8 dst_reg, base_reg, ofs_reg; };
 struct inst_load_half_imm { u8 dst_reg, src_reg, imm; };
 struct inst_load_imm { u16 imm; u8 dst_reg, src_reg; };
 struct inst_load_lit { u32 label; u8 reg; };
+struct inst_load_mult_inc_after { u16 regs; u8 base_reg; };
 struct inst_lshift_log_imm { u8 dst_reg, src_reg, imm; };
 struct inst_lshift_log_reg { u8 dst_reg, src_reg; };
 struct inst_mov { u8 dst_reg, src_reg; };
@@ -111,6 +116,7 @@ struct inst_nop {};
 struct inst_rshift_log { imm_shift shift; u8 dst_reg, src_reg; };
 struct inst_store_byte_imm { u8 src_reg, dst_reg, imm; };
 struct inst_store_imm { u8 src_reg, dst_reg; u16 imm; };
+struct inst_sub_reg { imm_shift shift; u8 dst_reg, op1_reg, op2_reg; };
 struct inst_svc { u32 label; };
 struct inst_table_branch_byte { u8 base_reg, idx_reg; };
 
@@ -122,61 +128,54 @@ void print(inst_adr const& a) {
   printf("  ADR %s, PC, #%d\n", s_rn[a.dst_reg], (int)a.imm);
 }
 
+void print(inst_and_reg const a) {
+  printf("  AND_REG %s, %s, %s <%s #%d>\n", s_rn[a.dst_reg], s_rn[a.op1_reg],
+    s_rn[a.op2_reg], s_sn[int(a.shift.t)], int(a.shift.n));
+};
+
 void print(inst_push const& p) {
   printf("  PUSH { ");
-  for (int i = 0; i < 16; ++i) {
-    if (p.reg_list & (1 << i)) { printf("%s ", s_rn[i]); }
-  }
+  for (int i = 0; i < 16; ++i) { if (p.reg_list & (1 << i)) { printf("%s ", s_rn[i]); } }
   printf("}\n");
 }
 
 void print(inst_pop const& p) {
   printf("  POP { ");
-  for (int i = 0; i < 16; ++i) {
-    if (p.reg_list & (1 << i)) { printf("%s ", s_rn[i]); }
-  }
+  for (int i = 0; i < 16; ++i) { if (p.reg_list & (1 << i)) { printf("%s ", s_rn[i]); } }
   printf("}\n");
 }
 
 void print(inst_nop const&) { printf("  NOP\n"); }
 
 void print(inst_rshift_log const& r) {
-  printf("  LSR %s, %s, #%d\n", s_rn[r.dst_reg], s_rn[r.src_reg], (int)r.shift.n);
+  printf("  LSR %s, %s, #%d\n", s_rn[r.dst_reg], s_rn[r.src_reg], int(r.shift.n));
 }
 
 void print(inst_bit_clear_reg const& b) {
-  printf("  BIC_REG %s, %s, %s, <%s #%d>\n",
-         s_rn[b.dst_reg],
-         s_rn[b.op1_reg],
-         s_rn[b.op2_reg],
-         s_sn[(int)b.shift.t],
-         (int)b.shift.n);
+  printf("  BIC_REG %s, %s, %s, <%s #%d>\n", s_rn[b.dst_reg], s_rn[b.op1_reg],
+    s_rn[b.op2_reg], s_sn[int(b.shift.t)], int(b.shift.n));
 };
 
 void print(inst_branch const& i) {
   printf("  B%s %x\n",
-         (i.cc != cond_code::AL1 && i.cc != cond_code::AL2) ? cond_code_name(i.cc) : "",
-         i.label);
+    (i.cc != cond_code::AL1 && i.cc != cond_code::AL2) ? cond_code_name(i.cc) : "",
+    i.label);
 }
 
-void print(inst_branch_link const& i) { printf("  BL %x\n", (unsigned)i.label); }
-
-void print(inst_branch_link_xchg_reg const& b) {
-  printf("  BLX %s\n", s_rn[b.reg]);
-}
-
+void print(inst_branch_link const& i) { printf("  BL %x\n", unsigned(i.label)); }
+void print(inst_branch_link_xchg_reg const& b) { printf("  BLX %s\n", s_rn[b.reg]); }
 void print(inst_branch_xchg const& i) { printf("  BX %s\n", s_rn[i.reg]); }
 
 void print(inst_cmp_branch_nz const& c) {
-  printf("  CBNZ %s, %x\n", s_rn[c.reg], (unsigned)c.label);
+  printf("  CBNZ %s, %x\n", s_rn[c.reg], unsigned(c.label));
 }
 
 void print(inst_cmp_branch_z const& c) {
-  printf("  CBZ %s, %x\n", s_rn[c.reg], (unsigned)c.label);
+  printf("  CBZ %s, %x\n", s_rn[c.reg], unsigned(c.label));
 }
 
 void print(inst_cmp_imm const& c) {
-  printf("  CMP_IMM %s, #%d\n", s_rn[c.reg], (int)c.imm);
+  printf("  CMP_IMM %s, #%d\n", s_rn[c.reg], int(c.imm));
 }
 
 void print(inst_count_leading_zeros const& c) {
@@ -184,7 +183,7 @@ void print(inst_count_leading_zeros const& c) {
 }
 
 void print(inst_load_byte_imm const& l) {
-  printf("  LDRB_IMM %s, [%s, #%d]\n", s_rn[l.dst_reg], s_rn[l.src_reg], (int)l.imm);
+  printf("  LDRB_IMM %s, [%s, #%d]\n", s_rn[l.dst_reg], s_rn[l.src_reg], int(l.imm));
 };
 
 void print(inst_load_byte_reg const& l) {
@@ -192,19 +191,23 @@ void print(inst_load_byte_reg const& l) {
 }
 
 void print(inst_load_imm const& l) {
-  printf("  LDR_IMM %s, [%s, #%d]\n", s_rn[l.dst_reg], s_rn[l.src_reg], (int)l.imm);
+  printf("  LDR_IMM %s, [%s, #%d]\n", s_rn[l.dst_reg], s_rn[l.src_reg], int(l.imm));
 }
 
 void print(inst_load_half_imm const& l) {
-  printf("  LDRH_IMM %s, [%s, #%d]\n", s_rn[l.dst_reg], s_rn[l.src_reg], (int)l.imm);
+  printf("  LDRH_IMM %s, [%s, #%d]\n", s_rn[l.dst_reg], s_rn[l.src_reg], int(l.imm));
 }
 
-void print(inst_load_lit const& l) {
-  printf("  LDR %s, %x\n", s_rn[l.reg], l.label);
-}
+void print(inst_load_lit const& l) { printf("  LDR %s, %x\n", s_rn[l.reg], l.label); }
+
+void print(inst_load_mult_inc_after const& l) {
+  printf("  LDMIA %s!, { ", s_rn[l.base_reg]);
+  for (int i = 0; i < 16; ++i) { if (l.regs & (1 << i)) { printf("%s ", s_rn[i]); } }
+  printf("}\n");
+};
 
 void print(inst_lshift_log_imm const& l) {
-  printf("  LSL_IMM %s, %s, #%d\n", s_rn[l.dst_reg], s_rn[l.src_reg], (int)l.imm);
+  printf("  LSL_IMM %s, %s, #%d\n", s_rn[l.dst_reg], s_rn[l.src_reg], int(l.imm));
 }
 
 void print(inst_lshift_log_reg const& l) {
@@ -216,15 +219,20 @@ void print(inst_mov const& m) {
 }
 
 void print(inst_mov_imm const& m) {
-  printf("  MOV_IMM %s, #%d\n", s_rn[m.reg], (int)m.imm);
+  printf("  MOV_IMM %s, #%d\n", s_rn[m.reg], int(m.imm));
 }
 
 void print(inst_store_byte_imm const& s) {
-  printf("  STRB_IMM %s, [%s, #%d]\n", s_rn[s.dst_reg], s_rn[s.src_reg], (int)s.imm);
+  printf("  STRB_IMM %s, [%s, #%d]\n", s_rn[s.dst_reg], s_rn[s.src_reg], int(s.imm));
 };
 
 void print(inst_store_imm const& s) {
-  printf("  STR_IMM %s, [%s, #%d]\n", s_rn[s.src_reg], s_rn[s.dst_reg], (int)s.imm);
+  printf("  STR_IMM %s, [%s, #%d]\n", s_rn[s.src_reg], s_rn[s.dst_reg], int(s.imm));
+};
+
+void print(inst_sub_reg const& s) {
+  printf("  SUB_REG %s, %s, %s <%s #%u>\n", s_rn[s.dst_reg], s_rn[s.op1_reg],
+    s_rn[s.op2_reg], s_sn[int(s.shift.t)], unsigned(s.shift.n));
 };
 
 void print(inst_svc const&) { printf("  SVC\n"); }
@@ -263,8 +271,8 @@ u32 decode_imm12(u32 imm12) {
       case 3: return (imm8 << 24) | (imm8 << 16) | (imm8 << 8) | imm8;
     }
   }
-  u32 const x = 0x80u | (imm12 & 0x7Fu);
-  u32 const n = (imm12 >> 7u) & 0x1Fu;
+  u32 const x{0x80u | (imm12 & 0x7Fu)};
+  u32 const n{(imm12 >> 7u) & 0x1Fu};
   return (x >> n) | (x << (32 - n)); // rotate into place
 }
 
@@ -281,7 +289,7 @@ imm_shift decode_imm_shift(u8 const type, u8 const imm5) {
   __builtin_unreachable();
 }
 
-int sext(int x, int sign_bit) { int const m = 1 << sign_bit; return (x ^ m) - m; }
+int sext(int x, int sign_bit) { int const m{1 << sign_bit}; return (x ^ m) - m; }
 
 bool is_16bit_inst(u16 w0) {
   // 3.1 Instruction set encoding, Table 3-1 (pg 3-2)
@@ -305,10 +313,18 @@ bool parse_16bit_inst(u16 const w0, u32 const addr, inst& out_inst) {
     return true;
   }
 
+  if ((w0 & 0xFFC0u) == 0x4000u) { // 4.6.9 AND, T1 encoding (pg 4-32)
+    out_inst.type = inst_type::AND_REG;
+    out_inst.i.and_reg = inst_and_reg{
+      .dst_reg = u8(w0 & 7u), .op1_reg = u8(w0 & 7u), .op2_reg = u8((w0 >> 3u) & 7u),
+      .shift = decode_imm_shift(0b00, 0) };
+    return true;
+  }
+
   if ((w0 & 0xF000u) == 0xD000u) { // 4.6.12 B, T1 encoding (pg 4-38)
-    cond_code const cc = (cond_code)((w0 >> 8u) & 0xFu);
-    u32 const label = u32(sext((w0 & 0xFF) << 1, 8));
-    if ((u8)cc == 0xFu) { // cc 0b1111 == SVC, 4.6.181 SVC (pg 4-375)
+    cond_code const cc{cond_code(((w0 >> 8u) & 0xFu))};
+    u32 const label{u32(sext((w0 & 0xFF) << 1, 8))};
+    if (u8(cc) == 0xFu) { // cc 0b1111 == SVC, 4.6.181 SVC (pg 4-375)
       out_inst.type = inst_type::SVC;
       out_inst.i.svc = inst_svc{ .label = label };
     } else {
@@ -479,6 +495,16 @@ bool parse_16bit_inst(u16 const w0, u32 const addr, inst& out_inst) {
     return true;
   }
 
+  if ((w0 & 0xFE00u) == 0x1A00u) { // 4.6.177 SUB (register), T1 encoding (pg 4-367)
+    out_inst.type = inst_type::SUB_REG;
+    out_inst.i.sub_reg = inst_sub_reg{
+      .dst_reg = u8(w0 & 7u),
+      .op1_reg = u8((w0 >> 3u) & 7u),
+      .op2_reg = u8((w0 >> 6u) & 7u),
+      .shift = decode_imm_shift(0b00, 0) };
+    return true;
+  }
+
   printf("  Unknown: %04x\n", w0);
   return false;
 }
@@ -502,28 +528,34 @@ bool parse_32bit_inst(u16 const w0,
   }
 
   // 4.6.18 BL, T1 encoding (pg 4-50)
-  if (((w0 & 0xF800) == 0xF000) && ((w1 & 0xD000) == 0xD000)) {
-    u32 const sbit = (w0 >> 10u) & 1u;
-    u32 const sext = ((sbit ^ 1u) - 1u) & 0xFF000000u;
-    u32 const i1 = (1u - (((w1 >> 13u) & 1u) ^ sbit)) << 23u;
-    u32 const i2 = (1u - (((w1 >> 11u) & 1u) ^ sbit)) << 22u;
-    u32 const imm10 = (w0 & 0x3FFu) << 12u;
-    u32 const imm11 = (w1 & 0x7FFu) << 1u;
-    u32 const imm32 = sext | i1 | i2 | imm10 | imm11;
+  if (((w0 & 0xF800u) == 0xF000u) && ((w1 & 0xD000u) == 0xD000u)) {
+    u32 const sbit{(w0 >> 10u) & 1u};
+    u32 const sext{((sbit ^ 1u) - 1u) & 0xFF000000u};
+    u32 const i1{(1u - (((w1 >> 13u) & 1u) ^ sbit)) << 23u};
+    u32 const i2{(1u - (((w1 >> 11u) & 1u) ^ sbit)) << 22u};
+    u32 const imm10{(w0 & 0x3FFu) << 12u};
+    u32 const imm11{(w1 & 0x7FFu) << 1u};
+    u32 const imm32{sext | i1 | i2 | imm10 | imm11};
     out_inst.type = inst_type::BRANCH_LINK;
     out_inst.i.branch_link = inst_branch_link{ .label = addr + 4 + imm32 };
     return true;
   }
 
   // 4.6.26 CLZ, T1 encoding (pg 4-66)
-  if (((w0 & 0xFFF0) == 0xFAB0) && ((w1 & 0xF0F0) == 0xF080)) {
+  if (((w0 & 0xFFF0u) == 0xFAB0u) && ((w1 & 0xF0F0u) == 0xF080u)) {
     out_inst.type = inst_type::COUNT_LEADING_ZEROS;
     out_inst.i.count_leading_zeros = inst_count_leading_zeros{
       .src_reg = u8(w1 & 7u), .dst_reg = u8((w1 >> 8u) & 0xFu) };
     return true;
   }
 
-  if ((w0 & 0xFFF0) == 0xF8D0) { // 4.6.43 LDR (immediate), T3 encoding (pg 4-100)
+  if (w0 == 0xE8BDu) { // 4.6.98 POP, T2 encoding (pg 4-209)
+    out_inst.type = inst_type::POP;
+    out_inst.i.pop = inst_pop{ .reg_list = uint16_t(w1 & 0xDFFFu) };
+    return true;
+  }
+
+  if ((w0 & 0xFFF0u) == 0xF8D0u) { // 4.6.43 LDR (immediate), T3 encoding (pg 4-100)
     out_inst.type = inst_type::LOAD_IMM;
     out_inst.i.load_imm = inst_load_imm{
       .src_reg = u8(w0 & 0xFu), .dst_reg = u8((w1 >> 12u) & 7u), .imm = u16(w1 & 0xFFFu) };
@@ -531,16 +563,23 @@ bool parse_32bit_inst(u16 const w0,
   }
 
   // 4.6.76 MOV (immediate), T2 encoding (pg 4-166)
-  if (((w0 & 0xFBEF) == 0xF04F) && (w1 & 0x8000) == 0) {
-    unsigned const imm12 =
-      (w1 & 0xFFu) | ((w1 >> 4u) & 0x700u) | (unsigned(w0 << 2u) & 0x1000u);
+  if (((w0 & 0xFBEFu) == 0xF04Fu) && (w1 & 0x8000u) == 0) {
+    unsigned const imm12{
+      (w1 & 0xFFu) | ((w1 >> 4u) & 0x700u) | (unsigned(w0 << 2u) & 0x1000u)};
     out_inst.type = inst_type::MOV_IMM;
     out_inst.i.mov_imm =
       inst_mov_imm{ .imm = decode_imm12(imm12), .reg = u8((w1 >> 8u) & 7u) };
     return true;
   }
 
-  if ((w0 & 0xFFF0) == 0xF8C0) { // 4.6.162 STR (immediate), T3 encoding (4-337)
+  // 4.6.88 NOP, T2 encoding (pg 4-189)
+  if (((w0 & 0xFFF0u) == 0xF3A0u) && ((w1 & 0xD7FFu) == 0x8000u)) {
+    out_inst.type = inst_type::NOP;
+    out_inst.i.nop = inst_nop{};
+    return true;
+  }
+
+  if ((w0 & 0xFFF0u) == 0xF8C0u) { // 4.6.162 STR (immediate), T3 encoding (4-337)
     out_inst.type = inst_type::STORE_IMM;
     out_inst.i.store_imm = inst_store_imm{
       .src_reg = u8(w1 >> 12u),
@@ -550,7 +589,7 @@ bool parse_32bit_inst(u16 const w0,
   }
 
   // 4.6.168 TBB, T1 encoding (pg 4-389)
-  if (((w0 & 0xFFF0) == 0xE8D0) && ((w1 & 0xF0) == 0)) {
+  if (((w0 & 0xFFF0u) == 0xE8D0u) && ((w1 & 0xF0u) == 0)) {
     out_inst.type = inst_type::TABLE_BRANCH_BYTE;
     out_inst.i.table_branch_byte =
       inst_table_branch_byte{ .base_reg = u8(w0 & 7u), .idx_reg = u8(w1 & 7u) };
@@ -563,9 +602,9 @@ bool parse_32bit_inst(u16 const w0,
 
 bool parse_inst(char const *text, u32 addr, inst& out_inst) {
   u16 w0, w1;
-  memcpy(&w0, text + addr, 2);
+  memcpy(&w0, &text[addr], 2);
   if (is_16bit_inst(w0)) { return parse_16bit_inst(w0, addr, out_inst); }
-  memcpy(&w1, text + addr + 2, 2);
+  memcpy(&w1, &text[addr + 2], 2);
   return parse_32bit_inst(w0, w1, addr, out_inst);
 }
 }
@@ -578,9 +617,9 @@ struct reg_state {
 bool thumb2_find_log_strs_in_func(elf const& e,
                                   elf_symbol32 const& func) {
   elf_section_hdr32 const& func_sec_hdr = e.sec_hdrs[func.st_shndx];
-  u32 const func_start = (func.st_value - func_sec_hdr.sh_addr) & ~1u;
-  u32 const func_end = func_start + func.st_size;
-  u32 const func_ofs = func_sec_hdr.sh_offset;
+  u32 const func_start{(func.st_value - func_sec_hdr.sh_addr) & ~1u};
+  u32 const func_end{func_start + func.st_size};
+  u32 const func_ofs{func_sec_hdr.sh_offset};
 
   printf("Scanning %s: addr %x, len %x, range %x-%x:\n",
          &e.strtab[func.st_name],
@@ -593,7 +632,7 @@ bool thumb2_find_log_strs_in_func(elf const& e,
   paths.push(reg_state{.addr = func_start});
 
   while (!paths.empty()) {
-    reg_state s = paths.top();
+    reg_state s{paths.top()};
     paths.pop();
 
     while (s.addr < func_end) {
