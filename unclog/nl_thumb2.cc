@@ -605,7 +605,7 @@ bool parse_32bit_inst(u16 const w0,
   if (((w0 & 0xFFF0u) == 0xE8D0u) && ((w1 & 0xF0u) == 0)) {
     out_inst.type = inst_type::TABLE_BRANCH_BYTE;
     out_inst.i.table_branch_byte =
-      inst_table_branch_byte{ .base_reg = u8(w0 & 7u), .idx_reg = u8(w1 & 7u) };
+      inst_table_branch_byte{ .base_reg = u8(w0 & 0xFu), .idx_reg = u8(w1 & 0xFu) };
     return true;
   }
 
