@@ -83,6 +83,7 @@ struct imm_shift { imm_shift_type t; u8 n; };
   X(RSHIFT_LOG, rshift_log) \
   X(STORE_BYTE_IMM, store_byte_imm) \
   X(STORE_IMM, store_imm) \
+  X(STORE_REG, store_reg) \
   X(SUB_IMM, sub_imm) \
   X(SUB_REG, sub_reg) \
   X(SVC, svc) \
@@ -123,6 +124,7 @@ struct inst_rshift_log { imm_shift shift; u8 dst_reg, src_reg; };
 struct inst_rshift_arith_imm { imm_shift shift; u8 dst_reg, src_reg; };
 struct inst_store_byte_imm { u8 src_reg, dst_reg, imm; };
 struct inst_store_imm { u8 src_reg, dst_reg; u16 imm; };
+struct inst_store_reg { imm_shift shift; u8 src_reg, base_reg, ofs_reg; };
 struct inst_sub_imm { u16 imm; u8 dst_reg, src_reg; };
 struct inst_sub_reg { imm_shift shift; u8 dst_reg, op1_reg, op2_reg; };
 struct inst_svc { u32 label; };
@@ -251,6 +253,11 @@ void print(inst_store_byte_imm const& s) {
 void print(inst_store_imm const& s) {
   printf("  STR_IMM %s, [%s, #%d]\n", s_rn[s.src_reg], s_rn[s.dst_reg], int(s.imm));
 }
+
+void print(inst_store_reg const& s) {
+  printf("  STR_REG %s, [%s, %s <%s #%d>\n", s_rn[s.src_reg], s_rn[s.base_reg],
+    s_rn[s.ofs_reg], s_sn[int(s.shift.t)], int(s.shift.n));
+};
 
 void print(inst_sub_imm const& s) {
   printf("  SUB_IMM %s, %s, #%d\n", s_rn[s.dst_reg], s_rn[s.src_reg], int(s.imm));
@@ -534,6 +541,14 @@ bool parse_16bit_inst(u16 const w0, u32 const addr, inst& out_inst) {
     return true;
   }
 
+  if ((w0 & 0xFE00u) == 0x5000u) { // 4.6.163 STR (register), T1 encoding (pg 4-339)
+    out_inst.type = inst_type::STORE_REG;
+    out_inst.i.store_reg = inst_store_reg{
+      .src_reg = u8(w0 & 7u), .base_reg = u8((w0 >> 3u) & 7u),
+      .ofs_reg = u8((w0 >> 6u) & 7u), .shift = decode_imm_shift(0b00, 0) };
+    return true;
+  }
+
   if ((w0 & 0xF800u) == 0x7000u) { // 4.6.164 STRB (immediate), T1 encoding (pg 4-341)
     out_inst.type = inst_type::STORE_BYTE_IMM;
     out_inst.i.store_byte_imm = inst_store_byte_imm{
@@ -697,7 +712,7 @@ struct reg_state {
 bool thumb2_find_log_strs_in_func(elf const& e,
                                   elf_symbol32 const& func) {
   elf_section_hdr32 const& func_sec_hdr = e.sec_hdrs[func.st_shndx];
-  u32 const func_start{(func.st_value - func_sec_hdr.sh_addr) & ~1u};
+  u32 const func_start{(func.st_value) & ~1u};
   u32 const func_end{func_start + func.st_size};
   u32 const func_ofs{func_sec_hdr.sh_offset};
 
