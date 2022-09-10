@@ -58,6 +58,7 @@ struct imm_shift { imm_shift_type t; u8 n; };
   X(AND_REG, and_reg) \
   X(AND_REG_IMM, and_reg_imm) \
   X(BIT_CLEAR_REG, bit_clear_reg) \
+  X(BITFIELD_EXTRACT_UNSIGNED, bitfield_extract_unsigned) \
   X(BRANCH, branch) \
   X(BRANCH_LINK, branch_link) \
   X(BRANCH_LINK_XCHG_REG, branch_link_xchg_reg) \
@@ -103,6 +104,7 @@ struct inst_adr { u8 dst_reg, imm; };
 struct inst_and_reg { imm_shift shift; u8 dst_reg, op1_reg, op2_reg; };
 struct inst_and_reg_imm { u16 imm; u8 dst_reg, src_reg; };
 struct inst_bit_clear_reg { imm_shift shift; u8 dst_reg, op1_reg, op2_reg; };
+struct inst_bitfield_extract_unsigned { u8 d, n, lsbit, widthminus1; };
 struct inst_branch { u32 label; cond_code cc; };
 struct inst_branch_link { u32 label; };
 struct inst_branch_link_xchg_reg { u8 reg; };
@@ -184,6 +186,11 @@ void print(inst_rshift_arith_imm const& r) {
 void print(inst_bit_clear_reg const& b) {
   printf("  BIC_REG %s, %s, %s, <%s #%d>\n", s_rn[b.dst_reg], s_rn[b.op1_reg],
     s_rn[b.op2_reg], s_sn[int(b.shift.t)], int(b.shift.n));
+};
+
+void print(inst_bitfield_extract_unsigned const& b) {
+  printf("  UBFX %s, %s, #%d, #%d\n", s_rn[b.d], s_rn[b.n], int(b.lsbit),
+    int(b.widthminus1 + 1));
 };
 
 void print(inst_branch const& i) {
@@ -749,6 +756,16 @@ bool parse_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
     out_inst.type = inst_type::TABLE_BRANCH_BYTE;
     out_inst.i.table_branch_byte =
       inst_table_branch_byte{ .base_reg = u8(w0 & 0xFu), .idx_reg = u8(w1 & 0xFu) };
+    return true;
+  }
+
+  // 4.6.197 UBFX, T1 encoding (pg 4-407)
+  if (((w0 & 0xFBF0u) == 0xF3C0u) && ((w1 & 0x8000u) == 0)) {
+    u32 const imm2{(w1 >> 6u) & 3u}, imm3{(w1 >> 12u) & 7u };
+    out_inst.type = inst_type::BITFIELD_EXTRACT_UNSIGNED;
+    out_inst.i.bitfield_extract_unsigned = inst_bitfield_extract_unsigned{
+      .d = u8((w1 >> 8u) & 0xFu), .n = u8(w0 & 0xFu), .lsbit = u8((imm3 << 2u) | imm2),
+      .widthminus1 = u8(w1 & 0x1Fu) };
     return true;
   }
 
