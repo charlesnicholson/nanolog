@@ -57,6 +57,7 @@ struct imm_shift { imm_shift_type t; u8 n; };
   X(ADR, adr) \
   X(AND_REG, and_reg) \
   X(AND_REG_IMM, and_reg_imm) \
+  X(BIT_CLEAR_IMM, bit_clear_imm) \
   X(BIT_CLEAR_REG, bit_clear_reg) \
   X(BITFIELD_EXTRACT_UNSIGNED, bitfield_extract_unsigned) \
   X(BRANCH, branch) \
@@ -98,12 +99,13 @@ struct imm_shift { imm_shift_type t; u8 n; };
 enum class inst_type : u8 { INST_TYPE_X_LIST() };
 #undef X
 
-struct inst_add_imm { u8 imm, reg; };
+struct inst_add_imm { u32 imm; u8 d, n; };
 struct inst_add_sp_imm { u8 src_reg, imm; };
 struct inst_adr { u8 dst_reg, imm; };
 struct inst_and_reg { imm_shift shift; u8 dst_reg, op1_reg, op2_reg; };
-struct inst_and_reg_imm { u16 imm; u8 dst_reg, src_reg; };
-struct inst_bit_clear_reg { imm_shift shift; u8 dst_reg, op1_reg, op2_reg; };
+struct inst_and_reg_imm { u32 imm; u8 dst_reg, src_reg; };
+struct inst_bit_clear_imm { u32 imm; u8 d, n; };
+struct inst_bit_clear_reg { imm_shift shift; u8 d, n, m; };
 struct inst_bitfield_extract_unsigned { u8 d, n, lsbit, widthminus1; };
 struct inst_branch { u32 label; cond_code cc; };
 struct inst_branch_link { u32 label; };
@@ -133,7 +135,7 @@ struct inst_nop {};
 struct inst_rshift_log { imm_shift shift; u8 dst_reg, src_reg; };
 struct inst_rshift_arith_imm { imm_shift shift; u8 dst_reg, src_reg; };
 struct inst_store_byte_imm { u8 src_reg, dst_reg, imm; };
-struct inst_store_imm { u8 src_reg, dst_reg; u16 imm; };
+struct inst_store_imm { u8 t, n; u16 imm; };
 struct inst_store_reg { imm_shift shift; u8 src_reg, base_reg, ofs_reg; };
 struct inst_sub_imm { u16 imm; u8 dst_reg, src_reg; };
 struct inst_sub_reg { imm_shift shift; u8 dst_reg, op1_reg, op2_reg; };
@@ -141,7 +143,7 @@ struct inst_svc { u32 label; };
 struct inst_table_branch_byte { u8 base_reg, idx_reg; };
 
 void print(inst_add_imm const& a) {
-  printf("  ADD_IMM %s, #%d\n", s_rn[a.reg], int(a.imm));
+  printf("  ADD_IMM %s, %s, #%d\n", s_rn[a.d], s_rn[a.n], int(a.imm));
 };
 
 void print(inst_add_sp_imm const& a) {
@@ -183,9 +185,13 @@ void print(inst_rshift_arith_imm const& r) {
   printf("  ASR %s, %s, #%d\n", s_rn[r.dst_reg], s_rn[r.src_reg], int(r.shift.n));
 };
 
+void print(inst_bit_clear_imm const& b) {
+  printf("  BIC_IMM %s, %s, #%d\n", s_rn[b.d], s_rn[b.n], int(b.imm));
+};
+
 void print(inst_bit_clear_reg const& b) {
-  printf("  BIC_REG %s, %s, %s, <%s #%d>\n", s_rn[b.dst_reg], s_rn[b.op1_reg],
-    s_rn[b.op2_reg], s_sn[int(b.shift.t)], int(b.shift.n));
+  printf("  BIC_REG %s, %s, %s, <%s #%d>\n", s_rn[b.d], s_rn[b.n], s_rn[b.m],
+    s_sn[int(b.shift.t)], int(b.shift.n));
 };
 
 void print(inst_bitfield_extract_unsigned const& b) {
@@ -283,7 +289,7 @@ void print(inst_store_byte_imm const& s) {
 }
 
 void print(inst_store_imm const& s) {
-  printf("  STR_IMM %s, [%s, #%d]\n", s_rn[s.src_reg], s_rn[s.dst_reg], int(s.imm));
+  printf("  STR_IMM %s, [%s, #%d]\n", s_rn[s.t], s_rn[s.n], int(s.imm));
 }
 
 void print(inst_store_reg const& s) {
@@ -373,9 +379,17 @@ bool parse_16bit_inst(u16 const w0, u32 const addr, inst& out_inst) {
     return true;
   }
 
-  if ((w0 & 0xF800u) == 0x3000u) { // 4.6.3 ADD (immediate), T2 encoding (pg 4-20)
+  if ((w0 & 0xFE00u) == 0x1C00u) { // 4.6.3 ADD (immediate), T1 encoding (pg 4-20)
     out_inst.type = inst_type::ADD_IMM;
-    out_inst.i.add_imm = inst_add_imm{ .imm = u8(w0 & 0xFFu), .reg = u8((w0 >> 8u) & 7u) };
+    out_inst.i.add_imm = inst_add_imm{ .d = u8(w0 & 7u), .n = u8((w0 >> 3u) & 7u),
+      .imm = ((w0 >> 6u) & 7u) };
+    return true;
+  }
+
+  if ((w0 & 0xF800u) == 0x3000u) { // 4.6.3 ADD (immediate), T2 encoding (pg 4-20)
+    u8 const dn{u8((w0 >> 8u) & 7u)};
+    out_inst.type = inst_type::ADD_IMM;
+    out_inst.i.add_imm = inst_add_imm{ .imm = u8(w0 & 0xFFu), .d = dn, .n = dn };
     return true;
   }
 
@@ -557,10 +571,17 @@ bool parse_16bit_inst(u16 const w0, u32 const addr, inst& out_inst) {
     return true;
   }
 
+  if ((w0 & 0xF800u) == 0x6000u) { // 4.6.162 STR (immediate), T1 encoding (pg 4-337)
+    out_inst.type = inst_type::STORE_IMM;
+    out_inst.i.store_imm = inst_store_imm{
+      .t = u8(w0 & 7u), .n = u8((w0 >> 3u) & 7u), .imm = u16(((w0 >> 6u) & 0x1Fu) << 2u) };
+    return true;
+  }
+
   if ((w0 & 0xF800u) == 0x9000u) { // 4.6.162 STR (immediate), T2 encoding (pg 4-337)
     out_inst.type = inst_type::STORE_IMM;
     out_inst.i.store_imm = inst_store_imm{
-      .dst_reg = 13, .src_reg = u8((w0 >> 8u) & 7u), .imm = u8(w0 & 0xFFu) };
+      .n = 13, .t = u8((w0 >> 8u) & 7u), .imm = u16(w0 & 0xFFu) };
     return true;
   }
 
@@ -613,7 +634,7 @@ bool parse_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
     out_inst.type = inst_type::AND_REG_IMM;
     out_inst.i.and_reg_imm = inst_and_reg_imm{
       .dst_reg = u8((w1 >> 8u) & 0xFu), .src_reg = u8(w0 & 0xFu),
-      .imm = u16((i << 11u) | (imm3 << 8u) | imm8) };
+      .imm = decode_imm12((i << 11u) | (imm3 << 8u) | imm8) };
     return true;
   }
 
@@ -647,10 +668,19 @@ bool parse_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
     return true;
   }
 
+  // 4.6.15 BIC (immediate), T1 encoding (pg 4-44)
+  if (((w0 & 0xFBE0u) == 0xF020u) && ((w1 & 0x8000u) == 0)) {
+    u32 const imm8{w1 & 0xFFu}, imm3{(w1 >> 12u) & 7u}, i{(w0 >> 10u) & 1u};
+    out_inst.type = inst_type::BIT_CLEAR_IMM;
+    out_inst.i.bit_clear_imm = inst_bit_clear_imm{ .d = u8((w1 >> 8u) & 0xFu),
+      .n = u8(w0 & 0xFu), .imm = decode_imm12((i << 11u) | (imm3 << 8u) | imm8) };
+    return true;
+  }
+
   if ((w0 & 0xFF70u) == 0xEA20u) { // 4.6.16 BIC, T2 encoding (pg 4-46)
     out_inst.type = inst_type::BIT_CLEAR_REG;
     out_inst.i.bit_clear_reg = inst_bit_clear_reg{
-      .dst_reg = u8((w1 >> 8u) & 0xFu), .op1_reg = u8(w0 & 0xFu), .op2_reg = u8(w1 & 0xFu),
+      .d = u8((w1 >> 8u) & 0xFu), .n = u8(w0 & 0xFu), .m = u8(w1 & 0xFu),
       .shift =
         decode_imm_shift(u8((w1 >> 4u) & 3u), u8(((w1 >> 6u) & 3u) | ((w1 >> 12u) & 7u))),
     };
@@ -742,7 +772,7 @@ bool parse_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
   if ((w0 & 0xFFF0u) == 0xF8C0u) { // 4.6.162 STR (immediate), T3 encoding (4-337)
     out_inst.type = inst_type::STORE_IMM;
     out_inst.i.store_imm = inst_store_imm{
-      .src_reg = u8(w1 >> 12u), .dst_reg = u8(w0 & 0xFu), .imm = u16(w1 & 0xFFFu) };
+      .t = u8(w1 >> 12u), .n = u8(w0 & 0xFu), .imm = u16(w1 & 0xFFFu) };
     return true;
   }
 
