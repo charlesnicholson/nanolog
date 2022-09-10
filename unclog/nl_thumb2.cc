@@ -598,7 +598,6 @@ bool parse_16bit_inst(u16 const w0, u32 const addr, inst& out_inst) {
     return true;
   }
 
-  printf("  Unknown: %04x\n", w0);
   return false;
 }
 
@@ -753,15 +752,19 @@ bool parse_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
     return true;
   }
 
-  printf("  Unknown: %04x %04x\n", w0, w1);
   return false;
 }
 
 bool parse_inst(char const *text, u32 addr, inst& out_inst) {
   u16 w0, w1;
   memcpy(&w0, &text[addr], 2);
-  if (is_16bit_inst(w0)) { return parse_16bit_inst(w0, addr, out_inst); }
+  printf("  %6x: %04x ", addr, w0);
+  if (is_16bit_inst(w0)) {
+    printf("     ");
+    return parse_16bit_inst(w0, addr, out_inst);
+  }
   memcpy(&w1, &text[addr + 2], 2);
+  printf("%04x ", w1);
   return parse_32bit_inst(w0, w1, out_inst);
 }
 }
@@ -774,16 +777,17 @@ struct reg_state {
 bool thumb2_find_log_strs_in_func(elf const& e,
                                   elf_symbol32 const& func) {
   elf_section_hdr32 const& func_sec_hdr = e.sec_hdrs[func.st_shndx];
-  u32 const func_start{(func.st_value) & ~1u};
-  u32 const func_end{func_start + func.st_size};
-  u32 const func_ofs{func_sec_hdr.sh_offset};
+  unsigned const func_start{(func.st_value) & ~1u};
+  unsigned const func_end{func_start + func.st_size};
+  unsigned const func_ofs{func_sec_hdr.sh_offset + (func_start - func_sec_hdr.sh_addr)};
 
-  printf("Scanning %s: addr %x, len %x, range %x-%x:\n",
+  printf("Scanning %s: addr %x, len %x, range %x-%x, offset %x:\n",
          &e.strtab[func.st_name],
          func.st_value,
          func.st_size,
          func_start,
-         func_end);
+         func_end,
+         func_ofs);
 
   std::stack<reg_state, std::vector<reg_state>> paths;
   paths.push(reg_state{.addr = func_start});
@@ -794,8 +798,10 @@ bool thumb2_find_log_strs_in_func(elf const& e,
 
     while (s.addr < func_end) {
       inst decoded_inst;
-      if (!parse_inst(&e.bytes[func_ofs], s.addr, decoded_inst)) { break; }
-      printf("  %x ", s.addr);
+      if (!parse_inst(&e.bytes[func_ofs], s.addr - func_start, decoded_inst)) {
+        printf("  Unknown!\n");
+        break;
+      }
       print(decoded_inst);
       s.addr += decoded_inst.len;
     }

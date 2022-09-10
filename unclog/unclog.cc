@@ -167,7 +167,7 @@ int main(int, char const *[]) {
   for (auto const& sym_entry : s.non_nl_funcs_sym_map) {
     printf("  0x%08x ", sym_entry.first);
     for (auto const* sym : sym_entry.second) {
-      printf("%s ", &e.strtab[sym->st_name]);
+      printf("%s", &e.strtab[sym->st_name]);
     }
     printf("\n");
   }
