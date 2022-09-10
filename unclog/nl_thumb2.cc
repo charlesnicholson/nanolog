@@ -55,6 +55,7 @@ struct imm_shift { imm_shift_type t; u8 n; };
   X(ADD_SP_IMM, add_sp_imm) \
   X(ADR, adr) \
   X(AND_REG, and_reg) \
+  X(AND_REG_IMM, and_reg_imm) \
   X(BIT_CLEAR_REG, bit_clear_reg) \
   X(BRANCH, branch) \
   X(BRANCH_LINK, branch_link) \
@@ -67,6 +68,7 @@ struct imm_shift { imm_shift_type t; u8 n; };
   X(COUNT_LEADING_ZEROS, count_leading_zeros) \
   X(LOAD_BYTE_REG, load_byte_reg) \
   X(LOAD_BYTE_IMM, load_byte_imm) \
+  X(LOAD_DBL_REG, load_dbl_reg) \
   X(LOAD_HALF_IMM, load_half_imm) \
   X(LOAD_IMM, load_imm) \
   X(LOAD_LIT, load_lit) \
@@ -77,6 +79,7 @@ struct imm_shift { imm_shift_type t; u8 n; };
   X(MOV, mov) \
   X(MOV_IMM, mov_imm) \
   X(NOP, nop) \
+  X(OR_REG_IMM, or_reg_imm) \
   X(PUSH, push) \
   X(POP, pop) \
   X(RSHIFT_ARITH_IMM, rshift_arith_imm) \
@@ -96,6 +99,7 @@ enum class inst_type : u8 { INST_TYPE_X_LIST() };
 struct inst_add_sp_imm { u8 src_reg, imm; };
 struct inst_adr { u8 dst_reg, imm; };
 struct inst_and_reg { imm_shift shift; u8 dst_reg, op1_reg, op2_reg; };
+struct inst_and_reg_imm { u16 imm; u8 dst_reg, src_reg; };
 struct inst_bit_clear_reg { imm_shift shift; u8 dst_reg, op1_reg, op2_reg; };
 struct inst_branch { u32 label; cond_code cc; };
 struct inst_branch_link { u32 label; };
@@ -108,6 +112,7 @@ struct inst_cmp_reg { imm_shift shift; u8 op1_reg, op2_reg; };
 struct inst_count_leading_zeros { u8 dst_reg, src_reg; };
 struct inst_load_byte_imm { u8 dst_reg, src_reg, imm; };
 struct inst_load_byte_reg { u8 dst_reg, base_reg, ofs_reg; };
+struct inst_load_dbl_reg { u16 imm; u8 dst1_reg, dst2_reg, base, index, add; };
 struct inst_load_half_imm { u8 dst_reg, src_reg, imm; };
 struct inst_load_imm { u16 imm; u8 dst_reg, src_reg; };
 struct inst_load_lit { u32 label; u8 reg; };
@@ -117,6 +122,7 @@ struct inst_lshift_log_imm { u8 dst_reg, src_reg, imm; };
 struct inst_lshift_log_reg { u8 dst_reg, src_reg; };
 struct inst_mov { u8 dst_reg, src_reg; };
 struct inst_mov_imm { u32 imm; u8 reg; };
+struct inst_or_reg_imm { u16 imm; u8 dst_reg, src_reg; };
 struct inst_push { u16 reg_list; };
 struct inst_pop { u16 reg_list; };
 struct inst_nop {};
@@ -138,9 +144,13 @@ void print(inst_adr const& a) {
   printf("  ADR %s, PC, #%d\n", s_rn[a.dst_reg], (int)a.imm);
 }
 
-void print(inst_and_reg const a) {
+void print(inst_and_reg const& a) {
   printf("  AND_REG %s, %s, %s <%s #%d>\n", s_rn[a.dst_reg], s_rn[a.op1_reg],
     s_rn[a.op2_reg], s_sn[int(a.shift.t)], int(a.shift.n));
+};
+
+void print(inst_and_reg_imm const& a) {
+  printf("  AND_REG_IMM %s, %s, #%d\n", s_rn[a.dst_reg], s_rn[a.src_reg], int(a.imm));
 };
 
 void print(inst_push const& p) {
@@ -209,6 +219,11 @@ void print(inst_load_byte_reg const& l) {
   printf("  LDRB_REG %s, [%s, %s]\n", s_rn[l.dst_reg], s_rn[l.base_reg], s_rn[l.ofs_reg]);
 }
 
+void print(inst_load_dbl_reg const& l) {
+  printf("  LDRD_REG %s, %s, [%s], #%s%d\n", s_rn[l.dst1_reg], s_rn[l.dst2_reg],
+    s_rn[l.base], l.add ? "" : "-", int(l.imm));
+};
+
 void print(inst_load_imm const& l) {
   printf("  LDR_IMM %s, [%s, #%d]\n", s_rn[l.dst_reg], s_rn[l.src_reg], int(l.imm));
 }
@@ -245,6 +260,10 @@ void print(inst_mov const& m) {
 void print(inst_mov_imm const& m) {
   printf("  MOV_IMM %s, #%d\n", s_rn[m.reg], int(m.imm));
 }
+
+void print(inst_or_reg_imm const& o) {
+  printf("  ORR_REG %s, %s, #%d\n", s_rn[o.dst_reg], s_rn[o.src_reg], int(o.imm));
+};
 
 void print(inst_store_byte_imm const& s) {
   printf("  STRB_IMM %s, [%s, #%d]\n", s_rn[s.dst_reg], s_rn[s.src_reg], int(s.imm));
@@ -589,7 +608,17 @@ bool parse_16bit_inst(u16 const w0, u32 const addr, inst& out_inst) {
 bool parse_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
   out_inst.len = 4;
 
-  // 4.6.12 B, T3 Encoding (pg 4-38)
+  // 4.6.8 AND (immediate, T1 encoding (pg 4-30)
+  if (((w0 & 0xFD70u) == 0xF000u) && ((w1 & 0x8000u) == 0)) {
+    u32 const imm8{w1 & 0xFFu}, imm3{(w1 >> 12u) & 7u}, i{(w0 >> 10u) & 1u};
+    out_inst.type = inst_type::AND_REG_IMM;
+    out_inst.i.and_reg_imm = inst_and_reg_imm{
+      .dst_reg = u8((w1 >> 8u) & 0xFu), .src_reg = u8(w0 & 0xFu),
+      .imm = u16((i << 11u) | (imm3 << 8u) | imm8) };
+    return true;
+  }
+
+  // 4.6.12 B, T3 encoding (pg 4-38)
   if (((w0 & 0xF800u) == 0xF000u) && ((w1 & 0xD800u) == 0x8000)) {
     u32 const imm11{w1 & 0x7FFu}, imm6{w0 & 0x3Fu};
     u32 const j1{(w1 >> 13u) & 1u}, j2{(w1 >> 11u) & 1u};
@@ -602,7 +631,7 @@ bool parse_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
     return true;
   }
 
-  // 4.6.12 B, T4 Encoding (pg 4-38)
+  // 4.6.12 B, T4 encoding (pg 4-38)
   if (((w0 & 0xF800u) == 0xF000u) && ((w1 & 0x5000u) == 0x1000u)) {
     u32 const imm10{w0 & 0x3FFu}, imm11{w1 & 0x7FFu};
     u32 const s{(w0 >> 10u) & 1u};
@@ -646,6 +675,17 @@ bool parse_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
     return true;
   }
 
+  // 4.6.91 ORR (immediate), T1 encoding (pg 4-195)
+  if (((w0 & 0xFF70u) == 0xF040u) && ((w1 & 0x8000u) == 0)) {
+    u32 const imm8{w1 & 0xFFu}, imm3{(w1 >> 12u) & 7u}, i{(w0 >> 10u) & 1u};
+    out_inst.type = inst_type::OR_REG_IMM;
+    out_inst.i.or_reg_imm = inst_or_reg_imm{
+      // TODO(charles): special case when d == 15
+      .dst_reg = u8((w1 >> 8u) & 0xFu), .src_reg = u8(w0 & 0xFu),
+      .imm = u16((i << 11u) | (imm3 << 8u) | imm8) };
+    return true;
+  }
+
   if (w0 == 0xE8BDu) { // 4.6.98 POP, T2 encoding (pg 4-209)
     out_inst.type = inst_type::POP;
     out_inst.i.pop = inst_pop{ .reg_list = uint16_t(w1 & 0xDFFFu) };
@@ -656,6 +696,15 @@ bool parse_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
     out_inst.type = inst_type::LOAD_IMM;
     out_inst.i.load_imm = inst_load_imm{
       .src_reg = u8(w0 & 0xFu), .dst_reg = u8((w1 >> 12u) & 7u), .imm = u16(w1 & 0xFFFu) };
+    return true;
+  }
+
+  if ((w0 & 0xFE50u) == 0xE850u) { // 4.6.50 LDRD (immediate), T1 encoding (pg 4-114)
+    out_inst.type = inst_type::LOAD_DBL_REG;
+    out_inst.i.load_dbl_reg = inst_load_dbl_reg {
+      .imm = u16((w1 & 0xFFu) << 2u), .base = u8(w0 & 0xFu),
+      .dst1_reg = u8((w1 >> 12u) & 0xFu), .dst2_reg = u8((w1 >> 8u) & 0xFu),
+      .add = u8((w0 >> 7u) & 1u), .index = u8((w0 >> 8u) & 1u) };
     return true;
   }
 
