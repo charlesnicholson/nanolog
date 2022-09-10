@@ -565,17 +565,16 @@ bool parse_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
 
   // 4.6.12 B, T4 Encoding (pg 4-38)
   if (((w0 & 0xF800u) == 0xF000u) && ((w1 & 0x5000u) == 0x1000u)) {
-    u32 const imm11{w1 & 0x7FFu}, imm10{w0 & 0x3FFu};
+    u32 const imm10{w0 & 0x3FFu}, imm11{w1 & 0x7FFu};
     u32 const s{(w0 >> 10u) & 1u};
     u32 const j1{(w1 >> 13u) & 1u}, j2{(w1 >> 11u) & 1u};
     u32 const i1{~(j1 ^ s) & 1u}, i2{~(j2 ^ s) & 1u};
     u32 const imm32{
-      sext((imm11 << 1u) | (imm10 << 12u) | (i2 << 22u) | (i1 << 23u) | (s << 24u), 24)};
+      sext((s << 24u) | (i1 << 23u) | (i2 << 22u) | (imm10 << 12u) | (imm11 << 1u), 24)};
     out_inst.type = inst_type::BRANCH;
     out_inst.i.branch = inst_branch{ .cc = cond_code::AL2, .label = imm32};
     return true;
   }
-
 
   if ((w0 & 0xFF70u) == 0xEA20u) { // 4.6.16 BIC, T2 encoding (pg 4-46)
     out_inst.type = inst_type::BIT_CLEAR_REG;
@@ -589,11 +588,12 @@ bool parse_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
 
   // 4.6.18 BL, T1 encoding (pg 4-50)
   if (((w0 & 0xF800u) == 0xF000u) && ((w1 & 0xD000u) == 0xD000u)) {
-    u32 const sbit{(w0 >> 10u) & 1u}, sext{((sbit ^ 1u) - 1u) & 0xFF000000u};
-    u32 const i1{(1u - (((w1 >> 13u) & 1u) ^ sbit)) << 23u};
-    u32 const i2{(1u - (((w1 >> 11u) & 1u) ^ sbit)) << 22u};
-    u32 const imm10{(w0 & 0x3FFu) << 12u}, imm11{(w1 & 0x7FFu) << 1u};
-    u32 const imm32{sext | i1 | i2 | imm10 | imm11};
+    u32 const imm10{w0 & 0x3FFu}, imm11{w1 & 0x7FFu};
+    u32 const s{(w0 >> 10u) & 1u};
+    u32 const j1{(w1 >> 13) & 1u}, j2{(w1 >> 11u) & 1u};
+    u32 const i1{~(j1 ^ s) & 1u}, i2{~(j2 ^ s) & 1u};
+    u32 const imm32{
+      sext((s << 24u) | (i1 << 23u) | (i2 << 22u) | (imm10 << 12u) | (imm11 << 1u), 24)};
     out_inst.type = inst_type::BRANCH_LINK;
     out_inst.i.branch_link = inst_branch_link{ .label = imm32 };
     return true;
