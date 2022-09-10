@@ -52,6 +52,7 @@ struct imm_shift { imm_shift_type t; u8 n; };
 // Instructions
 
 #define INST_TYPE_X_LIST() \
+  X(ADD_IMM, add_imm) \
   X(ADD_SP_IMM, add_sp_imm) \
   X(ADR, adr) \
   X(AND_REG, and_reg) \
@@ -96,6 +97,7 @@ struct imm_shift { imm_shift_type t; u8 n; };
 enum class inst_type : u8 { INST_TYPE_X_LIST() };
 #undef X
 
+struct inst_add_imm { u8 imm, reg; };
 struct inst_add_sp_imm { u8 src_reg, imm; };
 struct inst_adr { u8 dst_reg, imm; };
 struct inst_and_reg { imm_shift shift; u8 dst_reg, op1_reg, op2_reg; };
@@ -135,6 +137,10 @@ struct inst_sub_imm { u16 imm; u8 dst_reg, src_reg; };
 struct inst_sub_reg { imm_shift shift; u8 dst_reg, op1_reg, op2_reg; };
 struct inst_svc { u32 label; };
 struct inst_table_branch_byte { u8 base_reg, idx_reg; };
+
+void print(inst_add_imm const& a) {
+  printf("  ADD_IMM %s, #%d\n", s_rn[a.reg], int(a.imm));
+};
 
 void print(inst_add_sp_imm const& a) {
   printf("  ADD %s, [SP, #%d]\n", s_rn[a.src_reg], (int)a.imm);
@@ -258,7 +264,7 @@ void print(inst_mov const& m) {
 }
 
 void print(inst_mov_imm const& m) {
-  printf("  MOV_IMM %s, #%d\n", s_rn[m.reg], int(m.imm));
+  printf("  MOV_IMM %s, #%d (%#x)\n", s_rn[m.reg], int(m.imm), unsigned(m.imm));
 }
 
 void print(inst_or_reg_imm const& o) {
@@ -358,6 +364,12 @@ bool parse_16bit_inst(u16 const w0, u32 const addr, inst& out_inst) {
     out_inst.type = inst_type::ADD_SP_IMM;
     out_inst.i.add_sp_imm =
       inst_add_sp_imm{ .src_reg = u8((w0 >> 8u) & 7u), .imm = u8(w0 & 0xFFu) };
+    return true;
+  }
+
+  if ((w0 & 0xF800u) == 0x3000u) { // 4.6.3 ADD (immediate), T2 encoding (pg 4-20)
+    out_inst.type = inst_type::ADD_IMM;
+    out_inst.i.add_imm = inst_add_imm{ .imm = u8(w0 & 0xFFu), .reg = u8((w0 >> 8u) & 7u) };
     return true;
   }
 
@@ -620,14 +632,19 @@ bool parse_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
 
   // 4.6.12 B, T3 encoding (pg 4-38)
   if (((w0 & 0xF800u) == 0xF000u) && ((w1 & 0xD800u) == 0x8000)) {
-    u32 const imm11{w1 & 0x7FFu}, imm6{w0 & 0x3Fu};
-    u32 const j1{(w1 >> 13u) & 1u}, j2{(w1 >> 11u) & 1u};
-    u32 const s{(w0 >> 10u) & 1u};
-    u32 const imm32{
-      sext((imm11 << 1u) | (imm6 << 11u) | (j1 << 17u) | (j2 << 18u) | (s << 19u), 19)};
-    out_inst.type = inst_type::BRANCH;
-    out_inst.i.branch = inst_branch{ .cc = cond_code((w0 >> 6u) & 0xFu), .label = imm32};
-    // TODO(charles): cc 111x is special somehow, see 4-38
+    cond_code const cc{cond_code((w0 >> 6u) & 0xFu)};
+    if (cc == cond_code::AL1) { // cond<3:1> == '111' is nop, see T3 note
+      out_inst.type = inst_type::NOP;
+      out_inst.i.nop = inst_nop{};
+    } else {
+      u32 const imm11{w1 & 0x7FFu}, imm6{w0 & 0x3Fu};
+      u32 const j1{(w1 >> 13u) & 1u}, j2{(w1 >> 11u) & 1u};
+      u32 const s{(w0 >> 10u) & 1u};
+      u32 const imm32{
+        sext((imm11 << 1u) | (imm6 << 11u) | (j1 << 17u) | (j2 << 18u) | (s << 19u), 19)};
+      out_inst.type = inst_type::BRANCH;
+      out_inst.i.branch = inst_branch{ .cc = cc, .label = imm32};
+    }
     return true;
   }
 
@@ -675,14 +692,25 @@ bool parse_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
     return true;
   }
 
+  // 4.6.76 MOV (imm), T2 encoding (pg 4-166)
+  if (((w0 & 0xFBEFu) == 0xF04Fu) && ((w1 & 0x8000u) == 0)) {
+    u32 const imm8{w1 & 0xFFu}, imm3{(w1 >> 12u) & 7u}, i{(w0 >> 10u) & 1u};
+    out_inst.type = inst_type::MOV_IMM;
+    out_inst.i.mov_imm = inst_mov_imm{ .reg = u8((w1 >> 8u) & 0xFu),
+      .imm = decode_imm12((i << 11u) | (imm3 << 8u) | imm8) };
+    return true;
+  }
+
   // 4.6.91 ORR (immediate), T1 encoding (pg 4-195)
   if (((w0 & 0xFF70u) == 0xF040u) && ((w1 & 0x8000u) == 0)) {
-    u32 const imm8{w1 & 0xFFu}, imm3{(w1 >> 12u) & 7u}, i{(w0 >> 10u) & 1u};
-    out_inst.type = inst_type::OR_REG_IMM;
-    out_inst.i.or_reg_imm = inst_or_reg_imm{
-      // TODO(charles): special case when d == 15
-      .dst_reg = u8((w1 >> 8u) & 0xFu), .src_reg = u8(w0 & 0xFu),
-      .imm = u16((i << 11u) | (imm3 << 8u) | imm8) };
+    u8 const n{u8(w0 & 0xFu)};
+    if (n != 15) { // T1 note: n=15 is 4.6.76 MOV T2 (pg 4-166)
+      u32 const imm8{w1 & 0xFFu}, imm3{(w1 >> 12u) & 7u}, i{(w0 >> 10u) & 1u};
+      out_inst.type = inst_type::OR_REG_IMM;
+      out_inst.i.or_reg_imm = inst_or_reg_imm{
+        .dst_reg = u8((w1 >> 8u) & 0xFu), .src_reg = n,
+        .imm = u16((i << 11u) | (imm3 << 8u) | imm8) };
+    }
     return true;
   }
 
