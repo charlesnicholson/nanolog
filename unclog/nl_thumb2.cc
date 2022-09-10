@@ -71,6 +71,7 @@ struct imm_shift { imm_shift_type t; u8 n; };
   X(LOAD_IMM, load_imm) \
   X(LOAD_LIT, load_lit) \
   X(LOAD_MULT_INC_AFTER, load_mult_inc_after) \
+  X(LOAD_REG, load_reg) \
   X(LSHIFT_LOG_IMM, lshift_log_imm) \
   X(LSHIFT_LOG_REG, lshift_log_reg) \
   X(MOV, mov) \
@@ -110,6 +111,7 @@ struct inst_load_half_imm { u8 dst_reg, src_reg, imm; };
 struct inst_load_imm { u16 imm; u8 dst_reg, src_reg; };
 struct inst_load_lit { u32 label; u8 reg; };
 struct inst_load_mult_inc_after { u16 regs; u8 base_reg; };
+struct inst_load_reg { imm_shift shift; u8 dst_reg, base_reg, ofs_reg; };
 struct inst_lshift_log_imm { u8 dst_reg, src_reg, imm; };
 struct inst_lshift_log_reg { u8 dst_reg, src_reg; };
 struct inst_mov { u8 dst_reg, src_reg; };
@@ -199,7 +201,7 @@ void print(inst_count_leading_zeros const& c) {
 
 void print(inst_load_byte_imm const& l) {
   printf("  LDRB_IMM %s, [%s, #%d]\n", s_rn[l.dst_reg], s_rn[l.src_reg], int(l.imm));
-};
+}
 
 void print(inst_load_byte_reg const& l) {
   printf("  LDRB_REG %s, [%s, %s]\n", s_rn[l.dst_reg], s_rn[l.base_reg], s_rn[l.ofs_reg]);
@@ -219,7 +221,12 @@ void print(inst_load_mult_inc_after const& l) {
   printf("  LDMIA %s!, { ", s_rn[l.base_reg]);
   for (int i = 0; i < 16; ++i) { if (l.regs & (1 << i)) { printf("%s ", s_rn[i]); } }
   printf("}\n");
-};
+}
+
+void print(inst_load_reg const& l) {
+  printf("  LDR_REG %s, [%s, %s <%s #%d>]\n", s_rn[l.dst_reg], s_rn[l.base_reg],
+    s_rn[l.ofs_reg], s_sn[int(l.shift.t)], int(l.shift.n));
+}
 
 void print(inst_lshift_log_imm const& l) {
   printf("  LSL_IMM %s, %s, #%d\n", s_rn[l.dst_reg], s_rn[l.src_reg], int(l.imm));
@@ -227,7 +234,7 @@ void print(inst_lshift_log_imm const& l) {
 
 void print(inst_lshift_log_reg const& l) {
   printf("  LSL_REG %s, %s\n", s_rn[l.dst_reg], s_rn[l.src_reg]);
-};
+}
 
 void print(inst_mov const& m) {
   printf("  MOV %s, %s\n", s_rn[m.dst_reg], s_rn[m.src_reg]);
@@ -239,20 +246,20 @@ void print(inst_mov_imm const& m) {
 
 void print(inst_store_byte_imm const& s) {
   printf("  STRB_IMM %s, [%s, #%d]\n", s_rn[s.dst_reg], s_rn[s.src_reg], int(s.imm));
-};
+}
 
 void print(inst_store_imm const& s) {
   printf("  STR_IMM %s, [%s, #%d]\n", s_rn[s.src_reg], s_rn[s.dst_reg], int(s.imm));
-};
+}
 
 void print(inst_sub_imm const& s) {
   printf("  SUB_IMM %s, %s, #%d\n", s_rn[s.dst_reg], s_rn[s.src_reg], int(s.imm));
-};
+}
 
 void print(inst_sub_reg const& s) {
   printf("  SUB_REG %s, %s, %s <%s #%u>\n", s_rn[s.dst_reg], s_rn[s.op1_reg],
     s_rn[s.op2_reg], s_sn[int(s.shift.t)], unsigned(s.shift.n));
-};
+}
 
 void print(inst_svc const&) { printf("  SVC\n"); }
 
@@ -429,6 +436,15 @@ bool parse_16bit_inst(u16 const w0, u32 const addr, inst& out_inst) {
     return true;
   }
 
+  if ((w0 & 0xFE00u) == 0x5800u) {
+    out_inst.type = inst_type::LOAD_REG;
+    out_inst.i.load_reg = inst_load_reg{
+        .dst_reg = u8(w0 & 7u), .base_reg = u8((w0 >> 3u) & 7u),
+        .ofs_reg = u8((w0 >> 6u) & 7u), .shift = decode_imm_shift(0b00, 0),
+      };
+    return true;
+  }
+
   if ((w0 & 0xF800u) == 0x7800u) { // 4.6.46 LDRB (immediate), T1 encoding (pg 4-106)
     out_inst.type = inst_type::LOAD_BYTE_IMM;
     out_inst.i.load_byte_imm = inst_load_byte_imm{
@@ -567,7 +583,7 @@ bool parse_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
       sext((imm11 << 1u) | (imm6 << 11u) | (j1 << 17u) | (j2 << 18u) | (s << 19u), 19)};
     out_inst.type = inst_type::BRANCH;
     out_inst.i.branch = inst_branch{ .cc = cond_code((w0 >> 6u) & 0xFu), .label = imm32};
-    // TODO: cc 111x is special somehow, see 4-38
+    // TODO(charles): cc 111x is special somehow, see 4-38
     return true;
   }
 
