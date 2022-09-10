@@ -526,10 +526,18 @@ bool parse_16bit_inst(u16 const w0, u32 const addr, inst& out_inst) {
     return true;
   }
 
-  if ((w0 & 0xFE00u) == 0x1E00u) { // 4.6.165 SUB (immediate), T1 encoding (pg 4-365)
+  if ((w0 & 0xFE00u) == 0x1E00u) { // 4.6.176 SUB (immediate), T1 encoding (pg 4-365)
     out_inst.type = inst_type::SUB_IMM;
     out_inst.i.sub_imm = inst_sub_imm{
       .dst_reg = u8(w0 & 7u), .src_reg = u8((w0 >> 3u) & 7u), .imm = u16((w0 >> 6u) & 7u) };
+    return true;
+  }
+
+  if ((w0 & 0xF800u) == 0x3800u) { // 4.6.176 SUB (immediate), T2 encoding (pg 4-365)
+    out_inst.type = inst_type::SUB_IMM;
+    out_inst.i.sub_imm = inst_sub_imm{
+      .dst_reg = u8((w0 >> 8u) & 7u), .src_reg = u8((w0 >> 8u) & 7u),
+      .imm = u16(w0 & 0xFFu) };
     return true;
   }
 
