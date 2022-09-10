@@ -69,6 +69,7 @@ struct imm_shift { imm_shift_type t; u8 n; };
   X(CMP_IMM, cmp_imm) \
   X(CMP_REG, cmp_reg) \
   X(COUNT_LEADING_ZEROS, count_leading_zeros) \
+  X(IF_THEN, if_then) \
   X(LOAD_BYTE_REG, load_byte_reg) \
   X(LOAD_BYTE_IMM, load_byte_imm) \
   X(LOAD_DBL_REG, load_dbl_reg) \
@@ -116,6 +117,7 @@ struct inst_cmp_branch_z { u8 reg, label; };
 struct inst_cmp_imm { u8 reg, imm; };
 struct inst_cmp_reg { imm_shift shift; u8 op1_reg, op2_reg; };
 struct inst_count_leading_zeros { u8 dst_reg, src_reg; };
+struct inst_if_then { u16 firstcond, mask; };
 struct inst_load_byte_imm { u8 dst_reg, src_reg, imm; };
 struct inst_load_byte_reg { u8 dst_reg, base_reg, ofs_reg; };
 struct inst_load_dbl_reg { u16 imm; u8 dst1_reg, dst2_reg, base, index, add; };
@@ -225,6 +227,10 @@ void print(inst_cmp_reg const& c) {
   printf("  CMP_REG %s, %s <%s #%d>\n", s_rn[c.op1_reg], s_rn[c.op2_reg],
     s_sn[int(c.shift.t)], int(c.shift.n));
 }
+
+void print(inst_if_then const& i) {
+  printf("  IT %x, %x\n", unsigned(i.firstcond), unsigned(i.mask));
+};
 
 void print(inst_count_leading_zeros const& c) {
   printf("  CLZ %s, %s\n", s_rn[c.dst_reg], s_rn[c.src_reg]);
@@ -466,6 +472,12 @@ bool parse_16bit_inst(u16 const w0, u32 const addr, inst& out_inst) {
     out_inst.type = inst_type::CMP_REG;
     out_inst.i.cmp_reg = { .shift = decode_imm_shift(0b00, 0),
       .op1_reg = u8(w0 & 7u), .op2_reg = u8((w0 >> 3u) & 7u) };
+    return true;
+  }
+
+  if ((w0 & 0xFF00u) == 0xBF00u) { // 4.6.39 IT, T1 encoding (pg 4-92)
+    out_inst.type = inst_type::IF_THEN;
+    out_inst.i.if_then = { .firstcond = u16((w0 >> 4) & 0xF), .mask = u16(w0 & 0xF) };
     return true;
   }
 
