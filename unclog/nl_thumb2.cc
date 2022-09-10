@@ -336,9 +336,8 @@ u32 decode_imm12(u32 imm12) {
       case 3: return (imm8 << 24) | (imm8 << 16) | (imm8 << 8) | imm8;
     }
   }
-  u32 const x{0x80u | (imm12 & 0x7Fu)};
-  u32 const n{(imm12 >> 7u) & 0x1Fu};
-  return (x >> n) | (x << (32 - n)); // rotate into place
+  u32 const x{0x80u | (imm12 & 0x7Fu)}, n{(imm12 >> 7u) & 0x1Fu};
+  return (x >> n) | (x << (32 - n));
 }
 
 imm_shift decode_imm_shift(u8 const type, u8 const imm5) {
@@ -389,9 +388,8 @@ bool parse_16bit_inst(u16 const w0, u32 const addr, inst& out_inst) {
 
   if ((w0 & 0xFFC0u) == 0x4000u) { // 4.6.9 AND, T1 encoding (pg 4-32)
     out_inst.type = inst_type::AND_REG;
-    out_inst.i.and_reg = inst_and_reg{
-      .dst_reg = u8(w0 & 7u), .op1_reg = u8(w0 & 7u), .op2_reg = u8((w0 >> 3u) & 7u),
-      .shift = decode_imm_shift(0b00, 0) };
+    out_inst.i.and_reg = inst_and_reg{ .shift = decode_imm_shift(0b00, 0),
+      .dst_reg = u8(w0 & 7u), .op1_reg = u8(w0 & 7u), .op2_reg = u8((w0 >> 3u) & 7u) };
     return true;
   }
 
@@ -445,8 +443,7 @@ bool parse_16bit_inst(u16 const w0, u32 const addr, inst& out_inst) {
 
   if ((w0 & 0xFD00u) == 0xB100u) { // 4.6.23 CBZ, T1 encoding (pg 4-60)
     out_inst.type = inst_type::CBZ;
-    out_inst.i.cmp_branch_z = inst_cmp_branch_z{
-      .reg = u8(w0 & 7u),
+    out_inst.i.cmp_branch_z = inst_cmp_branch_z{ .reg = u8(w0 & 7u),
       .label = u8(2 + ((w0 >> 2u) & 0x1Eu) | ((w0 >> 3u) & 0x40u)) };
     return true;
   }
@@ -544,8 +541,7 @@ bool parse_16bit_inst(u16 const w0, u32 const addr, inst& out_inst) {
   }
 
   if (w0 == 0xBF00u) { // 4.6.88 NOP (pg 4-189)
-    out_inst.type = inst_type::NOP;
-    out_inst.i.nop = inst_nop{};
+    out_inst.type = inst_type::NOP; out_inst.i.nop = inst_nop{};
     return true;
   }
 
@@ -625,8 +621,7 @@ bool parse_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
   if (((w0 & 0xF800u) == 0xF000u) && ((w1 & 0xD800u) == 0x8000)) {
     cond_code const cc{cond_code((w0 >> 6u) & 0xFu)};
     if (cc == cond_code::AL1) { // cond<3:1> == '111' is nop, see T3 note
-      out_inst.type = inst_type::NOP;
-      out_inst.i.nop = inst_nop{};
+      out_inst.type = inst_type::NOP; out_inst.i.nop = inst_nop{};
     } else {
       u32 const imm11{w1 & 0x7FFu}, imm6{w0 & 0x3Fu};
       u32 const j1{(w1 >> 13u) & 1u}, j2{(w1 >> 11u) & 1u};
