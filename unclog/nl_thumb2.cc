@@ -63,6 +63,7 @@ struct imm_shift { imm_shift_type t; u8 n; };
   X(CBNZ, cmp_branch_nz) \
   X(CBZ, cmp_branch_z) \
   X(CMP_IMM, cmp_imm) \
+  X(CMP_REG, cmp_reg) \
   X(COUNT_LEADING_ZEROS, count_leading_zeros) \
   X(LOAD_BYTE_REG, load_byte_reg) \
   X(LOAD_BYTE_IMM, load_byte_imm) \
@@ -77,6 +78,7 @@ struct imm_shift { imm_shift_type t; u8 n; };
   X(NOP, nop) \
   X(PUSH, push) \
   X(POP, pop) \
+  X(RSHIFT_ARITH_IMM, rshift_arith_imm) \
   X(RSHIFT_LOG, rshift_log) \
   X(STORE_BYTE_IMM, store_byte_imm) \
   X(STORE_IMM, store_imm) \
@@ -100,6 +102,7 @@ struct inst_branch_xchg { u8 reg; };
 struct inst_cmp_branch_nz { u8 reg, label; };
 struct inst_cmp_branch_z { u8 reg, label; };
 struct inst_cmp_imm { u8 reg, imm; };
+struct inst_cmp_reg { imm_shift shift; u8 op1_reg, op2_reg; };
 struct inst_count_leading_zeros { u8 dst_reg, src_reg; };
 struct inst_load_byte_imm { u8 dst_reg, src_reg, imm; };
 struct inst_load_byte_reg { u8 dst_reg, base_reg, ofs_reg; };
@@ -115,6 +118,7 @@ struct inst_push { u16 reg_list; };
 struct inst_pop { u16 reg_list; };
 struct inst_nop {};
 struct inst_rshift_log { imm_shift shift; u8 dst_reg, src_reg; };
+struct inst_rshift_arith_imm { imm_shift shift; u8 dst_reg, src_reg; };
 struct inst_store_byte_imm { u8 src_reg, dst_reg, imm; };
 struct inst_store_imm { u8 src_reg, dst_reg; u16 imm; };
 struct inst_sub_imm { u16 imm; u8 dst_reg, src_reg; };
@@ -153,6 +157,10 @@ void print(inst_rshift_log const& r) {
   printf("  LSR %s, %s, #%d\n", s_rn[r.dst_reg], s_rn[r.src_reg], int(r.shift.n));
 }
 
+void print(inst_rshift_arith_imm const& r) {
+  printf("  ASR %s, %s, #%d\n", s_rn[r.dst_reg], s_rn[r.src_reg], int(r.shift.n));
+};
+
 void print(inst_bit_clear_reg const& b) {
   printf("  BIC_REG %s, %s, %s, <%s #%d>\n", s_rn[b.dst_reg], s_rn[b.op1_reg],
     s_rn[b.op2_reg], s_sn[int(b.shift.t)], int(b.shift.n));
@@ -178,6 +186,11 @@ void print(inst_cmp_branch_z const& c) {
 
 void print(inst_cmp_imm const& c) {
   printf("  CMP_IMM %s, #%d\n", s_rn[c.reg], int(c.imm));
+}
+
+void print(inst_cmp_reg const& c) {
+  printf("  CMP_REG %s, %s <%s #%d>\n", s_rn[c.op1_reg], s_rn[c.op2_reg],
+    s_sn[int(c.shift.t)], int(c.shift.n));
 }
 
 void print(inst_count_leading_zeros const& c) {
@@ -330,6 +343,14 @@ bool parse_16bit_inst(u16 const w0, u32 const addr, inst& out_inst) {
     return true;
   }
 
+  if ((w0 & 0xF800) == 0x1000u) { // 4.6.10 ASR (immediate), T1 encoding (pg 4-34)
+    out_inst.type = inst_type::RSHIFT_ARITH_IMM;
+    out_inst.i.rshift_arith_imm = inst_rshift_arith_imm{
+      .dst_reg = u8(w0 & 7u), .src_reg = u8((w0 >> 3u) & 7u),
+      .shift = decode_imm_shift(0b10, (w0 >> 6u) & 0x1Fu) };
+    return true;
+  }
+
   if ((w0 & 0xF000u) == 0xD000u) { // 4.6.12 B, T1 encoding (pg 4-38)
     cond_code const cc{cond_code(((w0 >> 8u) & 0xFu))};
     u32 const label{sext((w0 & 0xFFu) << 1u, 8u)};
@@ -380,8 +401,15 @@ bool parse_16bit_inst(u16 const w0, u32 const addr, inst& out_inst) {
 
   if ((w0 & 0xF800u) == 0x2800u) { // 4.6.29 CMP (immediate), T1 encoding (pg 4-72)
     out_inst.type = inst_type::CMP_IMM;
-    out_inst.i.cmp_imm =
-      inst_cmp_imm{ .reg = u8((w0 >> 8u) & 7u), .imm = u8(w0 & 0xFFu) };
+    out_inst.i.cmp_imm = inst_cmp_imm{ .reg = u8((w0 >> 8u) & 7u), .imm = u8(w0 & 0xFFu) };
+    return true;
+  }
+
+  if ((w0 & 0xFFC0u) == 0x4280u) { // 4.6.30 CMP (register), T1 encoding (pg 4-74)
+    out_inst.type = inst_type::CMP_REG;
+    out_inst.i.cmp_reg = inst_cmp_reg{
+      .op1_reg = u8(w0 & 7u), .op2_reg = u8((w0 >> 3u) & 7u),
+      .shift = decode_imm_shift(0b00, 0)};
     return true;
   }
 
