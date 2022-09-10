@@ -161,7 +161,7 @@ void print(inst_bit_clear_reg const& b) {
 void print(inst_branch const& i) {
   printf("  B%s %x\n",
     (i.cc != cond_code::AL1 && i.cc != cond_code::AL2) ? cond_code_name(i.cc) : "",
-    i.label);
+    unsigned(i.label));
 }
 
 void print(inst_branch_link const& i) { printf("  BL %x\n", unsigned(i.label)); }
@@ -295,7 +295,10 @@ imm_shift decode_imm_shift(u8 const type, u8 const imm5) {
   __builtin_unreachable();
 }
 
-int sext(int x, int sign_bit) { int const m{1 << sign_bit}; return (x ^ m) - m; }
+u32 sext(u32 x, unsigned sign_bit) {
+  u32 const m{1u << sign_bit};
+  return u32((x ^ m) - m);
+}
 
 bool is_16bit_inst(u16 w0) {
   // 3.1 Instruction set encoding, Table 3-1 (pg 3-2)
@@ -329,7 +332,7 @@ bool parse_16bit_inst(u16 const w0, u32 const addr, inst& out_inst) {
 
   if ((w0 & 0xF000u) == 0xD000u) { // 4.6.12 B, T1 encoding (pg 4-38)
     cond_code const cc{cond_code(((w0 >> 8u) & 0xFu))};
-    u32 const label{u32(sext((w0 & 0xFF) << 1, 8))};
+    u32 const label{sext((w0 & 0xFFu) << 1u, 8u)};
     if (u8(cc) == 0xFu) { // cc 0b1111 == SVC, 4.6.181 SVC (pg 4-375)
       out_inst.type = inst_type::SVC;
       out_inst.i.svc = inst_svc{ .label = label };
@@ -343,7 +346,7 @@ bool parse_16bit_inst(u16 const w0, u32 const addr, inst& out_inst) {
   if ((w0 & 0xF800u) == 0xE000u) { // 4.6.12 B, T2 encoding (pg 4-38)
     out_inst.type = inst_type::BRANCH;
     out_inst.i.branch = inst_branch{
-      .label = u32(int(addr + 4) + sext((w0 & 0x7FF) << 1, 11)), .cc = cond_code::AL1 };
+      .label = u32(addr + 4 + sext((w0 & 0x7FFu) << 1u, 11u)), .cc = cond_code::AL2 };
     return true;
   }
 
@@ -385,8 +388,7 @@ bool parse_16bit_inst(u16 const w0, u32 const addr, inst& out_inst) {
   if ((w0 & 0xF800u) == 0x6800u) { // 4.6.43 LDR (immediate), T1 encoding (pg 4-100)
     out_inst.type = inst_type::LOAD_IMM;
     out_inst.i.load_imm = inst_load_imm{
-      .dst_reg = u8(w0 & 7u),
-      .src_reg = u8((w0 >> 3u) & 7u),
+      .dst_reg = u8(w0 & 7u), .src_reg = u8((w0 >> 3u) & 7u),
       .imm = u8(((w0 >> 6u) & 0x1Fu) << 2u) };
     return true;
   }
@@ -402,8 +404,7 @@ bool parse_16bit_inst(u16 const w0, u32 const addr, inst& out_inst) {
   if ((w0 & 0xF800u) == 0x7800u) { // 4.6.46 LDRB (immediate), T1 encoding (pg 4-106)
     out_inst.type = inst_type::LOAD_BYTE_IMM;
     out_inst.i.load_byte_imm = inst_load_byte_imm{
-      .dst_reg = u8(w0 & 7u),
-      .src_reg = u8((w0 >> 3u) & 7u),
+      .dst_reg = u8(w0 & 7u), .src_reg = u8((w0 >> 3u) & 7u),
       .imm = (u8)((w0 >> 6u) & 0x1Fu) };
     return true;
   }
@@ -420,8 +421,7 @@ bool parse_16bit_inst(u16 const w0, u32 const addr, inst& out_inst) {
   if ((w0 & 0xF800u) == 0x8800u) { // 4.6.55 LDRH (immediate), T1 encoding (pg 4-124)
     out_inst.type = inst_type::LOAD_HALF_IMM;
     out_inst.i.load_half_imm = inst_load_half_imm{
-      .dst_reg = u8(w0 & 7u),
-      .src_reg = u8((w0 >> 3u) & 7u),
+      .dst_reg = u8(w0 & 7u), .src_reg = u8((w0 >> 3u) & 7u),
       .imm = (u8)(((w0 >> 6u) & 0x1Fu) << 1u) };
     return true;
   }
@@ -429,8 +429,7 @@ bool parse_16bit_inst(u16 const w0, u32 const addr, inst& out_inst) {
   if ((w0 & 0xF800u) == 0) { // 4.6.68 LSL (immediate), T1 encoding (pg 4-150)
     out_inst.type = inst_type::LSHIFT_LOG_IMM;
     out_inst.i.lshift_log_imm = inst_lshift_log_imm{
-      .dst_reg = u8(w0 & 7u),
-      .src_reg = u8((w0 >> 3u) & 7u),
+      .dst_reg = u8(w0 & 7u), .src_reg = u8((w0 >> 3u) & 7u),
       .imm = u8((w0 >> 6u) & 0x1Fu) };
     return true;
   }
@@ -445,8 +444,7 @@ bool parse_16bit_inst(u16 const w0, u32 const addr, inst& out_inst) {
   if ((w0 & 0xF800u) == 0x800u) { // 4.6.70 LSR (immediate), T1 encoding (pg 4-154)
     out_inst.type = inst_type::RSHIFT_LOG;
     out_inst.i.rshift_log = inst_rshift_log{
-      .dst_reg = u8(w0 & 7u),
-      .src_reg = u8((w0 >> 3u) & 7u),
+      .dst_reg = u8(w0 & 7u), .src_reg = u8((w0 >> 3u) & 7u),
       .shift = decode_imm_shift(0b01, u8((w0 >> 6u) & 0x1Fu)) };
     return true;
   }
@@ -495,8 +493,7 @@ bool parse_16bit_inst(u16 const w0, u32 const addr, inst& out_inst) {
   if ((w0 & 0xF800u) == 0x7000u) { // 4.6.164 STRB (immediate), T1 encoding (pg 4-341)
     out_inst.type = inst_type::STORE_BYTE_IMM;
     out_inst.i.store_byte_imm = inst_store_byte_imm{
-      .dst_reg = u8(w0 & 7u),
-      .src_reg = u8((w0 >> 3u) & 7u),
+      .dst_reg = u8(w0 & 7u), .src_reg = u8((w0 >> 3u) & 7u),
       .imm = u8((w0 >> 6u) & 0x1Fu) };
     return true;
   }
@@ -522,18 +519,40 @@ bool parse_16bit_inst(u16 const w0, u32 const addr, inst& out_inst) {
   return false;
 }
 
-bool parse_32bit_inst(u16 const w0,
-                      u16 const w1,
-                      u32 const addr,
-                      inst& out_inst) {
+bool parse_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
   out_inst.len = 4;
+
+  // 4.6.12 B, T3 Encoding (pg 4-38)
+  if (((w0 & 0xF800u) == 0xF000u) && ((w1 & 0xD800u) == 0x8000)) {
+    u32 const imm11{w1 & 0x7FFu}, imm6{w0 & 0x3Fu};
+    u32 const j1{(w1 >> 13u) & 1u}, j2{(w1 >> 11u) & 1u};
+    u32 const s{(w0 >> 10u) & 1u};
+    u32 const imm32{
+      sext((imm11 << 1u) | (imm6 << 11u) | (j1 << 17u) | (j2 << 18u) | (s << 19u), 19)};
+    out_inst.type = inst_type::BRANCH;
+    out_inst.i.branch = inst_branch{ .cc = cond_code((w0 >> 6u) & 0xFu), .label = imm32};
+    // TODO: cc 111x is special somehow, see 4-38
+    return true;
+  }
+
+  // 4.6.12 B, T4 Encoding (pg 4-38)
+  if (((w0 & 0xF800u) == 0xF000u) && ((w1 & 0x5000u) == 0x1000u)) {
+    u32 const imm11{w1 & 0x7FFu}, imm10{w0 & 0x3FFu};
+    u32 const s{(w0 >> 10u) & 1u};
+    u32 const j1{(w1 >> 13u) & 1u}, j2{(w1 >> 11u) & 1u};
+    u32 const i1{~(j1 ^ s) & 1u}, i2{~(j2 ^ s) & 1u};
+    u32 const imm32{
+      sext((imm11 << 1u) | (imm10 << 12u) | (i2 << 22u) | (i1 << 23u) | (s << 24u), 24)};
+    out_inst.type = inst_type::BRANCH;
+    out_inst.i.branch = inst_branch{ .cc = cond_code::AL2, .label = imm32};
+    return true;
+  }
+
 
   if ((w0 & 0xFF70u) == 0xEA20u) { // 4.6.16 BIC, T2 encoding (pg 4-46)
     out_inst.type = inst_type::BIT_CLEAR_REG;
     out_inst.i.bit_clear_reg = inst_bit_clear_reg{
-      .dst_reg = u8((w1 >> 8u) & 0xFu),
-      .op1_reg = u8(w0 & 0xFu),
-      .op2_reg = u8(w1 & 0xFu),
+      .dst_reg = u8((w1 >> 8u) & 0xFu), .op1_reg = u8(w0 & 0xFu), .op2_reg = u8(w1 & 0xFu),
       .shift =
         decode_imm_shift(u8((w1 >> 4u) & 3u), u8(((w1 >> 6u) & 3u) | ((w1 >> 12u) & 7u))),
     };
@@ -542,15 +561,13 @@ bool parse_32bit_inst(u16 const w0,
 
   // 4.6.18 BL, T1 encoding (pg 4-50)
   if (((w0 & 0xF800u) == 0xF000u) && ((w1 & 0xD000u) == 0xD000u)) {
-    u32 const sbit{(w0 >> 10u) & 1u};
-    u32 const sext{((sbit ^ 1u) - 1u) & 0xFF000000u};
+    u32 const sbit{(w0 >> 10u) & 1u}, sext{((sbit ^ 1u) - 1u) & 0xFF000000u};
     u32 const i1{(1u - (((w1 >> 13u) & 1u) ^ sbit)) << 23u};
     u32 const i2{(1u - (((w1 >> 11u) & 1u) ^ sbit)) << 22u};
-    u32 const imm10{(w0 & 0x3FFu) << 12u};
-    u32 const imm11{(w1 & 0x7FFu) << 1u};
+    u32 const imm10{(w0 & 0x3FFu) << 12u}, imm11{(w1 & 0x7FFu) << 1u};
     u32 const imm32{sext | i1 | i2 | imm10 | imm11};
     out_inst.type = inst_type::BRANCH_LINK;
-    out_inst.i.branch_link = inst_branch_link{ .label = addr + 4 + imm32 };
+    out_inst.i.branch_link = inst_branch_link{ .label = imm32 };
     return true;
   }
 
@@ -595,9 +612,7 @@ bool parse_32bit_inst(u16 const w0,
   if ((w0 & 0xFFF0u) == 0xF8C0u) { // 4.6.162 STR (immediate), T3 encoding (4-337)
     out_inst.type = inst_type::STORE_IMM;
     out_inst.i.store_imm = inst_store_imm{
-      .src_reg = u8(w1 >> 12u),
-      .dst_reg = u8(w0 & 0xFu),
-      .imm = u16(w1 & 0xFFFu) };
+      .src_reg = u8(w1 >> 12u), .dst_reg = u8(w0 & 0xFu), .imm = u16(w1 & 0xFFFu) };
     return true;
   }
 
@@ -618,7 +633,7 @@ bool parse_inst(char const *text, u32 addr, inst& out_inst) {
   memcpy(&w0, &text[addr], 2);
   if (is_16bit_inst(w0)) { return parse_16bit_inst(w0, addr, out_inst); }
   memcpy(&w1, &text[addr + 2], 2);
-  return parse_32bit_inst(w0, w1, addr, out_inst);
+  return parse_32bit_inst(w0, w1, out_inst);
 }
 }
 
