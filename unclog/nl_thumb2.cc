@@ -85,6 +85,7 @@ struct imm_shift { imm_shift_type t; u8 n; };
   X(MOV_NEG_IMM, mov_neg_imm) \
   X(NOP, nop) \
   X(OR_REG_IMM, or_reg_imm) \
+  X(OR_REG_REG, or_reg_reg) \
   X(PUSH, push) \
   X(POP, pop) \
   X(RSHIFT_ARITH_IMM, rshift_arith_imm) \
@@ -118,7 +119,7 @@ struct inst_cmp_branch_z { u8 reg, label; };
 struct inst_cmp_imm { u8 reg, imm; };
 struct inst_cmp_reg { imm_shift shift; u8 op1_reg, op2_reg; };
 struct inst_count_leading_zeros { u8 dst_reg, src_reg; };
-struct inst_if_then { u16 firstcond, mask; };
+struct inst_if_then { u8 firstcond, mask; };
 struct inst_load_byte_imm { u16 imm; u8 t, n; };
 struct inst_load_byte_reg { u8 dst_reg, base_reg, ofs_reg; };
 struct inst_load_dbl_reg { u16 imm; u8 dst1_reg, dst2_reg, base, index, add; };
@@ -133,6 +134,7 @@ struct inst_mov { u8 dst_reg, src_reg; };
 struct inst_mov_imm { u32 imm; u8 reg; };
 struct inst_mov_neg_imm { u32 imm; u8 d; };
 struct inst_or_reg_imm { u32 imm; u8 d, n; };
+struct inst_or_reg_reg { u32 imm; imm_shift shift; u8 d, n, m; };
 struct inst_push { u16 reg_list; };
 struct inst_pop { u16 reg_list; };
 struct inst_nop {};
@@ -293,7 +295,12 @@ void print(inst_mov_neg_imm const& m) {
 };
 
 void print(inst_or_reg_imm const& o) {
-  printf("  ORR_REG %s, %s, #%d\n", s_rn[o.d], s_rn[o.n], int(o.imm));
+  printf("  ORR_IMM %s, %s, #%d\n", s_rn[o.d], s_rn[o.n], int(o.imm));
+};
+
+void print(inst_or_reg_reg const& o) {
+  printf("  ORR_REG %s, %s, %s <%s #%d>\n", s_rn[o.d], s_rn[o.m], s_rn[o.n],
+    s_sn[int(o.shift.t)], int(o.shift.n));
 };
 
 void print(inst_store_byte_imm const& s) {
@@ -480,8 +487,13 @@ bool parse_16bit_inst(u16 const w0, inst& out_inst) {
   }
 
   if ((w0 & 0xFF00u) == 0xBF00u) { // 4.6.39 IT, T1 encoding (pg 4-92)
-    out_inst.type = inst_type::IF_THEN;
-    out_inst.i.if_then = { .firstcond = u16((w0 >> 4) & 0xF), .mask = u16(w0 & 0xF) };
+    u8 const mask{u8(w0 & 0xFu)};
+    if (mask == 0) { // T1 encoding note: '0000' = nop-compatible hint
+      out_inst.type = inst_type::NOP; out_inst.i.nop = {};
+    } else {
+      out_inst.type = inst_type::IF_THEN;
+      out_inst.i.if_then = { .firstcond = u8((w0 >> 4u) & 0xFu), .mask = mask };
+    }
     return true;
   }
 
@@ -562,6 +574,13 @@ bool parse_16bit_inst(u16 const w0, inst& out_inst) {
 
   if (w0 == 0xBF00u) { // 4.6.88 NOP (pg 4-189)
     out_inst.type = inst_type::NOP; out_inst.i.nop = {};
+    return true;
+  }
+
+  if ((w0 & 0xFFC0) == 0x4300) { // 4.6.92 ORR (register), T1 encoding (pg 4-197)
+    out_inst.type = inst_type::OR_REG_REG;
+    out_inst.i.or_reg_reg = { .d = u8(w0 & 7u), .n = u8(w0 & 7u), .m = u8((w0 >> 3u) & 7u),
+      .shift = decode_imm_shift(0b00, 0) };
     return true;
   }
 
@@ -829,8 +848,7 @@ struct reg_state {
   u16 known = 0;
 };
 
-bool thumb2_find_log_strs_in_func(elf const& e,
-                                  elf_symbol32 const& func) {
+bool thumb2_find_log_strs_in_func(elf const& e, elf_symbol32 const& func) {
   elf_section_hdr32 const& func_sec_hdr = e.sec_hdrs[func.st_shndx];
   unsigned const func_start{(func.st_value) & ~1u};
   unsigned const func_end{func_start + func.st_size};
