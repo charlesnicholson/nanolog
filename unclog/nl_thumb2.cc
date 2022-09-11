@@ -100,8 +100,8 @@ struct imm_shift { imm_shift_type t; u8 n; };
 enum class inst_type : u8 { INST_TYPE_X_LIST() };
 #undef X
 
-struct inst_add_imm { u32 imm; u8 d, n; };
-struct inst_add_sp_imm { u8 src_reg, imm; };
+struct inst_add_imm { u16 imm; u8 d, n; };
+struct inst_add_sp_imm { u16 imm; u8 d; };
 struct inst_adr { u8 dst_reg, imm; };
 struct inst_and_reg { imm_shift shift; u8 dst_reg, op1_reg, op2_reg; };
 struct inst_and_reg_imm { u32 imm; u8 dst_reg, src_reg; };
@@ -149,7 +149,7 @@ void print(inst_add_imm const& a) {
 };
 
 void print(inst_add_sp_imm const& a) {
-  printf("  ADD %s, [SP, #%d]\n", s_rn[a.src_reg], (int)a.imm);
+  printf("  ADD %s, [SP, #%d]\n", s_rn[a.d], (int)a.imm);
 }
 
 void print(inst_adr const& a) {
@@ -368,8 +368,7 @@ imm_shift decode_imm_shift(u8 const type, u8 const imm5) {
 }
 
 u32 sext(u32 x, unsigned sign_bit) {
-  u32 const m{1u << sign_bit};
-  return u32((x ^ m) - m);
+  return u32((x ^ u32(1u << sign_bit)) - u32(1u << sign_bit));
 }
 
 bool is_16bit_inst(u16 w0) {
@@ -382,14 +381,14 @@ bool parse_16bit_inst(u16 const w0, u32 const addr, inst& out_inst) {
 
   if ((w0 & 0xF800u) == 0xA800u) { // 4.5.5 ADD (SP + immediate), T1 encoding (pg 4-24)
     out_inst.type = inst_type::ADD_SP_IMM;
-    out_inst.i.add_sp_imm = { .src_reg = u8((w0 >> 8u) & 7u), .imm = u8(w0 & 0xFFu) };
+    out_inst.i.add_sp_imm = { .d = u8((w0 >> 8u) & 7u), .imm = u16(w0 & 0xFFu) };
     return true;
   }
 
   if ((w0 & 0xFE00u) == 0x1C00u) { // 4.6.3 ADD (immediate), T1 encoding (pg 4-20)
     out_inst.type = inst_type::ADD_IMM;
     out_inst.i.add_imm = { .d = u8(w0 & 7u), .n = u8((w0 >> 3u) & 7u),
-      .imm = ((w0 >> 6u) & 7u) };
+      .imm = u16((w0 >> 6u) & 7u) };
     return true;
   }
 
