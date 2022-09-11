@@ -118,12 +118,12 @@ struct inst_cmp_imm { u8 reg, imm; };
 struct inst_cmp_reg { imm_shift shift; u8 op1_reg, op2_reg; };
 struct inst_count_leading_zeros { u8 dst_reg, src_reg; };
 struct inst_if_then { u16 firstcond, mask; };
-struct inst_load_byte_imm { u8 dst_reg, src_reg, imm; };
+struct inst_load_byte_imm { u16 imm; u8 t, n; };
 struct inst_load_byte_reg { u8 dst_reg, base_reg, ofs_reg; };
 struct inst_load_dbl_reg { u16 imm; u8 dst1_reg, dst2_reg, base, index, add; };
 struct inst_load_half_imm { u8 dst_reg, src_reg, imm; };
 struct inst_load_imm { u16 imm; u8 dst_reg, src_reg; };
-struct inst_load_lit { u32 label; u8 reg; };
+struct inst_load_lit { u32 imm; u8 t, add; };
 struct inst_load_mult_inc_after { u16 regs; u8 base_reg; };
 struct inst_load_reg { imm_shift shift; u8 dst_reg, base_reg, ofs_reg; };
 struct inst_lshift_log_imm { u8 dst_reg, src_reg, imm; };
@@ -237,7 +237,7 @@ void print(inst_count_leading_zeros const& c) {
 }
 
 void print(inst_load_byte_imm const& l) {
-  printf("  LDRB_IMM %s, [%s, #%d]\n", s_rn[l.dst_reg], s_rn[l.src_reg], int(l.imm));
+  printf("  LDRB_IMM %s, [%s, #%d]\n", s_rn[l.t], s_rn[l.n], int(l.imm));
 }
 
 void print(inst_load_byte_reg const& l) {
@@ -257,7 +257,9 @@ void print(inst_load_half_imm const& l) {
   printf("  LDRH_IMM %s, [%s, #%d]\n", s_rn[l.dst_reg], s_rn[l.src_reg], int(l.imm));
 }
 
-void print(inst_load_lit const& l) { printf("  LDR %s, %x\n", s_rn[l.reg], l.label); }
+void print(inst_load_lit const& l) {
+  printf("  LDR %s, [PC, #%s%d]\n", s_rn[l.t], l.add ? "" : "-", int(l.imm));
+}
 
 void print(inst_load_mult_inc_after const& l) {
   printf("  LDMIA %s!, { ", s_rn[l.base_reg]);
@@ -491,8 +493,8 @@ bool parse_16bit_inst(u16 const w0, u32 const addr, inst& out_inst) {
   // TODO: read label + imm, pass func start addr to parse
   if ((w0 & 0xF800u) == 0x4800u) { // 4.6.44 LDR (literal), T1 encoding (pg 4-102)
     out_inst.type = inst_type::LOAD_LIT;
-    out_inst.i.load_lit = { .label = ((w0 & 0xFFu) << 2u) + ((addr + 4u) & ~3u),
-      .reg = u8((w0 >> 8u) & 7u) };
+    out_inst.i.load_lit = { .imm = ((w0 & 0xFFu) << 2u), .t = u8((w0 >> 8u) & 7u),
+      .add = 1 };
     return true;
   }
 
@@ -505,8 +507,8 @@ bool parse_16bit_inst(u16 const w0, u32 const addr, inst& out_inst) {
 
   if ((w0 & 0xF800u) == 0x7800u) { // 4.6.46 LDRB (immediate), T1 encoding (pg 4-106)
     out_inst.type = inst_type::LOAD_BYTE_IMM;
-    out_inst.i.load_byte_imm = { .imm = (u8)((w0 >> 6u) & 0x1Fu), .dst_reg = u8(w0 & 7u),
-      .src_reg = u8((w0 >> 3u) & 7u) };
+    out_inst.i.load_byte_imm = { .imm = u8((w0 >> 6u) & 0x1Fu), .t = u8(w0 & 7u),
+      .n = u8((w0 >> 3u) & 7u) };
     return true;
   }
 
@@ -638,9 +640,9 @@ bool parse_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
   }
 
   // 4.6.12 B, T3 encoding (pg 4-38)
-  if (((w0 & 0xF800u) == 0xF000u) && ((w1 & 0xD800u) == 0x8000)) {
+  if (((w0 & 0xF800u) == 0xF000u) && ((w1 & 0xD000u) == 0x8000u)) {
     cond_code const cc{cond_code((w0 >> 6u) & 0xFu)};
-    if (cc == cond_code::AL1) { // cond<3:1> == '111' is nop, see T3 note
+    if ((cc == cond_code::AL1) || (cc == cond_code::AL2)) { // cond<3:1> '111' is nop
       out_inst.type = inst_type::NOP; out_inst.i.nop = {};
     } else {
       u32 const imm11{w1 & 0x7FFu}, imm6{w0 & 0x3Fu};
@@ -655,7 +657,7 @@ bool parse_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
   }
 
   // 4.6.12 B, T4 encoding (pg 4-38)
-  if (((w0 & 0xF800u) == 0xF000u) && ((w1 & 0x5000u) == 0x1000u)) {
+  if (((w0 & 0xF800u) == 0xF000u) && ((w1 & 0xD000u) == 0x9000u)) {
     u32 const imm10{w0 & 0x3FFu}, imm11{w1 & 0x7FFu};
     u32 const s{(w0 >> 10u) & 1u};
     u32 const j1{(w1 >> 13u) & 1u}, j2{(w1 >> 11u) & 1u};
@@ -703,6 +705,13 @@ bool parse_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
     out_inst.type = inst_type::COUNT_LEADING_ZEROS;
     out_inst.i.count_leading_zeros = { .src_reg = u8(w1 & 7u),
       .dst_reg = u8((w1 >> 8u) & 0xFu) };
+    return true;
+  }
+
+  if ((w0 & 0xFFF0u) == 0xF890u) {  // 4.6.46 LDRB (immediate), T2 encoding (pg 4-106)
+    out_inst.type = inst_type::LOAD_BYTE_IMM;
+    out_inst.i.load_byte_imm = { .t = u8((w1 >> 12u) & 0xFu), .n = u8(w0 & 0xFu),
+      .imm = u16(w1 & 0xFFFu) };
     return true;
   }
 
