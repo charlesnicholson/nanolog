@@ -108,8 +108,8 @@ struct inst_and_reg_imm { u32 imm; u8 dst_reg, src_reg; };
 struct inst_bit_clear_imm { u32 imm; u8 d, n; };
 struct inst_bit_clear_reg { imm_shift shift; u8 d, n, m; };
 struct inst_bitfield_extract_unsigned { u8 d, n, lsbit, widthminus1; };
-struct inst_branch { u32 label; cond_code cc; };
-struct inst_branch_link { u32 label; };
+struct inst_branch { u32 imm; cond_code cc; };
+struct inst_branch_link { u32 imm; };
 struct inst_branch_link_xchg_reg { u8 reg; };
 struct inst_branch_xchg { u8 reg; };
 struct inst_cmp_branch_nz { u8 reg, label; };
@@ -141,7 +141,7 @@ struct inst_store_imm { u8 t, n; u16 imm; };
 struct inst_store_reg { imm_shift shift; u8 src_reg, base_reg, ofs_reg; };
 struct inst_sub_imm { u16 imm; u8 dst_reg, src_reg; };
 struct inst_sub_reg { imm_shift shift; u8 dst_reg, op1_reg, op2_reg; };
-struct inst_svc { u32 label; };
+struct inst_svc { u32 imm; };
 struct inst_table_branch_byte { u8 base_reg, idx_reg; };
 
 void print(inst_add_imm const& a) {
@@ -202,12 +202,10 @@ void print(inst_bitfield_extract_unsigned const& b) {
 };
 
 void print(inst_branch const& i) {
-  printf("  B%s %x\n",
-    (i.cc != cond_code::AL1 && i.cc != cond_code::AL2) ? cond_code_name(i.cc) : "",
-    unsigned(i.label));
+  printf("  B%s %x\n", i.cc >= cond_code::AL1 ? "" : cond_code_name(i.cc), unsigned(i.imm));
 }
 
-void print(inst_branch_link const& i) { printf("  BL %x\n", unsigned(i.label)); }
+void print(inst_branch_link const& i) { printf("  BL %x\n", unsigned(i.imm)); }
 void print(inst_branch_link_xchg_reg const& b) { printf("  BLX %s\n", s_rn[b.reg]); }
 void print(inst_branch_xchg const& i) { printf("  BX %s\n", s_rn[i.reg]); }
 
@@ -314,7 +312,7 @@ void print(inst_sub_reg const& s) {
     s_rn[s.op2_reg], s_sn[int(s.shift.t)], unsigned(s.shift.n));
 }
 
-void print(inst_svc const&) { printf("  SVC\n"); }
+void print(inst_svc const& s) { printf("  SVC %x\n", unsigned(s.imm)); }
 
 void print(inst_table_branch_byte const& t) {
   printf("  TBB [%s, %s]\n", s_rn[t.base_reg], s_rn[t.idx_reg]);
@@ -376,7 +374,7 @@ bool is_16bit_inst(u16 w0) {
   return ((w0 & 0xF800u) == 0xE000u) || ((w0 & 0xE000u) != 0xE000u);
 }
 
-bool parse_16bit_inst(u16 const w0, u32 const addr, inst& out_inst) {
+bool parse_16bit_inst(u16 const w0, inst& out_inst) {
   out_inst.len = 2;
 
   if ((w0 & 0xF800u) == 0xA800u) { // 4.5.5 ADD (SP + immediate), T1 encoding (pg 4-24)
@@ -421,19 +419,18 @@ bool parse_16bit_inst(u16 const w0, u32 const addr, inst& out_inst) {
 
   if ((w0 & 0xF000u) == 0xD000u) { // 4.6.12 B, T1 encoding (pg 4-38)
     cond_code const cc{cond_code(((w0 >> 8u) & 0xFu))};
-    u32 const label{sext((w0 & 0xFFu) << 1u, 8u)};
+    u32 const imm32{sext((w0 & 0xFFu) << 1u, 8u)};
     if (u8(cc) == 0xFu) { // cc 0b1111 == SVC, 4.6.181 SVC (pg 4-375)
-      out_inst.type = inst_type::SVC; out_inst.i.svc = { .label = label };
+      out_inst.type = inst_type::SVC; out_inst.i.svc = { .imm = imm32 };
     } else {
-      out_inst.type = inst_type::BRANCH; out_inst.i.branch = { .label = label, .cc = cc };
+      out_inst.type = inst_type::BRANCH; out_inst.i.branch = { .imm = imm32, .cc = cc };
     }
     return true;
   }
 
   if ((w0 & 0xF800u) == 0xE000u) { // 4.6.12 B, T2 encoding (pg 4-38)
     out_inst.type = inst_type::BRANCH;
-    out_inst.i.branch = { .cc = cond_code::AL2,
-      .label = u32(addr + 4 + sext((w0 & 0x7FFu) << 1u, 11u)) };
+    out_inst.i.branch = { .cc = cond_code::AL2, .imm = sext((w0 & 0x7FFu) << 1u, 11u) };
     return true;
   }
 
@@ -650,7 +647,7 @@ bool parse_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
       u32 const imm32{
         sext((imm11 << 1u) | (imm6 << 11u) | (j1 << 17u) | (j2 << 18u) | (s << 19u), 19)};
       out_inst.type = inst_type::BRANCH;
-      out_inst.i.branch = { .cc = cc, .label = imm32};
+      out_inst.i.branch = { .cc = cc, .imm = imm32};
     }
     return true;
   }
@@ -664,7 +661,7 @@ bool parse_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
     u32 const imm32{
       sext((s << 24u) | (i1 << 23u) | (i2 << 22u) | (imm10 << 12u) | (imm11 << 1u), 24)};
     out_inst.type = inst_type::BRANCH;
-    out_inst.i.branch = { .cc = cond_code::AL2, .label = imm32};
+    out_inst.i.branch = { .cc = cond_code::AL2, .imm = imm32};
     return true;
   }
 
@@ -695,7 +692,7 @@ bool parse_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
     u32 const imm32{
       sext((s << 24u) | (i1 << 23u) | (i2 << 22u) | (imm10 << 12u) | (imm11 << 1u), 24)};
     out_inst.type = inst_type::BRANCH_LINK;
-    out_inst.i.branch_link = { .label = imm32 };
+    out_inst.i.branch_link = { .imm = imm32 };
     return true;
   }
 
@@ -797,15 +794,15 @@ bool parse_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
   return false;
 }
 
-bool parse_inst(char const *text, u32 addr, inst& out_inst) {
+bool parse_inst(char const *text, u32 func_addr, u32 pc_addr, inst& out_inst) {
   u16 w0, w1;
-  memcpy(&w0, &text[addr], 2);
-  printf("  %6x: %04x ", addr, w0);
+  memcpy(&w0, &text[pc_addr], 2);
+  printf("  %6x: %04x ", func_addr + pc_addr, w0);
   if (is_16bit_inst(w0)) {
     printf("     ");
-    return parse_16bit_inst(w0, addr, out_inst);
+    return parse_16bit_inst(w0, out_inst);
   }
-  memcpy(&w1, &text[addr + 2], 2);
+  memcpy(&w1, &text[pc_addr + 2], 2);
   printf("%04x ", w1);
   return parse_32bit_inst(w0, w1, out_inst);
 }
@@ -840,7 +837,7 @@ bool thumb2_find_log_strs_in_func(elf const& e,
 
     while (s.addr < func_end) {
       inst decoded_inst;
-      if (!parse_inst(&e.bytes[func_ofs], s.addr - func_start, decoded_inst)) {
+      if (!parse_inst(&e.bytes[func_ofs], func_start, s.addr - func_start, decoded_inst)) {
         printf("  Unknown!\n");
         break;
       }
