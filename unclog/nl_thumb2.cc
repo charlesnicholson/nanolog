@@ -82,6 +82,7 @@ struct imm_shift { imm_shift_type t; u8 n; };
   X(LSHIFT_LOG_REG, lshift_log_reg) \
   X(MOV, mov) \
   X(MOV_IMM, mov_imm) \
+  X(MOV_NEG_IMM, mov_neg_imm) \
   X(NOP, nop) \
   X(OR_REG_IMM, or_reg_imm) \
   X(PUSH, push) \
@@ -130,7 +131,8 @@ struct inst_lshift_log_imm { u8 dst_reg, src_reg, imm; };
 struct inst_lshift_log_reg { u8 dst_reg, src_reg; };
 struct inst_mov { u8 dst_reg, src_reg; };
 struct inst_mov_imm { u32 imm; u8 reg; };
-struct inst_or_reg_imm { u16 imm; u8 dst_reg, src_reg; };
+struct inst_mov_neg_imm { u32 imm; u8 d; };
+struct inst_or_reg_imm { u32 imm; u8 d, n; };
 struct inst_push { u16 reg_list; };
 struct inst_pop { u16 reg_list; };
 struct inst_nop {};
@@ -286,8 +288,12 @@ void print(inst_mov_imm const& m) {
   printf("  MOV_IMM %s, #%d (%#x)\n", s_rn[m.reg], int(m.imm), unsigned(m.imm));
 }
 
+void print(inst_mov_neg_imm const& m) {
+  printf("  MOV_NEG_IMM %s, #%d (%#x)\n", s_rn[m.d], unsigned(m.imm), unsigned(m.imm));
+};
+
 void print(inst_or_reg_imm const& o) {
-  printf("  ORR_REG %s, %s, #%d\n", s_rn[o.dst_reg], s_rn[o.src_reg], int(o.imm));
+  printf("  ORR_REG %s, %s, #%d\n", s_rn[o.d], s_rn[o.n], int(o.imm));
 };
 
 void print(inst_store_byte_imm const& s) {
@@ -626,8 +632,8 @@ bool parse_16bit_inst(u16 const w0, inst& out_inst) {
 bool parse_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
   out_inst.len = 4;
 
-  // 4.6.8 AND (immediate, T1 encoding (pg 4-30)
-  if (((w0 & 0xFD70u) == 0xF000u) && ((w1 & 0x8000u) == 0)) {
+  // 4.6.8 AND (immediate), T1 encoding (pg 4-30)
+  if (((w0 & 0xFBE0u) == 0xF000u) && ((w1 & 0x8000u) == 0)) {
     u32 const imm8{w1 & 0xFFu}, imm3{(w1 >> 12u) & 7u}, i{(w0 >> 10u) & 1u};
     out_inst.type = inst_type::AND_REG_IMM;
     out_inst.i.and_reg_imm = { .dst_reg = u8((w1 >> 8u) & 0xFu), .src_reg = u8(w0 & 0xFu),
@@ -720,14 +726,23 @@ bool parse_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
     return true;
   }
 
+  // 4.6.85 MVN (immediate), T1 encoding (pg 4-183)
+  if (((w0 & 0xFDEFu) == 0xF06Fu) && ((w1 & 0x8000u) == 0)) {
+    u32 const imm8{w1 & 0xFFu}, imm3{(w1 >> 12u) & 7u}, i{(w0 >> 10u) & 1u};
+    out_inst.type = inst_type::MOV_NEG_IMM;
+    out_inst.i.mov_neg_imm = { .d = u8((w0 >> 8u) & 0xFu),
+      .imm = decode_imm12((i << 11u) | (imm3 << 8u) | imm8) };
+    return true;
+  }
+
   // 4.6.91 ORR (immediate), T1 encoding (pg 4-195)
-  if (((w0 & 0xFF70u) == 0xF040u) && ((w1 & 0x8000u) == 0)) {
+  if (((w0 & 0xFB40u) == 0xF040u) && ((w1 & 0x8000u) == 0)) {
     u8 const n{u8(w0 & 0xFu)};
     if (n != 15) { // T1 note: n=15 is 4.6.76 MOV T2 (pg 4-166)
       u32 const imm8{w1 & 0xFFu}, imm3{(w1 >> 12u) & 7u}, i{(w0 >> 10u) & 1u};
       out_inst.type = inst_type::OR_REG_IMM;
-      out_inst.i.or_reg_imm = { .dst_reg = u8((w1 >> 8u) & 0xFu), .src_reg = n,
-        .imm = u16((i << 11u) | (imm3 << 8u) | imm8) };
+      out_inst.i.or_reg_imm = { .d = u8((w1 >> 8u) & 0xFu), .n = n,
+        .imm = decode_imm12((i << 11u) | (imm3 << 8u) | imm8) };
     }
     return true;
   }
@@ -764,6 +779,7 @@ bool parse_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
 
   // 4.6.88 NOP, T2 encoding (pg 4-189)
   if (((w0 & 0xFFF0u) == 0xF3A0u) && ((w1 & 0xD7FFu) == 0x8000u)) {
+    // shouldn't need nop flag memory hints for static analysis (e.g. dsb, isb)
     out_inst.type = inst_type::NOP; out_inst.i.nop = {};
     return true;
   }
