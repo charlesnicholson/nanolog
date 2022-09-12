@@ -21,6 +21,7 @@ CXXFLAGS += -Wno-c++98-compat-pedantic \
 			-Wno-missing-prototypes \
 			-Wno-old-style-cast \
 			-Wno-covered-switch-default \
+			-Wno-switch-enum \
 			-Wno-cast-align \
 			-Wno-unused-function
 endif

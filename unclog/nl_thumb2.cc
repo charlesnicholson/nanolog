@@ -33,16 +33,23 @@ char const *cond_code_name(cond_code cc) {
 
 // Registers
 
-char const *s_rn[] = {
-  "R0", "R1", "R2",  "R3",  "R4",  "R5", "R6", "R7",
-  "R8", "R9", "R10", "R11", "R12", "SP", "LR", "PC",
-};
+#define REGISTER_X_LIST() \
+  X(R0) X(R1) X(R2) X(R3) X(R4) X(R5) X(R6) X(R7) X(R8) X(R9) X(R10) X(R11) X(R12) \
+  X(SP) X(LR) X(PC)
+
+#define X(NAME) NAME,
+enum class reg : u8 { REGISTER_X_LIST() };
+#undef X
+#define X(NAME) #NAME,
+char const *s_rn[] = { REGISTER_X_LIST() };
+#undef X
 
 // Immediate Shift
 
 #define SHIFT_X_LIST() X(LSL) X(LSR) X(ASR) X(RRX) X(ROR)
+
 #define X(NAME) NAME,
-enum class imm_shift_type : u8 {SHIFT_X_LIST()};
+enum class imm_shift_type : u8 { SHIFT_X_LIST() };
 #undef X
 #define X(NAME) #NAME,
 char const *s_sn[] = { SHIFT_X_LIST() };
@@ -119,7 +126,7 @@ struct inst_bitfield_extract_unsigned { u8 d, n, lsbit, widthminus1; };
 struct inst_branch { u32 imm; cond_code cc; };
 struct inst_branch_link { u32 imm; };
 struct inst_branch_link_xchg_reg { u8 reg; };
-struct inst_branch_xchg { u8 reg; };
+struct inst_branch_xchg { reg m; };
 struct inst_cmp_branch_nz { u8 reg, label; };
 struct inst_cmp_branch_z { u8 reg, label; };
 struct inst_cmp_imm { u8 reg, imm; };
@@ -229,7 +236,7 @@ void print(inst_branch const& i) {
 
 void print(inst_branch_link const& i) { printf("  BL %x\n", unsigned(i.imm)); }
 void print(inst_branch_link_xchg_reg const& b) { printf("  BLX %s\n", s_rn[b.reg]); }
-void print(inst_branch_xchg const& i) { printf("  BX %s\n", s_rn[i.reg]); }
+void print(inst_branch_xchg const& i) { printf("  BX %s\n", s_rn[int(i.m)]); }
 
 void print(inst_cmp_branch_nz const& c) {
   printf("  CBNZ %s, %x\n", s_rn[c.reg], unsigned(c.label));
@@ -499,7 +506,7 @@ bool parse_16bit_inst(u16 const w0, inst& out_inst) {
 
   if ((w0 & 0xFF80u) == 0x4700u) { // 4.6.20 BX, T1 encoding (pg 4-54)
     out_inst.type = inst_type::BRANCH_XCHG;
-    out_inst.i.branch_xchg = { .reg = u8((w0 >> 3u) & 0xFu)};
+    out_inst.i.branch_xchg = { .m = reg((w0 >> 3u) & 0xFu)};
     return true;
   }
 
@@ -906,6 +913,17 @@ bool parse_inst(char const *text, u32 func_addr, u32 pc_addr, inst& out_inst) {
   printf("%04x ", w1);
   return parse_32bit_inst(w0, w1, out_inst);
 }
+
+bool inst_is_return(inst const& i) {
+  switch (i.type) {
+    //case inst_type::BRANCH: // branch-without-link outside of function
+    case inst_type::BRANCH_XCHG: // BX LR
+      if (i.i.branch_xchg.m == reg::LR) { return true; }
+    case inst_type::POP: // POP { ..., PC }
+      if (i.i.pop.reg_list & (1u << u16(reg::PC))) { return true; }
+    default: return false;
+  }
+}
 }
 
 struct reg_state {
@@ -935,7 +953,13 @@ bool thumb2_find_log_strs_in_func(elf const& e, elf_symbol32 const& func) {
         printf("  Unknown!\n");
         break;
       }
+
       print(decoded_inst);
+      if (inst_is_return(decoded_inst)) {
+        printf("Exit\n");
+        break;
+      }
+
       s.addr += decoded_inst.len;
     }
   }
