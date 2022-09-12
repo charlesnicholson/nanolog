@@ -376,8 +376,7 @@ void print(inst const& i) {
 
 // Instruction decoding
 
-u32 decode_imm12(u32 imm12) {
-  // 4.2.2 Operation (pg 4-9)
+u32 decode_imm12(u32 imm12) { // 4.2.2 Operation (pg 4-9)
   if ((imm12 & 0xC00u) == 0) {
     u32 const imm8{imm12 & 0xFFu};
     switch ((imm12 >> 8u) & 3u) {
@@ -392,8 +391,7 @@ u32 decode_imm12(u32 imm12) {
 }
 
 imm_shift decode_imm_shift(u8 const type, u8 const imm5) {
-  // 4.3.2 Shift Operations (pg 4-11)
-  switch (type & 3u) {
+  switch (type & 3u) {  // 4.3.2 Shift Operations (pg 4-11)
     case 0b00: return imm_shift{ .t = imm_shift_type::LSL, .n = imm5 };
     case 0b01: return imm_shift{ .t = imm_shift_type::LSR, .n = imm5 ? imm5 : u8(32) };
     case 0b10: return imm_shift{ .t = imm_shift_type::ASR, .n = imm5 ? imm5 : u8(32) };
@@ -922,12 +920,7 @@ bool thumb2_find_log_strs_in_func(elf const& e, elf_symbol32 const& func) {
   unsigned const func_ofs{func_sec_hdr.sh_offset + (func_start - func_sec_hdr.sh_addr)};
 
   printf("Scanning %s: addr %x, len %x, range %x-%x, offset %x:\n",
-         &e.strtab[func.st_name],
-         func.st_value,
-         func.st_size,
-         func_start,
-         func_end,
-         func_ofs);
+    &e.strtab[func.st_name], func.st_value, func.st_size, func_start, func_end, func_ofs);
 
   std::stack<reg_state, std::vector<reg_state>> paths;
   paths.push(reg_state{.addr = func_start});
