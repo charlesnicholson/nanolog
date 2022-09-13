@@ -916,20 +916,23 @@ bool parse_inst(char const *text, u32 func_addr, u32 pc_addr, inst& out_inst) {
   printf("  %6x: %04x ", out_inst.addr, w0);
   if (is_16bit_inst(w0)) {
     printf("     ");
-    return parse_16bit_inst(w0, out_inst);
+    if (!parse_16bit_inst(w0, out_inst)) { printf("  ?\n"); return false; }
+    return true;
   }
 
   u16 w1;
   memcpy(&w1, &text[pc_addr + 2], 2);
   printf("%04x ", w1);
-  return parse_32bit_inst(w0, w1, out_inst);
+  if (!parse_32bit_inst(w0, w1, out_inst)) { printf("  ?\n"); return false; }
+  return true;
 }
 
-bool inst_exits_func(inst const& i, elf_symbol32 const& func) {
+bool inst_terminates_path(inst const& i, elf_symbol32 const& func) {
   switch (i.type) {
-    case inst_type::BRANCH: {  // branch-without-link outside of function
-      u32 const fs{func.st_value & ~1u}, fe{fs + func.st_size};
-      return ((i.i.branch.addr < fs) || (i.i.branch.addr >= fe));
+    case inst_type::BRANCH: {
+      u32 const fs{func.st_value & ~1u}, fe{fs + func.st_size}, target{i.i.branch.addr};
+      if (target == i.addr) { return true; } // jump to self (infinite)
+      return ((target < fs) || (target >= fe)); // branch without link out of function
     }
     case inst_type::BRANCH_XCHG: // BX LR
       if (i.i.branch_xchg.m == reg::LR) { return true; }
@@ -960,17 +963,23 @@ bool thumb2_find_log_strs_in_func(elf const& e, elf_symbol32 const& func) {
   while (!paths.empty()) {
     reg_state s{paths.top()};
     paths.pop();
+    printf("  Starting path\n");
 
-    while (s.addr < func_end) {
+    for (;;) {
+      if (func.st_size && (s.addr >= func_end)) {
+        printf("  Exit: Ran off the end!\n");
+        break;
+      }
+
       inst decoded_inst;
       if (!parse_inst(&e.bytes[func_ofs], func_start, s.addr - func_start, decoded_inst)) {
-        printf("  Unknown!\n");
+        printf("  Exit: Unknown instruction!\n");
         break;
       }
 
       print(decoded_inst);
-      if (inst_exits_func(decoded_inst, func)) {
-        printf("Exit\n");
+      if (inst_terminates_path(decoded_inst, func)) {
+        printf("  Exit: terminal pattern\n");
         break;
       }
 
