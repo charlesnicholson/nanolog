@@ -9,6 +9,7 @@
 using u8 = uint8_t;
 using u16 = uint16_t;
 using u32 = uint32_t;
+using i32 = int32_t;
 
 namespace {
 
@@ -123,7 +124,7 @@ struct inst_and_reg_imm { u32 imm; u8 dst_reg, src_reg; };
 struct inst_bit_clear_imm { u32 imm; u8 d, n; };
 struct inst_bit_clear_reg { imm_shift shift; u8 d, n, m; };
 struct inst_bitfield_extract_unsigned { u8 d, n, lsbit, widthminus1; };
-struct inst_branch { u32 imm; cond_code cc; };
+struct inst_branch { u32 imm; u32 addr; cond_code cc; };
 struct inst_branch_link { u32 imm; };
 struct inst_branch_link_xchg_reg { u8 reg; };
 struct inst_branch_xchg { reg m; };
@@ -231,7 +232,8 @@ void print(inst_bitfield_extract_unsigned const& b) {
 };
 
 void print(inst_branch const& i) {
-  printf("  B%s %x\n", i.cc >= cond_code::AL1 ? "" : cond_code_name(i.cc), unsigned(i.imm));
+  printf("  B%s #%d (%x)\n", i.cc >= cond_code::AL1 ? "" : cond_code_name(i.cc),
+    int(i32(i.imm)), unsigned(i.addr));
 }
 
 void print(inst_branch_link const& i) { printf("  BL %x\n", unsigned(i.imm)); }
@@ -370,6 +372,7 @@ void print(inst_table_branch_byte const& t) {
 struct inst {
   union { INST_TYPE_X_LIST() } i;
   inst_type type;
+  u32 addr;
   u8 len; // 2 or 4
 };
 #undef X
@@ -483,18 +486,21 @@ bool parse_16bit_inst(u16 const w0, inst& out_inst) {
 
   if ((w0 & 0xF000u) == 0xD000u) { // 4.6.12 B, T1 encoding (pg 4-38)
     cond_code const cc{cond_code(((w0 >> 8u) & 0xFu))};
-    u32 const imm32{sext((w0 & 0xFFu) << 1u, 8u)};
+    u32 const imm32{u32(sext((w0 & 0xFFu) << 1u, 8u))};
     if (u8(cc) == 0xFu) { // cc 0b1111 == SVC, 4.6.181 SVC (pg 4-375)
       out_inst.type = inst_type::SVC; out_inst.i.svc = { .imm = imm32 };
     } else {
-      out_inst.type = inst_type::BRANCH; out_inst.i.branch = { .imm = imm32, .cc = cc };
+      out_inst.type = inst_type::BRANCH; out_inst.i.branch = { .imm = imm32, .cc = cc,
+        .addr = u32(out_inst.addr + 4u + imm32) };
     }
     return true;
   }
 
   if ((w0 & 0xF800u) == 0xE000u) { // 4.6.12 B, T2 encoding (pg 4-38)
+    u32 const imm32{u32(sext((w0 & 0x7FFu) << 1u, 11u))};
     out_inst.type = inst_type::BRANCH;
-    out_inst.i.branch = { .cc = cond_code::AL2, .imm = sext((w0 & 0x7FFu) << 1u, 11u) };
+    out_inst.i.branch = { .cc = cond_code::AL2, .imm = imm32,
+      .addr = u32(out_inst.addr + 4u + imm32)  };
     return true;
   }
 
@@ -743,7 +749,8 @@ bool parse_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
     u32 const imm32{
       sext((s << 24u) | (i1 << 23u) | (i2 << 22u) | (imm10 << 12u) | (imm11 << 1u), 24)};
     out_inst.type = inst_type::BRANCH;
-    out_inst.i.branch = { .cc = cond_code::AL2, .imm = imm32};
+    out_inst.i.branch = { .cc = cond_code::AL2, .imm = imm32,
+      .addr = u32(out_inst.addr + 4u + imm32) };
     return true;
   }
 
@@ -902,21 +909,28 @@ bool parse_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
 }
 
 bool parse_inst(char const *text, u32 func_addr, u32 pc_addr, inst& out_inst) {
-  u16 w0, w1;
+  out_inst.addr = func_addr + pc_addr;
+
+  u16 w0;
   memcpy(&w0, &text[pc_addr], 2);
-  printf("  %6x: %04x ", func_addr + pc_addr, w0);
+  printf("  %6x: %04x ", out_inst.addr, w0);
   if (is_16bit_inst(w0)) {
     printf("     ");
     return parse_16bit_inst(w0, out_inst);
   }
+
+  u16 w1;
   memcpy(&w1, &text[pc_addr + 2], 2);
   printf("%04x ", w1);
   return parse_32bit_inst(w0, w1, out_inst);
 }
 
-bool inst_is_return(inst const& i) {
+bool inst_exits_func(inst const& i, elf_symbol32 const& func) {
   switch (i.type) {
-    //case inst_type::BRANCH: // branch-without-link outside of function
+    case inst_type::BRANCH: {  // branch-without-link outside of function
+      u32 const fs{func.st_value & ~1u}, fe{fs + func.st_size};
+      return ((i.i.branch.addr < fs) || (i.i.branch.addr >= fe));
+    }
     case inst_type::BRANCH_XCHG: // BX LR
       if (i.i.branch_xchg.m == reg::LR) { return true; }
     case inst_type::POP: // POP { ..., PC }
@@ -955,7 +969,7 @@ bool thumb2_find_log_strs_in_func(elf const& e, elf_symbol32 const& func) {
       }
 
       print(decoded_inst);
-      if (inst_is_return(decoded_inst)) {
+      if (inst_exits_func(decoded_inst, func)) {
         printf("Exit\n");
         break;
       }
