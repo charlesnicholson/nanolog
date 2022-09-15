@@ -3,7 +3,8 @@ OS := $(shell uname)
 
 UNCLOG_SRCS := unclog/unclog.cc \
 			   unclog/nl_elf.cc \
-			   unclog/nl_thumb2.cc
+			   unclog/nl_thumb2.cc \
+			   unclog/nl_thumb2_inst.cc
 
 UNCLOG_OBJS := $(UNCLOG_SRCS:%=$(BUILD_DIR)/%.o)
 UNCLOG_DEPS := $(UNCLOG_OBJS:.o=.d)
