@@ -140,7 +140,7 @@ struct inst_store_byte_imm { u16 imm; u8 t, n, add; };
 struct inst_store_imm { u8 t, n; u16 imm; };
 struct inst_store_reg { imm_shift shift; u8 src_reg, base_reg, ofs_reg; };
 struct inst_store_reg_byte_unpriv { u16 imm; u8 t, n; };
-struct inst_sub_imm { u16 imm; u8 dst_reg, src_reg; };
+struct inst_sub_imm { u32 imm; u8 d, n; };
 struct inst_sub_reg { imm_shift shift; u8 dst_reg, op1_reg, op2_reg; };
 struct inst_sub_rev_imm { u16 imm; u8 d, n; };
 struct inst_svc { u32 imm; };

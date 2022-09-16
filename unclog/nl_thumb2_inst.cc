@@ -204,7 +204,7 @@ void print(inst_store_reg_byte_unpriv const& s) {
 };
 
 void print(inst_sub_imm const& s) {
-  printf("  SUB_IMM %s, %s, #%d\n", s_rn[s.dst_reg], s_rn[s.src_reg], int(s.imm));
+  printf("  SUB_IMM %s, %s, #%d\n", s_rn[s.d], s_rn[s.n], int(s.imm));
 }
 
 void print(inst_sub_reg const& s) {
@@ -524,15 +524,15 @@ bool decode_16bit_inst(u16 const w0, inst& out_inst) {
 
   if ((w0 & 0xFE00u) == 0x1E00u) { // 4.6.176 SUB (imm), T1 encoding (pg 4-365)
     out_inst.type = inst_type::SUB_IMM;
-    out_inst.i.sub_imm = { .dst_reg = u8(w0 & 7u), .src_reg = u8((w0 >> 3u) & 7u),
-      .imm = u16((w0 >> 6u) & 7u) };
+    out_inst.i.sub_imm = { .d = u8(w0 & 7u), .n = u8((w0 >> 3u) & 7u),
+      .imm = (w0 >> 6u) & 7u };
     return true;
   }
 
   if ((w0 & 0xF800u) == 0x3800u) { // 4.6.176 SUB (imm), T2 encoding (pg 4-365)
     out_inst.type = inst_type::SUB_IMM;
-    out_inst.i.sub_imm = { .imm = u16(w0 & 0xFFu), .dst_reg = u8((w0 >> 8u) & 7u),
-      .src_reg = u8((w0 >> 8u) & 7u) };
+    out_inst.i.sub_imm = { .imm = w0 & 0xFFu, .d = u8((w0 >> 8u) & 7u),
+      .n = u8((w0 >> 8u) & 7u) };
     return true;
   }
 
@@ -729,6 +729,15 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
   if (((w0 & 0xFFF0u) == 0xE8D0u) && ((w1 & 0xF0u) == 0)) {
     out_inst.type = inst_type::TABLE_BRANCH_BYTE;
     out_inst.i.table_branch_byte = { .base_reg = u8(w0 & 0xFu), .idx_reg = u8(w1 & 0xFu) };
+    return true;
+  }
+
+  // 4.6.176 SUB, T3 encoding (pg 4-365)
+  if (((w0 & 0xFBE0u) == 0xF1A0u) && ((w1 & 0x8000u) == 0)) {
+    u32 const imm8{w1 & 0xFFu}, imm3{(w1 >> 12u) & 7u}, i{(w0 >> 10u) & 1u};
+    out_inst.type = inst_type::SUB_IMM;
+    out_inst.i.sub_imm = { .d = u8((w1 & 0xF) >> 8u), .n = u8(w0 & 0xFu),
+      .imm = decode_imm12((i << 11u) | (imm3 << 8u) | imm8) };
     return true;
   }
 
