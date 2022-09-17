@@ -97,11 +97,11 @@ void print(inst_branch_link_xchg_reg const& b) { printf("  BLX %s\n", s_rn[b.reg
 void print(inst_branch_xchg const& i) { printf("  BX %s\n", s_rn[int(i.m)]); }
 
 void print(inst_cmp_branch_nz const& c) {
-  printf("  CBNZ %s, %x\n", s_rn[c.reg], unsigned(c.label));
+  printf("  CBNZ %s, #%d (%x)\n", s_rn[c.n], unsigned(c.imm), unsigned(c.addr));
 }
 
 void print(inst_cmp_branch_z const& c) {
-  printf("  CBZ %s, %x\n", s_rn[c.reg], unsigned(c.label));
+  printf("  CBZ %s, #%d (%x)\n", s_rn[c.n], unsigned(c.imm), unsigned(c.addr));
 }
 
 void print(inst_cmp_imm const& c) {
@@ -353,16 +353,18 @@ bool decode_16bit_inst(u16 const w0, inst& out_inst) {
   }
 
   if ((w0 & 0xFD00u) == 0xB900u) { // 4.6.22 CBNZ, T1 encoding (pg 4-58)
+    u32 const imm5{(w0 >> 3u) & 0x1Fu}, i{(w0 >> 9u) & 1u}, imm32{(imm5 << 1u) | (i << 6u)};
     out_inst.type = inst_type::CBNZ;
-    out_inst.i.cmp_branch_nz = { .reg = u8(w0 & 7u),
-      .label = u8(2 + ((w0 >> 2u) & 0x1Eu) | ((w0 >> 3u) & 0x40u)) };
+    out_inst.i.cmp_branch_nz = { .n = u8(w0 & 7u), .imm = u8(imm32),
+      .addr = out_inst.addr + 4u + imm32 };
     return true;
   }
 
   if ((w0 & 0xFD00u) == 0xB100u) { // 4.6.23 CBZ, T1 encoding (pg 4-60)
+    u32 const imm5{(w0 >> 3u) & 0x1Fu}, i{(w0 >> 9u) & 1u}, imm32{(imm5 << 1u) | (i << 6u)};
     out_inst.type = inst_type::CBZ;
-    out_inst.i.cmp_branch_z = { .reg = u8(w0 & 7u),
-      .label = u8(2 + ((w0 >> 2u) & 0x1Eu) | ((w0 >> 3u) & 0x40u)) };
+    out_inst.i.cmp_branch_z = { .n = u8(w0 & 7u), .imm = u8(imm32),
+      .addr = out_inst.addr + 4u + imm32 };
     return true;
   }
 
