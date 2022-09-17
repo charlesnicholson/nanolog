@@ -12,7 +12,7 @@ UNCLOG_DEPS := $(UNCLOG_OBJS:.o=.d)
 CFLAGS = --std=c17
 CXXFLAGS = --std=c++20
 
-CPPFLAGS += -MMD -MP -Os -g
+CPPFLAGS += -MMD -MP -Os -flto -g
 CPPFLAGS += -Wall -Werror -Wextra
 CPPFLAGS += -Wno-c++98-compat -Wno-padded
 
@@ -26,6 +26,8 @@ CXXFLAGS += -Wno-c++98-compat-pedantic \
 			-Wno-cast-align \
 			-Wno-unused-function
 endif
+
+LDFLAGS = -flto
 
 $(BUILD_DIR)/bin/unclog: $(UNCLOG_OBJS) Makefile
 	mkdir -p $(dir $@) && $(CXX) $(LDFLAGS) $(UNCLOG_OBJS) -o $@
