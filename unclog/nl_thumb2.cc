@@ -40,7 +40,7 @@ bool inst_terminates_path(inst const& i, func_state& s) {
     }
 
     case inst_type::BRANCH_XCHG: // BX LR
-      if (i.i.branch_xchg.m == reg::LR) { return true; }
+      if (reg(i.i.branch_xchg.m) == reg::LR) { return true; }
 
     case inst_type::POP: // POP { ..., PC }
       if (i.i.pop.reg_list & (1u << u16(reg::PC))) { return true; }

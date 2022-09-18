@@ -351,7 +351,7 @@ bool decode_16bit_inst(u16 const w0, inst& out_inst) {
 
   if ((w0 & 0xFF80u) == 0x4700u) { // 4.6.20 BX, T1 encoding (pg 4-54)
     out_inst.type = inst_type::BRANCH_XCHG;
-    out_inst.i.branch_xchg = { .m = reg((w0 >> 3u) & 0xFu)};
+    out_inst.i.branch_xchg = { .m = u8((w0 >> 3u) & 0xFu)};
     return true;
   }
 

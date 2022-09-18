@@ -111,7 +111,7 @@ struct inst_bitfield_extract_unsigned { u8 d, n, lsbit, widthminus1; };
 struct inst_branch { u32 imm; u32 addr; cond_code cc; };
 struct inst_branch_link { u32 imm, addr; };
 struct inst_branch_link_xchg_reg { u8 reg; };
-struct inst_branch_xchg { reg m; };
+struct inst_branch_xchg { u8 m; };
 struct inst_cmp_branch_nz { u32 addr; u8 n, imm; };
 struct inst_cmp_branch_z { u32 addr; u8 n, imm; };
 struct inst_cmp_imm { u8 reg, imm; };
