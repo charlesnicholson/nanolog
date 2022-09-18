@@ -180,7 +180,7 @@ int main(int, char const *[]) {
   printf("\n");
 
   for (auto const& func_syms : s.non_nl_funcs_sym_map) {
-    thumb2_find_log_strs_in_func(e, *func_syms.second[0]);
+    thumb2_find_log_strs_in_func(e, *func_syms.second[0], s.nl_funcs);
   }
   return 0;
 

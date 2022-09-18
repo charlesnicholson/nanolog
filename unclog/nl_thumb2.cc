@@ -31,19 +31,28 @@ bool address_in_func(u32 addr, func_state const& s) {
   return (addr >= s.func_start) && (addr <= s.func_end);
 }
 
+void mark_visited(u32 addr, func_state& s) { s.visited[(addr - s.func_start) / 2] = true; }
+
+bool test_visited(u32 addr, func_state const& s) {
+  return s.visited[(addr - s.func_start) / 2];
+}
+
 bool inst_terminates_path(inst const& i, func_state& s) {
   switch (i.type) {
-    case inst_type::BRANCH: {
-      if (!cond_code_is_absolute(i.i.branch.cc)) { break; }
-      if (s.visited[(i.i.branch.addr - s.func_start) / 2]) { return true; } // loop
-      return address_in_func(i.i.branch.addr, s);
-    }
+    case inst_type::BRANCH:
+      if (cond_code_is_always(i.i.branch.cc)) {
+        if (!address_in_func(i.i.branch.addr, s)) { return true; }
+        return test_visited(i.i.branch.addr, s);
+      }
+      break;
 
     case inst_type::BRANCH_XCHG: // BX LR
       if (reg(i.i.branch_xchg.m) == reg::LR) { return true; }
+      break;
 
     case inst_type::POP: // POP { ..., PC }
       if (i.i.pop.reg_list & (1u << u16(reg::PC))) { return true; }
+      break;
 
     default: break;
   }
@@ -51,9 +60,20 @@ bool inst_terminates_path(inst const& i, func_state& s) {
   return false;
 }
 
+bool inst_is_log_call(inst const& i, std::vector<elf_symbol32 const*> const& log_funcs) {
+  u32 label;
+  if (!inst_is_unconditional_branch(i, label)) { return false; }
+  return std::find_if(std::begin(log_funcs),
+                      std::end(log_funcs),
+                      [label](elf_symbol32 const* cand) {
+                        return (cand->st_value & ~1u) == label;
+                      }) != std::end(log_funcs);
+}
 }
 
-bool thumb2_find_log_strs_in_func(elf const& e, elf_symbol32 const& func) {
+bool thumb2_find_log_strs_in_func(elf const& e,
+                                  elf_symbol32 const& func,
+                                  std::vector<elf_symbol32 const*> const& log_funcs) {
   func_state s{func, e.sec_hdrs[func.st_shndx]};
 
   printf("Scanning %s: addr %x, len %x, range %x-%x, offset %x:\n", &e.strtab[func.st_name],
@@ -79,7 +99,7 @@ bool thumb2_find_log_strs_in_func(elf const& e, elf_symbol32 const& func) {
         break;
       }
 
-      s.visited[(path.addr - s.func_start) / 2] = true;
+      mark_visited(path.addr, s);
 
       inst_print(decoded_inst);
       if (inst_terminates_path(decoded_inst, s)) {
@@ -87,11 +107,13 @@ bool thumb2_find_log_strs_in_func(elf const& e, elf_symbol32 const& func) {
         break;
       }
 
-      u32 branch_target;
-      if (inst_is_conditional_branch(decoded_inst, branch_target)) {
-        if (address_in_func(branch_target, s)) {
-          s.paths.push(reg_state{.addr = branch_target});
-        }
+      u32 label;
+      if (inst_is_conditional_branch(decoded_inst, label) &&
+          address_in_func(label, s) &&
+          !test_visited(label, s)) {
+        printf("Pushing State!\n");
+        s.paths.push(reg_state{.addr = label});
+      } else if (inst_is_log_call(decoded_inst, log_funcs)) {
       }
 
       path.addr += decoded_inst.len;

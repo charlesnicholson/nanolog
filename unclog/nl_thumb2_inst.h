@@ -19,7 +19,7 @@ using i32 = int32_t;
 enum class cond_code : u8 { CONDITION_CODE_X_LIST() };
 #undef X
 
-inline bool cond_code_is_absolute(cond_code cc) { return cc >= cond_code::AL1; }
+inline bool cond_code_is_always(cond_code cc) { return cc >= cond_code::AL1; }
 
 // Registers
 
@@ -158,5 +158,7 @@ struct inst {
 };
 
 bool inst_is_conditional_branch(inst const& i, u32& target);
+bool inst_is_unconditional_branch(inst const& i, u32& label);
+
 bool inst_decode(char const *text, u32 func_addr, u32 pc_addr, inst& out_inst);
 void inst_print(inst const& i);

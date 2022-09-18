@@ -1,5 +1,6 @@
 #include "nl_thumb2_inst.h"
 
+#include <cassert>
 #include <cstdio>
 #include <cstring>
 
@@ -767,10 +768,21 @@ void inst_print(inst const& i) {
 bool inst_is_conditional_branch(inst const& i, u32& target) {
   switch (i.type) {
     case inst_type::BRANCH:
-      if (cond_code_is_absolute(i.i.branch.cc)) { target = i.i.branch.addr; return true; }
-      break;
+      target = i.i.branch.addr; return !cond_code_is_always(i.i.branch.cc);
     case inst_type::CBZ: target = i.i.cmp_branch_z.addr; return true;
     case inst_type::CBNZ: target = i.i.cmp_branch_nz.addr; return true;
+    default: break;
+  }
+
+  return false;
+}
+
+bool inst_is_unconditional_branch(inst const& i, u32& label) {
+  switch (i.type) {
+    case inst_type::BRANCH:
+      label = i.i.branch.addr; return cond_code_is_always(i.i.branch.cc);
+    case inst_type::BRANCH_LINK: label = i.i.branch_link.addr; return true;
+    case inst_type::BRANCH_LINK_XCHG_REG: label = 0; return true; // TODO: register state
     default: break;
   }
 
