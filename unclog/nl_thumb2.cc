@@ -110,7 +110,7 @@ bool thumb2_find_log_strs_in_func(elf const& e,
       if (inst_is_conditional_branch(i, label) &&
           address_in_func(label, s) &&
           !test_visited(label, s)) {
-        printf("Pushing State!\n");
+        printf("  Internal branch, pushing state\n");
         s.paths.push(reg_state{.addr = label});
       } else if (inst_is_log_call(i, log_funcs)) {
       }
