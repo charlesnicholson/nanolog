@@ -68,7 +68,7 @@ bool inst_is_log_call(inst const& i, std::vector<elf_symbol32 const*> const& log
   u32 label;
   if (!inst_is_unconditional_branch(i, label)) { return false; }
   return std::find_if(std::begin(log_funcs), std::end(log_funcs),
-    [=](elf_symbol32 const* cand) { return (cand->st_value & ~1u) == label; })
+    [=](elf_symbol32 const *cand) { return (cand->st_value & ~1u) == label; })
     != std::end(log_funcs);
 }
 
@@ -80,6 +80,7 @@ void simulate(inst const& i, elf const& e, u32 func_ofs, u32 func_addr, reg_stat
       memcpy(&regs.regs[i.i.load_lit.t],
              &e.bytes[func_ofs + (label - (func_addr & ~1u))],
              4);
+      regs.known |= 1u << i.i.load_lit.t;
     } break;
 
     default: break;
