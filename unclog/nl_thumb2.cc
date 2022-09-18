@@ -8,7 +8,7 @@
 
 struct reg_state {
   u32 addr, regs[16];
-  u16 known = 0;
+  u16 known;
 };
 
 struct func_state {
@@ -67,6 +67,12 @@ bool inst_is_log_call(inst const& i, std::vector<elf_symbol32 const*> const& log
     [=](elf_symbol32 const* cand) { return (cand->st_value & ~1u) == label; })
     != std::end(log_funcs);
 }
+
+void simulate(inst const& i, elf const& e, reg_state& regs) {
+  (void)i;
+  (void)e;
+  (void)regs;
+}
 }
 
 bool thumb2_find_log_strs_in_func(elf const& e,
@@ -77,7 +83,7 @@ bool thumb2_find_log_strs_in_func(elf const& e,
   printf("Scanning %s: addr %x, len %x, range %x-%x, offset %x:\n", &e.strtab[func.st_name],
     func.st_value, func.st_size, s.func_start, s.func_end, s.func_ofs);
 
-  s.paths.push(reg_state{.addr = s.func_start});
+  s.paths.push(reg_state{.addr = s.func_start, .known = 0u});
 
   while (!s.paths.empty()) {
     reg_state path{s.paths.top()};
@@ -112,6 +118,8 @@ bool thumb2_find_log_strs_in_func(elf const& e,
         s.paths.push(reg_state{.addr = label});
       } else if (inst_is_log_call(i, log_funcs)) {
         printf("  Found log function, format string 0x%08x\n", path.regs[0]);
+      } else {
+        simulate(i, e, path);
       }
 
       path.addr += i.len;
