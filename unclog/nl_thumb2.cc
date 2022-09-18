@@ -111,6 +111,7 @@ bool thumb2_find_log_strs_in_func(elf const& e,
         printf("  Internal branch, pushing state\n");
         s.paths.push(reg_state{.addr = label});
       } else if (inst_is_log_call(i, log_funcs)) {
+        printf("  Found log function, format string 0x%08x\n", path.regs[0]);
       }
 
       path.addr += i.len;
