@@ -159,6 +159,6 @@ struct inst {
 
 bool inst_is_conditional_branch(inst const& i, u32& target);
 bool inst_is_unconditional_branch(inst const& i, u32& label);
-
+u32 inst_align(u32 val, u32 align);
 bool inst_decode(char const *text, u32 func_addr, u32 pc_addr, inst& out_inst);
 void inst_print(inst const& i);

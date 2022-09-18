@@ -789,6 +789,11 @@ bool inst_is_unconditional_branch(inst const& i, u32& label) {
   return false;
 }
 
+u32 inst_align(u32 val, u32 align) { // Rounding and Aligning, A-16
+  // If x and y are integers, Align(x,y) = y * (x DIV y) is an integer.
+  return align * (val / align);
+}
+
 bool inst_decode(char const *text, u32 func_addr, u32 pc_addr, inst& out_inst) {
   out_inst.addr = func_addr + pc_addr;
 
