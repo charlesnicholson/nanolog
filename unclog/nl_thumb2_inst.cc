@@ -92,7 +92,10 @@ void print(inst_branch const& i) {
     int(i32(i.imm)), unsigned(i.addr));
 }
 
-void print(inst_branch_link const& i) { printf("  BL %x\n", unsigned(i.imm)); }
+void print(inst_branch_link const& i) {
+  printf("  BL #%d (%x)\n", unsigned(i.imm), unsigned(i.addr));
+}
+
 void print(inst_branch_link_xchg_reg const& b) { printf("  BLX %s\n", s_rn[b.reg]); }
 void print(inst_branch_xchg const& i) { printf("  BX %s\n", s_rn[int(i.m)]); }
 
@@ -612,14 +615,12 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
 
   // 4.6.18 BL, T1 encoding (pg 4-50)
   if (((w0 & 0xF800u) == 0xF000u) && ((w1 & 0xD000u) == 0xD000u)) {
-    u32 const imm10{w0 & 0x3FFu}, imm11{w1 & 0x7FFu};
-    u32 const s{(w0 >> 10u) & 1u};
-    u32 const j1{(w1 >> 13) & 1u}, j2{(w1 >> 11u) & 1u};
-    u32 const i1{~(j1 ^ s) & 1u}, i2{~(j2 ^ s) & 1u};
+    u32 const imm10{w0 & 0x3FFu}, imm11{w1 & 0x7FFu}, s{(w0 >> 10u) & 1u},
+      j1{(w1 >> 13) & 1u}, j2{(w1 >> 11u) & 1u}, i1{~(j1 ^ s) & 1u}, i2{~(j2 ^ s) & 1u};
     u32 const imm32{
       sext((s << 24u) | (i1 << 23u) | (i2 << 22u) | (imm10 << 12u) | (imm11 << 1u), 24)};
     out_inst.type = inst_type::BRANCH_LINK;
-    out_inst.i.branch_link = { .imm = imm32 };
+    out_inst.i.branch_link = { .imm = imm32, .addr = u32(out_inst.addr + 4u + imm32) };
     return true;
   }
 
@@ -756,14 +757,27 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
 }
 }
 
-void print(inst const& i) {
+void inst_print(inst const& i) {
 #define X(ENUM, TYPE) case inst_type::ENUM: print(i.i.TYPE); return;
   switch (i.type) { INST_TYPE_X_LIST() }
 #undef X
   printf("  unknown\n");
 }
 
-bool decode(char const *text, u32 func_addr, u32 pc_addr, inst& out_inst) {
+bool inst_is_conditional_branch(inst const& i, u32& target) {
+  switch (i.type) {
+    case inst_type::BRANCH:
+      if (cond_code_is_absolute(i.i.branch.cc)) { target = i.i.branch.addr; return true; }
+      break;
+    case inst_type::CBZ: target = i.i.cmp_branch_z.addr; return true;
+    case inst_type::CBNZ: target = i.i.cmp_branch_nz.addr; return true;
+    default: break;
+  }
+
+  return false;
+}
+
+bool inst_decode(char const *text, u32 func_addr, u32 pc_addr, inst& out_inst) {
   out_inst.addr = func_addr + pc_addr;
 
   u16 w0;

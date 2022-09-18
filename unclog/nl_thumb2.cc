@@ -27,14 +27,16 @@ struct func_state {
 
 namespace {
 
+bool address_in_func(u32 addr, func_state const& s) {
+  return (addr >= s.func_start) && (addr <= s.func_end);
+}
+
 bool inst_terminates_path(inst const& i, func_state& s) {
   switch (i.type) {
     case inst_type::BRANCH: {
-      if ((i.i.branch.cc != cond_code::AL1) && (i.i.branch.cc != cond_code::AL2)) {
-        break;
-      }
+      if (!cond_code_is_absolute(i.i.branch.cc)) { break; }
       if (s.visited[(i.i.branch.addr - s.func_start) / 2]) { return true; } // loop
-      return ((i.i.branch.addr < s.func_start) || (i.i.branch.addr >= s.func_end));
+      return address_in_func(i.i.branch.addr, s);
     }
 
     case inst_type::BRANCH_XCHG: // BX LR
@@ -71,7 +73,7 @@ bool thumb2_find_log_strs_in_func(elf const& e, elf_symbol32 const& func) {
       }
 
       inst decoded_inst;
-      if (!decode(&e.bytes[s.func_ofs], s.func_start, path.addr - s.func_start,
+      if (!inst_decode(&e.bytes[s.func_ofs], s.func_start, path.addr - s.func_start,
         decoded_inst)) {
         printf("  Exit: Unknown instruction!\n");
         break;
@@ -79,10 +81,17 @@ bool thumb2_find_log_strs_in_func(elf const& e, elf_symbol32 const& func) {
 
       s.visited[(path.addr - s.func_start) / 2] = true;
 
-      print(decoded_inst);
+      inst_print(decoded_inst);
       if (inst_terminates_path(decoded_inst, s)) {
         printf("  Exit: terminal pattern\n");
         break;
+      }
+
+      u32 branch_target;
+      if (inst_is_conditional_branch(decoded_inst, branch_target)) {
+        if (address_in_func(branch_target, s)) {
+          s.paths.push(reg_state{.addr = branch_target});
+        }
       }
 
       path.addr += decoded_inst.len;

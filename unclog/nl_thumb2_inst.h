@@ -19,6 +19,8 @@ using i32 = int32_t;
 enum class cond_code : u8 { CONDITION_CODE_X_LIST() };
 #undef X
 
+inline bool cond_code_is_absolute(cond_code cc) { return cc >= cond_code::AL1; }
+
 // Registers
 
 #define REGISTER_X_LIST() \
@@ -107,7 +109,7 @@ struct inst_bit_clear_imm { u32 imm; u8 d, n; };
 struct inst_bit_clear_reg { imm_shift shift; u8 d, n, m; };
 struct inst_bitfield_extract_unsigned { u8 d, n, lsbit, widthminus1; };
 struct inst_branch { u32 imm; u32 addr; cond_code cc; };
-struct inst_branch_link { u32 imm; };
+struct inst_branch_link { u32 imm, addr; };
 struct inst_branch_link_xchg_reg { u8 reg; };
 struct inst_branch_xchg { reg m; };
 struct inst_cmp_branch_nz { u32 addr; u8 n, imm; };
@@ -155,5 +157,6 @@ struct inst {
   u8 len; // 2 or 4
 };
 
-bool decode(char const *text, u32 func_addr, u32 pc_addr, inst& out_inst);
-void print(inst const& i);
+bool inst_is_conditional_branch(inst const& i, u32& target);
+bool inst_decode(char const *text, u32 func_addr, u32 pc_addr, inst& out_inst);
+void inst_print(inst const& i);
