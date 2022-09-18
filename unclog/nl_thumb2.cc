@@ -92,31 +92,30 @@ bool thumb2_find_log_strs_in_func(elf const& e,
         break;
       }
 
-      inst decoded_inst;
-      if (!inst_decode(&e.bytes[s.func_ofs], s.func_start, path.addr - s.func_start,
-        decoded_inst)) {
+      inst i;
+      if (!inst_decode(&e.bytes[s.func_ofs], s.func_start, path.addr - s.func_start, i)) {
         printf("  Exit: Unknown instruction!\n");
         break;
       }
 
       mark_visited(path.addr, s);
 
-      inst_print(decoded_inst);
-      if (inst_terminates_path(decoded_inst, s)) {
+      inst_print(i);
+      if (inst_terminates_path(i, s)) {
         printf("  Exit: terminal pattern\n");
         break;
       }
 
       u32 label;
-      if (inst_is_conditional_branch(decoded_inst, label) &&
+      if (inst_is_conditional_branch(i, label) &&
           address_in_func(label, s) &&
           !test_visited(label, s)) {
         printf("Pushing State!\n");
         s.paths.push(reg_state{.addr = label});
-      } else if (inst_is_log_call(decoded_inst, log_funcs)) {
+      } else if (inst_is_log_call(i, log_funcs)) {
       }
 
-      path.addr += decoded_inst.len;
+      path.addr += i.len;
     }
   }
   return true;
