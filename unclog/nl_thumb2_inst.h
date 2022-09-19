@@ -28,7 +28,7 @@ inline bool cond_code_is_always(cond_code cc) { return cc >= cond_code::AL1; }
   X(SP) X(LR) X(PC)
 
 #define X(NAME) NAME,
-enum class reg : u8 { REGISTER_X_LIST() };
+namespace reg { enum reg_e : u8 { REGISTER_X_LIST() }; }
 #undef X
 
 // Immediate Shift

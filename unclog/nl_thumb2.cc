@@ -7,8 +7,8 @@
 #include <vector>
 
 struct reg_state {
-  u32 addr, regs[16];
   u16 known;
+  u32 regs[16];
 };
 
 struct func_state {
@@ -47,7 +47,7 @@ bool inst_terminates_path(inst const& i, func_state& s) {
       break;
 
     case inst_type::BRANCH_XCHG: // BX LR
-      if (reg(i.i.branch_xchg.m) == reg::LR) { return true; }
+      if (i.i.branch_xchg.m == reg::LR) { return true; }
       break;
 
     case inst_type::POP: // POP { ..., PC }
@@ -91,10 +91,10 @@ bool thumb2_find_log_strs_in_func(elf const& e,
                                   std::vector<elf_symbol32 const*> const& log_funcs) {
   func_state s{func, e.sec_hdrs[func.st_shndx]};
 
-  printf("Scanning %s: addr %x, len %x, range %x-%x, offset %x:\n", &e.strtab[func.st_name],
+  printf("\nScanning %s: addr %x, len %x, range %x-%x, offset %x:\n", &e.strtab[func.st_name],
     func.st_value, func.st_size, s.func_start, s.func_end, s.func_ofs);
 
-  s.paths.push(reg_state{.addr = s.func_start, .known = 0u});
+  s.paths.push(reg_state{.regs[reg::PC] = s.func_start, .known = 0u});
 
   while (!s.paths.empty()) {
     reg_state path{s.paths.top()};
@@ -102,19 +102,22 @@ bool thumb2_find_log_strs_in_func(elf const& e,
     printf("  Starting path\n");
 
     for (;;) {
-      if (func.st_size && (path.addr >= s.func_end)) {
+      if (func.st_size && (path.regs[reg::PC] >= s.func_end)) {
         printf("  Exit: Ran off the end!\n");
         break;
       }
 
       inst i;
-      if (!inst_decode(&e.bytes[s.func_ofs], s.func_start, path.addr - s.func_start, i)) {
+      if (!inst_decode(&e.bytes[s.func_ofs],
+                       s.func_start,
+                       path.regs[reg::PC] - s.func_start,
+                       i)) {
         printf("  Exit: Unknown instruction!\n");
         break;
       }
       inst_print(i);
 
-      mark_visited(path.addr, s);
+      mark_visited(path.regs[reg::PC], s);
 
       if (inst_terminates_path(i, s)) {
         printf("  Exit: terminal pattern\n");
@@ -126,14 +129,14 @@ bool thumb2_find_log_strs_in_func(elf const& e,
           address_in_func(label, s) &&
           !test_visited(label, s)) {
         printf("  Internal branch, pushing state\n");
-        s.paths.push(reg_state{.addr = label});
+        s.paths.push(reg_state{.regs[reg::PC] = label});
       } else if (inst_is_log_call(i, log_funcs)) {
         printf("  Found log function, format string 0x%08x\n", path.regs[0]);
       } else {
         simulate(i, e, s.func_ofs, func.st_value, path);
       }
 
-      path.addr += i.len;
+      path.regs[reg::PC] += i.len;
     }
   }
   return true;
