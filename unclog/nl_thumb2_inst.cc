@@ -147,7 +147,8 @@ void print(inst_load_half_imm const& l) {
 }
 
 void print(inst_load_lit const& l) {
-  printf("  LDR %s, [PC, #%s%d]\n", s_rn[l.t], l.add ? "" : "-", int(l.imm));
+  printf("  LDR %s, [PC, #%s%d] (%x)\n", s_rn[l.t], l.add ? "" : "-", int(l.imm),
+    unsigned(l.addr));
 }
 
 void print(inst_load_mult_inc_after const& l) {
@@ -405,9 +406,10 @@ bool decode_16bit_inst(u16 const w0, inst& out_inst) {
 
   // TODO: read label + imm, pass func start addr to parse
   if ((w0 & 0xF800u) == 0x4800u) { // 4.6.44 LDR (literal), T1 encoding (pg 4-102)
+    u16 const imm{u16((w0 & 0xFFu) << 2u)};
     out_inst.type = inst_type::LOAD_LIT;
-    out_inst.i.load_lit = { .imm = ((w0 & 0xFFu) << 2u), .t = u8((w0 >> 8u) & 7u),
-      .add = 1 };
+    out_inst.i.load_lit = { .imm = imm, .t = u8((w0 >> 8u) & 7u), .add = 1,
+      .addr = u32(inst_align(out_inst.addr, 4) + imm + 4) };
     return true;
   }
 

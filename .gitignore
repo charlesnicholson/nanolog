@@ -1,5 +1,6 @@
 build
 disasm.txt
+unclog.txt
 
 # Prerequisites
 *.dSYM

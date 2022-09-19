@@ -75,10 +75,8 @@ bool inst_is_log_call(inst const& i, std::vector<elf_symbol32 const*> const& log
 void simulate(inst const& i, elf const& e, u32 func_ofs, u32 func_addr, reg_state& regs) {
   switch (i.type) {
     case inst_type::LOAD_LIT: {
-      u32 const base{inst_align(i.addr, 4)},
-        label{i.i.load_lit.add ? (base + i.i.load_lit.imm) : (base - i.i.load_lit.imm)};
       memcpy(&regs.regs[i.i.load_lit.t],
-             &e.bytes[func_ofs + (label - (func_addr & ~1u))],
+             &e.bytes[func_ofs + (i.i.load_lit.addr - (func_addr & ~1u))],
              4);
       regs.known |= 1u << i.i.load_lit.t;
     } break;
