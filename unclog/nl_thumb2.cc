@@ -114,10 +114,10 @@ bool thumb2_find_log_strs_in_func(elf const& e,
         printf("  Exit: Unknown instruction!\n");
         break;
       }
+      inst_print(i);
 
       mark_visited(path.addr, s);
 
-      inst_print(i);
       if (inst_terminates_path(i, s)) {
         printf("  Exit: terminal pattern\n");
         break;
