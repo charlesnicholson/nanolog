@@ -89,9 +89,12 @@ void simulate(inst const& i, elf const& e, u32 func_ofs, u32 func_addr, reg_stat
 }
 }
 
-bool thumb2_find_log_strs_in_func(elf const& e,
-                                  elf_symbol32 const& func,
-                                  std::vector<elf_symbol32 const*> const& log_funcs) {
+bool thumb2_find_log_calls_in_func(elf const& e,
+                                   elf_symbol32 const& func,
+                                   std::vector<elf_symbol32 const*> const& log_funcs,
+                                   std::vector<log_call>& out_log_calls) {
+  (void)out_log_calls;
+
   func_state s{func, e.sec_hdrs[func.st_shndx]};
 
   printf("\nScanning %s: addr %x, len %x, range %x-%x, offset %x:\n", &e.strtab[func.st_name],

@@ -179,9 +179,12 @@ int main(int, char const *[]) {
   }
   printf("\n");
 
+  std::vector<log_call> log_calls;
+  log_calls.reserve(4096);
   for (auto const& func_syms : s.non_nl_funcs_sym_map) {
-    thumb2_find_log_strs_in_func(e, *func_syms.second[0], s.nl_funcs);
+    thumb2_find_log_calls_in_func(e, *func_syms.second[0], s.nl_funcs, log_calls);
   }
+
   return 0;
 
   //nl_str_refs_t const nl_str_refs = get_log_str_refs(s);
