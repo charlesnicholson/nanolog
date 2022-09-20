@@ -116,7 +116,7 @@ struct inst_cmp_branch_nz { u32 addr; u8 n, imm; };
 struct inst_cmp_branch_z { u32 addr; u8 n, imm; };
 struct inst_cmp_imm { u8 reg, imm; };
 struct inst_cmp_reg { imm_shift shift; u8 op1_reg, op2_reg; };
-struct inst_count_leading_zeros { u8 dst_reg, src_reg; };
+struct inst_count_leading_zeros { u8 d, m; };
 struct inst_if_then { u8 firstcond, mask; };
 struct inst_load_byte_imm { u16 imm; u8 t, n; };
 struct inst_load_byte_reg { u8 dst_reg, base_reg, ofs_reg; };

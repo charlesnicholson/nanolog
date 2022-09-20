@@ -122,7 +122,7 @@ void print(inst_if_then const& i) {
 };
 
 void print(inst_count_leading_zeros const& c) {
-  printf("  CLZ %s, %s\n", s_rn[c.dst_reg], s_rn[c.src_reg]);
+  printf("  CLZ %s, %s\n", s_rn[c.d], s_rn[c.m]);
 }
 
 void print(inst_load_byte_imm const& l) {
@@ -629,8 +629,7 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
   // 4.6.26 CLZ, T1 encoding (pg 4-66)
   if (((w0 & 0xFFF0u) == 0xFAB0u) && ((w1 & 0xF0F0u) == 0xF080u)) {
     out_inst.type = inst_type::COUNT_LEADING_ZEROS;
-    out_inst.i.count_leading_zeros = { .src_reg = u8(w1 & 7u),
-      .dst_reg = u8((w1 >> 8u) & 0xFu) };
+    out_inst.i.count_leading_zeros = { .d = u8(w1 & 7u), .m = u8((w1 >> 8u) & 0xFu) };
     return true;
   }
 
@@ -697,9 +696,8 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
     u8 const puw{u8((w1 >> 8u) & 7u)};
     if (puw == 7u) { return false; } // TODO: LDRT
     out_inst.type = inst_type::LOAD_IMM;
-    out_inst.i.load_imm = { .n = u8(w0 & 0xFu), .imm = u8(w1 & 0xFFu),
-      .t = u8((w1 >> 12u) & 0xFu), .add = u8((puw >> 1u) & 1u),
-      .index = u8((puw >> 2u) & 1u) };
+    out_inst.i.load_imm = { .t = u8((w1 >> 12u) & 0xFu), .add = u8((puw >> 1u) & 1u),
+      .n = u8(w0 & 0xFu), .imm = u8(w1 & 0xFFu), .index = u8((puw >> 2u) & 1u) };
     return true;
   }
 
