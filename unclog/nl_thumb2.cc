@@ -37,6 +37,9 @@ bool test_visited(u32 addr, func_state const& s) {
   return s.visited[(addr - s.func_start) / 2];
 }
 
+inline void mark_reg_known(u16& regs, u8 index) { regs |= (1u << index); }
+inline bool test_reg_known(u16 regs, u8 index) { return (regs >> index) & 1u; }
+
 bool inst_terminates_path(inst const& i, func_state& s) {
   switch (i.type) {
     case inst_type::BRANCH:
@@ -78,7 +81,7 @@ void simulate(inst const& i, elf const& e, u32 func_ofs, u32 func_addr, reg_stat
       memcpy(&regs.regs[i.i.load_lit.t],
              &e.bytes[func_ofs + (i.i.load_lit.addr - (func_addr & ~1u))],
              4);
-      regs.known |= 1u << i.i.load_lit.t;
+      mark_reg_known(regs.known, i.i.load_lit.t);
     } break;
 
     default: break;
