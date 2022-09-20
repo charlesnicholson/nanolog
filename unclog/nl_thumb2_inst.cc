@@ -171,11 +171,11 @@ void print(inst_lshift_log_reg const& l) {
 }
 
 void print(inst_mov const& m) {
-  printf("  MOV %s, %s\n", s_rn[m.dst_reg], s_rn[m.src_reg]);
+  printf("  MOV %s, %s\n", s_rn[m.d], s_rn[m.m]);
 }
 
 void print(inst_mov_imm const& m) {
-  printf("  MOV_IMM %s, #%d (%#x)\n", s_rn[m.reg], int(m.imm), unsigned(m.imm));
+  printf("  MOV_IMM %s, #%d (%#x)\n", s_rn[m.d], int(m.imm), unsigned(m.imm));
 }
 
 void print(inst_mov_neg_imm const& m) {
@@ -462,14 +462,13 @@ bool decode_16bit_inst(u16 const w0, inst& out_inst) {
 
   if ((w0 & 0xF800u) == 0x2000u) { // 4.6.76 MOV (imm), T1 encoding (pg 4-166)
     out_inst.type = inst_type::MOV_IMM;
-    out_inst.i.mov_imm = { .imm = u8(w0 & 0xFFu), .reg = u8((w0 >> 8u) & 7u) };
+    out_inst.i.mov_imm = { .imm = u8(w0 & 0xFFu), .d = u8((w0 >> 8u) & 7u) };
     return true;
   }
 
   if ((w0 & 0xFF00u) == 0x4600u) { // 4.6.77 MOV (reg), T1 encoding (pg 4-168)
     out_inst.type = inst_type::MOV;
-    out_inst.i.mov = { .src_reg = u8((w0 >> 3u) & 0xFu),
-      .dst_reg = u8((w0 & 7u) | ((w0 & 8u) >> 4u)) };
+    out_inst.i.mov = { .m = u8((w0 >> 3u) & 0xFu), .d = u8((w0 & 7u) | ((w0 & 8u) >> 4u)) };
     return true;
   }
 
@@ -654,7 +653,7 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
   if (((w0 & 0xFBEFu) == 0xF04Fu) && ((w1 & 0x8000u) == 0)) {
     u32 const imm8{w1 & 0xFFu}, imm3{(w1 >> 12u) & 7u}, i{(w0 >> 10u) & 1u};
     out_inst.type = inst_type::MOV_IMM;
-    out_inst.i.mov_imm = inst_mov_imm{ .reg = u8((w1 >> 8u) & 0xFu),
+    out_inst.i.mov_imm = inst_mov_imm{ .d = u8((w1 >> 8u) & 0xFu),
       .imm = decode_imm12((i << 11u) | (imm3 << 8u) | imm8) };
     return true;
   }
@@ -717,7 +716,7 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
     unsigned const imm12{
       (w1 & 0xFFu) | ((w1 >> 4u) & 0x700u) | (unsigned(w0 << 2u) & 0x1000u)};
     out_inst.type = inst_type::MOV_IMM;
-    out_inst.i.mov_imm = { .imm = decode_imm12(imm12), .reg = u8((w1 >> 8u) & 7u) };
+    out_inst.i.mov_imm = { .imm = decode_imm12(imm12), .d = u8((w1 >> 8u) & 7u) };
     return true;
   }
 
