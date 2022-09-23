@@ -12,14 +12,16 @@ struct reg_state {
 };
 
 struct func_state {
-  func_state(elf_symbol32 const& f_, elf_section_hdr32 const& s)
+  func_state(elf_symbol32 const& f_, elf const& e_, elf_section_hdr32 const& s)
     : f(f_)
+    , e(e_)
     , visited(s.sh_size / 2)
     , func_start{f_.st_value & ~1u}
     , func_end{func_start + f.st_size}
     , func_ofs{s.sh_offset + func_start - s.sh_addr} {}
 
   elf_symbol32 const& f;
+  elf const& e;
   std::vector<bool> visited; // i know i know
   std::stack<reg_state, std::vector<reg_state>> paths;
   unsigned const func_start, func_end, func_ofs;
@@ -75,11 +77,12 @@ bool inst_is_log_call(inst const& i, std::vector<elf_symbol32 const*> const& log
     != std::end(log_funcs);
 }
 
-void simulate(inst const& i, elf const& e, u32 func_ofs, u32 func_addr, reg_state& regs) {
+//void simulate(inst const& i, elf const& e, u32 func_ofs, u32 func_addr, reg_state& regs) {
+void simulate(inst const& i, func_state& fs, reg_state& regs) {
   switch (i.type) {
     case inst_type::LOAD_LIT: {
       memcpy(&regs.regs[i.i.load_lit.t],
-             &e.bytes[func_ofs + (i.i.load_lit.addr - (func_addr & ~1u))],
+             &fs.e.bytes[fs.func_ofs + (i.i.load_lit.addr - fs.func_start)],
              4);
       mark_reg_known(regs.known, i.i.load_lit.t);
     } break;
@@ -89,13 +92,12 @@ void simulate(inst const& i, elf const& e, u32 func_ofs, u32 func_addr, reg_stat
 }
 }
 
-bool thumb2_find_log_calls_in_func(elf const& e,
-                                   elf_symbol32 const& func,
-                                   std::vector<elf_symbol32 const*> const& log_funcs,
-                                   std::vector<log_call>& out_log_calls) {
-  (void)out_log_calls;
-
-  func_state s{func, e.sec_hdrs[func.st_shndx]};
+bool thumb2_analyze_func(elf const& e,
+                         elf_symbol32 const& func,
+                         std::vector<elf_symbol32 const*> const& log_funcs,
+                         log_call_analysis& out_lca) {
+  (void)out_lca;
+  func_state s{func, e, e.sec_hdrs[func.st_shndx]};
 
   printf("\nScanning %s: addr %x, len %x, range %x-%x, offset %x:\n", &e.strtab[func.st_name],
     func.st_value, func.st_size, s.func_start, s.func_end, s.func_ofs);
@@ -139,7 +141,7 @@ bool thumb2_find_log_calls_in_func(elf const& e,
       } else if (inst_is_log_call(i, log_funcs)) {
         printf("  Found log function, format string 0x%08x\n", path.regs[0]);
       } else {
-        simulate(i, e, s.func_ofs, func.st_value, path);
+        simulate(i, s, path);
       }
 
       path.regs[reg::PC] += i.len;
