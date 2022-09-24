@@ -151,13 +151,6 @@ int main(int, char const *[]) {
   load(s);
   elf const& e = s.elf;
 
-  /*
-  print(*s.elf_hdr);
-  printf("\n");
-  for (auto i = 0u; i < s.elf_hdr->e_phnum; ++i) { print(s.prog_hdrs[i]); }
-  printf("\n");
-  */
-
   for (auto i = 0u; i < e.elf_hdr->e_shnum; ++i) {
     nl_elf_print(e.sec_hdrs[i], e.sec_names);
   }
@@ -179,29 +172,36 @@ int main(int, char const *[]) {
   }
   printf("\n");
 
-  log_call_analysis lca;
+  std::vector<log_call_analysis> log_calls;
   for (auto const& func_syms : s.non_nl_funcs_sym_map) {
-    thumb2_analyze_func(e, *func_syms.second[0], s.nl_funcs, lca);
+    elf_symbol32 const& func = *func_syms.second[0];
+    log_call_analysis lca(func);
+    thumb2_analyze_func(e, func, s.nl_funcs, lca);
+    if (!lca.log_calls.empty()) { log_calls.push_back(lca); }
+  }
+
+  printf("\nLog calls:\n");
+  for (auto const& lca: log_calls) {
+    printf("  %s\n", &e.strtab[lca.func.st_name]);
+    for (auto const& call: lca.log_calls) {
+      reg_mut_node const& r0_mut = lca.reg_muts[call.node_idx];
+
+      printf("    %x: %s r0 at %x: ", call.log_func_call_addr, fmt_str_strat_name(call.s),
+        r0_mut.i.addr);
+
+      switch (call.s) {
+        case fmt_str_strat::DIRECT_PC_RELATIVE_LOAD:
+          printf("literal at %x\n", r0_mut.i.i.load_lit.addr);
+          break;
+
+        case fmt_str_strat::INDIRECT_PC_RELATIVE_LOAD:
+          printf("load from r%u at %x, literal at %x\n",
+            r0_mut.i.i.mov.m,
+            lca.reg_muts[r0_mut.par_idxs[0]].i.addr,
+            lca.reg_muts[r0_mut.par_idxs[0]].i.i.load_lit.addr);
+      }
+    }
   }
 
   return 0;
-
-  //nl_str_refs_t const nl_str_refs = get_log_str_refs(s);
-  //printf("\n");
-
-  //printf(".nanolog string references:\n");
-  //for (auto const& nl_str_ref : nl_str_refs) {
-  //  printf("  0x%08x %x \"%s\"\n",
-  //         nl_str_ref.addr,
-  //         nl_str_ref.imm,
-  //         nl_str_ref.str);
-  //}
-  //printf("\n");
-
-  //nl_str_desc_map_t const nl_str_desc_map = build_nl_str_desc_map(nl_str_refs);
-  //for (auto const& nl_str_desc : nl_str_desc_map) {
-  //  print(nl_str_desc.second);
-  //}
-
-  //return 0;
 }

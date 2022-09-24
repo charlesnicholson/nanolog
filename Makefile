@@ -13,11 +13,16 @@ CFLAGS = --std=c17
 CXXFLAGS = --std=c++20
 
 CPPFLAGS += -MMD -MP -Os -g
-CPPFLAGS += -Wall -Werror -Wextra
+CPPFLAGS += -Werror -Wall -Wextra
+
+ifeq ($(OS),Darwin)
+CPPFLAGS += -Weverything
+endif
+
 CPPFLAGS += -Wno-c++98-compat -Wno-padded
 
 ifeq ($(OS),Darwin)
-CPPFLAGS += -Weverything -Wno-poison-system-directories -Wno-format-pedantic
+CPPFLAGS += -Wno-poison-system-directories -Wno-format-pedantic
 CXXFLAGS += -Wno-c++98-compat-pedantic \
 			-Wno-missing-prototypes \
 			-Wno-old-style-cast \

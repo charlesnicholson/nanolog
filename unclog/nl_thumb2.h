@@ -6,17 +6,30 @@
 struct elf;
 struct elf_symbol32;
 
+#define FMT_STR_STRAT_LIST() \
+  X(DIRECT_PC_RELATIVE_LOAD) \
+  X(INDIRECT_PC_RELATIVE_LOAD)
+
+#define X(NAME) NAME,
+enum class fmt_str_strat: u8 { FMT_STR_STRAT_LIST() };
+#undef X
+
+char const *fmt_str_strat_name(fmt_str_strat s);
+
 struct log_call {
-  enum strategy_type : u8 { PC_RELATIVE_LOAD } t;
-  u8 node_idx;
+  u32 log_func_call_addr;
+  u16 node_idx;
+  fmt_str_strat s;
 };
 
 struct reg_mut_node {
   inst i;
-  i8 par_idxs[3];
+  u16 par_idxs[3] = { 0xFFFFu, 0xFFFFu, 0xFFFFu };
 };
 
 struct log_call_analysis {
+  explicit log_call_analysis(elf_symbol32 const& func_) : func(func_) {}
+  elf_symbol32 const& func;
   std::vector<reg_mut_node> reg_muts;
   std::vector<log_call> log_calls;
 };

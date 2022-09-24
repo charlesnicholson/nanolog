@@ -2,7 +2,7 @@
 * tiny api for "known" vs "unknown" register state.
 * track r0 usage after log call, ensure it's dead or clobbered before next use.
 * implement TBB strategy: jump instruction before tbb gives table size.
-* add full parsing support to nanoprintf even if it can't print %e, %g, %a
 * json exporting
 * runtime api for "is this binary or ascii"
 * runtime api for "serialize call to a binary buffer"
+
