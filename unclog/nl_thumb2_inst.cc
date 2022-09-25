@@ -567,6 +567,15 @@ bool decode_16bit_inst(u16 const w0, inst& out_inst) {
 bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
   out_inst.len = 4;
 
+  // 4.6.3 ADD (imm), T3 encoding (pg 4-20)
+  if (((w0 & 0xFBE0u) == 0xF100u) && ((w1 & 0x8000u) == 0)) {
+    u32 const imm8{w1 & 0xFFu}, imm3{(w1 >> 12u) & 0x7u}, i{(w0 >> 10u) & 1u};
+    out_inst.type = inst_type::ADD_IMM;
+    out_inst.i.add_imm = { .n = u8(w0 & 0xFu), .d = u8((w1 >> 8u) & 0xFu),
+      .imm = u16(decode_imm12((i << 11u) | (imm3 << 8u) | imm8)) };
+    return true;
+  }
+
   // 4.6.8 AND (imm), T1 encoding (pg 4-30)
   if (((w0 & 0xFBE0u) == 0xF000u) && ((w1 & 0x8000u) == 0)) {
     u32 const imm8{w1 & 0xFFu}, imm3{(w1 >> 12u) & 7u}, i{(w0 >> 10u) & 1u};
