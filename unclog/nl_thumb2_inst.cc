@@ -199,6 +199,12 @@ void print(inst_store_imm const& s) {
   printf("  STR_IMM %s, [%s, #%d]\n", s_rn[s.t], s_rn[s.n], int(s.imm));
 }
 
+void print(inst_store_mult_dec_bef const& s) {
+  printf("  STMDB %s!, { ", s_rn[s.n]);
+  for (int i = 0; i < 16; ++i) { if (s.regs & (1 << i)) { printf("%s ", s_rn[i]); } }
+  printf("}\n");
+}
+
 void print(inst_store_reg const& s) {
   printf("  STR_REG %s, [%s, %s <%s #%d>\n", s_rn[s.src_reg], s_rn[s.base_reg],
     s_rn[s.ofs_reg], s_sn[int(s.shift.t)], int(s.shift.n));
@@ -722,6 +728,12 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
   if (((w0 & 0xFFF0u) == 0xF3A0u) && ((w1 & 0xD7FFu) == 0x8000u)) {
     // shouldn't need nop flag memory hints for static analysis (e.g. dsb, isb)
     out_inst.type = inst_type::NOP; out_inst.i.nop = {};
+    return true;
+  }
+
+  if ((w0 & 0xFFD0u) == 0xE900u) { // 4.6.160 STMDB, T1 encoding (pg 4-333)
+    out_inst.type = inst_type::STORE_MULT_DEC_BEF;
+    out_inst.i.store_mult_dec_bef = { .n = u8(w0 & 0xFu), .regs = u16(w1 & 0x5FFFu) };
     return true;
   }
 
