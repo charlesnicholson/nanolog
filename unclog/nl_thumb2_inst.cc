@@ -314,7 +314,7 @@ bool decode_16bit_inst(u16 const w0, inst& out_inst) {
   if ((w0 & 0xFF00u) == 0x4400u) { // 4.6.4 ADD (reg), T2 encoding (pg 4-22)
     u8 const dn{u8((w0 >> 7u) & 1u)}, rdn{u8(w0 & 7u)}, d{u8((dn << 3) | rdn)},
       m{u8((w0 >> 3u) & 7u)};
-    if ((d == 13) || (m == 13)) {
+    if ((d == reg::SP) || (m == reg::SP)) {
       out_inst.type = inst_type::ADD_SP_IMM;
       out_inst.i.add_sp_imm = { .d = d, .imm = d };
     } else {
@@ -543,7 +543,8 @@ bool decode_16bit_inst(u16 const w0, inst& out_inst) {
 
   if ((w0 & 0xF800u) == 0x9000u) { // 4.6.162 STR (imm), T2 encoding (pg 4-337)
     out_inst.type = inst_type::STORE_IMM;
-    out_inst.i.store_imm = { .n = 13, .t = u8((w0 >> 8u) & 7u), .imm = u16(w0 & 0xFFu) };
+    out_inst.i.store_imm = { .n = reg::SP, .t = u8((w0 >> 8u) & 7u),
+      .imm = u16(w0 & 0xFFu) };
     return true;
   }
 
@@ -659,7 +660,7 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
   // 4.6.18 BL, T1 encoding (pg 4-50)
   if (((w0 & 0xF800u) == 0xF000u) && ((w1 & 0xD000u) == 0xD000u)) {
     u32 const imm10{w0 & 0x3FFu}, imm11{w1 & 0x7FFu}, s{(w0 >> 10u) & 1u},
-      j1{(w1 >> 13) & 1u}, j2{(w1 >> 11u) & 1u}, i1{~(j1 ^ s) & 1u}, i2{~(j2 ^ s) & 1u};
+      j1{(w1 >> 13u) & 1u}, j2{(w1 >> 11u) & 1u}, i1{~(j1 ^ s) & 1u}, i2{~(j2 ^ s) & 1u};
     u32 const imm32{
       sext((s << 24u) | (i1 << 23u) | (i2 << 22u) | (imm10 << 12u) | (imm11 << 1u), 24)};
     out_inst.type = inst_type::BRANCH_LINK;
