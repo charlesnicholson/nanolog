@@ -227,6 +227,11 @@ void print(inst_sub_reg const& s) {
     s_rn[s.op2_reg], s_sn[int(s.shift.t)], unsigned(s.shift.n));
 }
 
+void print(inst_sub_reg_carry const& s) {
+  printf("  SUB_REG_CARRY %s, %s, %s <%s #%u>\n", s_rn[s.d], s_rn[s.n],
+    s_rn[s.m], s_sn[int(s.shift.t)], unsigned(s.shift.n));
+}
+
 void print(inst_sub_rev_imm const& s) {
   printf("  RSB %s, %s, #%d\n", s_rn[s.d], s_rn[s.n], int(s.imm));
 }
@@ -747,6 +752,15 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
   if (w0 == 0xE8BDu) { // 4.6.98 POP, T2 encoding (pg 4-209)
     out_inst.type = inst_type::POP;
     out_inst.i.pop = { .reg_list = uint16_t(w1 & 0xDFFFu) };
+    return true;
+  }
+
+  if ((w0 & 0xFFE0u) == 0xEB60) { // 4.6.126 SBC (reg), T2 encoding (pg 4-261)
+    u32 const imm2{(w1 >> 6u) & 3u}, imm3{(w1 >> 12u) & 7u};
+    out_inst.type = inst_type::SUB_REG_CARRY;
+    out_inst.i.sub_reg_carry = {
+      .m = u8(w1 & 0xFu), .d = u8((w1 >> 8u) & 0xFu), .n = u8(w0 & 0xFu),
+      .shift = decode_imm_shift(u8((w1 >> 4u) & 3u), u8((imm3 << 2u) | imm2)) };
     return true;
   }
 
