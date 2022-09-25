@@ -639,6 +639,23 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
     return true;
   }
 
+  if ((w0 & 0xFFF0u) == 0xF8D0u) { // 4.6.43 LDR (imm), T3 encoding (pg 4-100)
+    out_inst.type = inst_type::LOAD_IMM;
+    out_inst.i.load_imm = { .n = u8(w0 & 0xFu), .t = u8((w1 >> 12u) & 7u), .add = 1u,
+      .imm = u16(w1 & 0xFFFu), .index = 1u };
+    return true;
+  }
+
+  // 4.6.43 LDR (immediate), T4 encoding (pg 4-100)
+  if (((w0 & 0xFFF0u) == 0xF850u) && ((w1 & 0x800u) == 0x800u)) {
+    u8 const puw{u8((w1 >> 8u) & 7u)};
+    if (puw == 7u) { return false; } // TODO: LDRT
+    out_inst.type = inst_type::LOAD_IMM;
+    out_inst.i.load_imm = { .t = u8((w1 >> 12u) & 0xFu), .add = u8((puw >> 1u) & 1u),
+      .n = u8(w0 & 0xFu), .imm = u8(w1 & 0xFFu), .index = u8((puw >> 2u) & 1u) };
+    return true;
+  }
+
   // 4.6.45 LDR (register), T2 encoding (pg 4-104)
   if (((w0 & 0xFFF0u) == 0xF850u) && ((w1 & 0xFC0u) == 0)) {
     out_inst.type = inst_type::LOAD_REG;
@@ -651,6 +668,14 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
     out_inst.type = inst_type::LOAD_BYTE_IMM;
     out_inst.i.load_byte_imm = { .t = u8((w1 >> 12u) & 0xFu), .n = u8(w0 & 0xFu),
       .imm = u16(w1 & 0xFFFu) };
+    return true;
+  }
+
+  if ((w0 & 0xFE50u) == 0xE850u) { // 4.6.50 LDRD (imm), T1 encoding (pg 4-114)
+    out_inst.type = inst_type::LOAD_DBL_REG;
+    out_inst.i.load_dbl_reg = { .imm = u16((w1 & 0xFFu) << 2u), .base = u8(w0 & 0xFu),
+      .dst1_reg = u8((w1 >> 12u) & 0xFu), .dst2_reg = u8((w1 >> 8u) & 0xFu),
+      .add = u8((w0 >> 7u) & 1u), .index = u8((w0 >> 8u) & 1u) };
     return true;
   }
 
@@ -672,6 +697,13 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
     return true;
   }
 
+  // 4.6.88 NOP, T2 encoding (pg 4-189)
+  if (((w0 & 0xFFF0u) == 0xF3A0u) && ((w1 & 0xD7FFu) == 0x8000u)) {
+    // shouldn't need nop flag memory hints for static analysis (e.g. dsb, isb)
+    out_inst.type = inst_type::NOP; out_inst.i.nop = {};
+    return true;
+  }
+
   // 4.6.91 ORR (imm), T1 encoding (pg 4-195)
   if (((w0 & 0xFB40u) == 0xF040u) && ((w1 & 0x8000u) == 0)) {
     u8 const n{u8(w0 & 0xFu)};
@@ -687,47 +719,6 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
   if (w0 == 0xE8BDu) { // 4.6.98 POP, T2 encoding (pg 4-209)
     out_inst.type = inst_type::POP;
     out_inst.i.pop = { .reg_list = uint16_t(w1 & 0xDFFFu) };
-    return true;
-  }
-
-  if ((w0 & 0xFFF0u) == 0xF8D0u) { // 4.6.43 LDR (imm), T3 encoding (pg 4-100)
-    out_inst.type = inst_type::LOAD_IMM;
-    out_inst.i.load_imm = { .n = u8(w0 & 0xFu), .t = u8((w1 >> 12u) & 7u), .add = 1u,
-      .imm = u16(w1 & 0xFFFu), .index = 1u };
-    return true;
-  }
-
-  // 4.6.43 LDR (immediate), T4 encoding (pg 4-100)
-  if (((w0 & 0xFFF0u) == 0xF850u) && ((w1 & 0x800u) == 0x800u)) {
-    u8 const puw{u8((w1 >> 8u) & 7u)};
-    if (puw == 7u) { return false; } // TODO: LDRT
-    out_inst.type = inst_type::LOAD_IMM;
-    out_inst.i.load_imm = { .t = u8((w1 >> 12u) & 0xFu), .add = u8((puw >> 1u) & 1u),
-      .n = u8(w0 & 0xFu), .imm = u8(w1 & 0xFFu), .index = u8((puw >> 2u) & 1u) };
-    return true;
-  }
-
-  if ((w0 & 0xFE50u) == 0xE850u) { // 4.6.50 LDRD (imm), T1 encoding (pg 4-114)
-    out_inst.type = inst_type::LOAD_DBL_REG;
-    out_inst.i.load_dbl_reg = { .imm = u16((w1 & 0xFFu) << 2u), .base = u8(w0 & 0xFu),
-      .dst1_reg = u8((w1 >> 12u) & 0xFu), .dst2_reg = u8((w1 >> 8u) & 0xFu),
-      .add = u8((w0 >> 7u) & 1u), .index = u8((w0 >> 8u) & 1u) };
-    return true;
-  }
-
-  // 4.6.76 MOV (imm), T2 encoding (pg 4-166)
-  if (((w0 & 0xFBEFu) == 0xF04Fu) && (w1 & 0x8000u) == 0) {
-    unsigned const imm12{
-      (w1 & 0xFFu) | ((w1 >> 4u) & 0x700u) | (unsigned(w0 << 2u) & 0x1000u)};
-    out_inst.type = inst_type::MOV_IMM;
-    out_inst.i.mov_imm = { .imm = decode_imm12(imm12), .d = u8((w1 >> 8u) & 7u) };
-    return true;
-  }
-
-  // 4.6.88 NOP, T2 encoding (pg 4-189)
-  if (((w0 & 0xFFF0u) == 0xF3A0u) && ((w1 & 0xD7FFu) == 0x8000u)) {
-    // shouldn't need nop flag memory hints for static analysis (e.g. dsb, isb)
-    out_inst.type = inst_type::NOP; out_inst.i.nop = {};
     return true;
   }
 
