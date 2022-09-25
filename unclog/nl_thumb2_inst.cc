@@ -113,8 +113,8 @@ void print(inst_cmp_imm const& c) {
 }
 
 void print(inst_cmp_reg const& c) {
-  printf("  CMP_REG %s, %s <%s #%d>\n", s_rn[c.op1_reg], s_rn[c.op2_reg],
-    s_sn[int(c.shift.t)], int(c.shift.n));
+  printf("  CMP_REG %s, %s <%s #%d>\n", s_rn[c.n], s_rn[c.m], s_sn[int(c.shift.t)],
+    int(c.shift.n));
 }
 
 void print(inst_if_then const& i) {
@@ -403,7 +403,14 @@ bool decode_16bit_inst(u16 const w0, inst& out_inst) {
   if ((w0 & 0xFFC0u) == 0x4280u) { // 4.6.30 CMP (reg), T1 encoding (pg 4-74)
     out_inst.type = inst_type::CMP_REG;
     out_inst.i.cmp_reg = { .shift = decode_imm_shift(0b00, 0),
-      .op1_reg = u8(w0 & 7u), .op2_reg = u8((w0 >> 3u) & 7u) };
+      .n = u8(w0 & 7u), .m = u8((w0 >> 3u) & 7u) };
+    return true;
+  }
+
+  if ((w0 & 0xFF00u) == 0x4500u) { // 4.6.30 CMP (reg), T2 encoding (pg 4-74)
+    out_inst.type = inst_type::CMP_REG;
+    out_inst.i.cmp_reg = { .n = u8((w0 & 7u) | ((w0 >> 4u) & 8u)),
+      .m = u8((w0 >> 3u) & 0xFu), .shift = decode_imm_shift(0b00, 0) };
     return true;
   }
 
