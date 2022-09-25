@@ -210,6 +210,10 @@ void print(inst_store_reg const& s) {
     s_rn[s.ofs_reg], s_sn[int(s.shift.t)], int(s.shift.n));
 };
 
+void print(inst_store_reg_byte const& s) {
+  printf("  STR_REG_B %s, [%s, #%d]\n", s_rn[s.t], s_rn[s.n], int(s.imm));
+};
+
 void print(inst_store_reg_byte_unpriv const& s) {
   printf("  STRBT %s, [%s, #%d]\n", s_rn[s.t], s_rn[s.n], int(s.imm));
 };
@@ -732,6 +736,13 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
     out_inst.type = inst_type::STORE_IMM;
     out_inst.i.store_imm = { .t = u8(w1 >> 12u), .n = u8(w0 & 0xFu),
       .imm = u16(w1 & 0xFFFu) };
+    return true;
+  }
+
+  if ((w0 & 0xFFF0u) == 0xF880u) { // 4.6.164 STRB (imm), T2 encoding (pg 4.341)
+    out_inst.type = inst_type::STORE_REG_BYTE;
+    out_inst.i.store_reg_byte = { .imm = u16(w1 & 0xFFFu), .t = u8((w1 >> 12u) & 0xFu),
+      .n = u8(w0 & 0xFu), .add = 1u, .index = 1u };
     return true;
   }
 
