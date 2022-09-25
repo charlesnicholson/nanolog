@@ -190,16 +190,19 @@ int main(int, char const *[]) {
         r0_mut.i.addr);
 
       switch (call.s) {
-        case fmt_str_strat::DIRECT_PC_RELATIVE_LOAD:
-          printf("literal at %x\n", r0_mut.i.i.load_lit.addr);
+        case fmt_str_strat::DIRECT_LOAD:
+          printf("literal at %x: ", r0_mut.i.i.load_lit.addr);
           break;
 
-        case fmt_str_strat::INDIRECT_PC_RELATIVE_LOAD:
-          printf("load from r%u at %x, literal at %x\n",
+        case fmt_str_strat::MOV_FROM_DIRECT_LOAD:
+          printf("from r%u at %x, literal at %x: ",
             r0_mut.i.i.mov.m,
             lca.reg_muts[r0_mut.par_idxs[0]].i.addr,
             lca.reg_muts[r0_mut.par_idxs[0]].i.i.load_lit.addr);
       }
+
+      printf("\"%s\"\n",
+        &e.bytes[s.nl_hdr->sh_offset + (call.fmt_str_addr - s.nl_hdr->sh_addr)]);
     }
   }
 

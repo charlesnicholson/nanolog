@@ -168,16 +168,18 @@ bool thumb2_analyze_func(elf const& e,
         switch (r0_i.type) {
           case inst_type::LOAD_LIT:
             out_lca.log_calls.push_back(log_call{
-              .s = fmt_str_strat::DIRECT_PC_RELATIVE_LOAD,
+              .fmt_str_addr = path.regs[reg::R0],
               .log_func_call_addr = pc_i.addr,
-              .node_idx = path.reg_node_idxs[reg::R0] });
+              .node_idx = path.reg_node_idxs[reg::R0],
+              .s = fmt_str_strat::DIRECT_LOAD });
             break;
 
           case inst_type::MOV:
             out_lca.log_calls.push_back(log_call{
-              .s = fmt_str_strat::INDIRECT_PC_RELATIVE_LOAD,
+              .fmt_str_addr = path.regs[reg::R0],
               .log_func_call_addr = pc_i.addr,
-              .node_idx = path.reg_node_idxs[reg::R0] });
+              .node_idx = path.reg_node_idxs[reg::R0],
+              .s = fmt_str_strat::MOV_FROM_DIRECT_LOAD });
             break;
 
           default:

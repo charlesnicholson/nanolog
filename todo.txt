@@ -1,4 +1,5 @@
-* capture call sites into structure with "strategy" enum.
+* strategy: base + offset
+* thumb2.cc: move graph traversal stuff into "analyze" or something
 * tiny api for "known" vs "unknown" register state.
 * track r0 usage after log call, ensure it's dead or clobbered before next use.
 * implement TBB strategy: jump instruction before tbb gives table size.

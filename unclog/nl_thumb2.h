@@ -7,8 +7,8 @@ struct elf;
 struct elf_symbol32;
 
 #define FMT_STR_STRAT_LIST() \
-  X(DIRECT_PC_RELATIVE_LOAD) \
-  X(INDIRECT_PC_RELATIVE_LOAD)
+  X(DIRECT_LOAD) \
+  X(MOV_FROM_DIRECT_LOAD)
 
 #define X(NAME) NAME,
 enum class fmt_str_strat: u8 { FMT_STR_STRAT_LIST() };
@@ -17,6 +17,7 @@ enum class fmt_str_strat: u8 { FMT_STR_STRAT_LIST() };
 char const *fmt_str_strat_name(fmt_str_strat s);
 
 struct log_call {
+  u32 fmt_str_addr;
   u32 log_func_call_addr;
   u16 node_idx;
   fmt_str_strat s;
