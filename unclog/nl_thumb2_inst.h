@@ -86,6 +86,7 @@ struct imm_shift { imm_shift_type t; u8 n; };
   X(STORE_REG_BYTE, store_reg_byte) \
   X(STORE_REG_BYTE_UNPRIV, store_reg_byte_unpriv) \
   X(SUB_IMM, sub_imm) \
+  X(SUB_IMM_CARRY, sub_imm_carry) \
   X(SUB_REG, sub_reg) \
   X(SUB_REG_CARRY, sub_reg_carry) \
   X(SUB_REV_IMM, sub_rev_imm) \
@@ -143,6 +144,7 @@ struct inst_store_reg { imm_shift shift; u8 src_reg, base_reg, ofs_reg; };
 struct inst_store_reg_byte { u16 imm; u8 n, t, index, add; };
 struct inst_store_reg_byte_unpriv { u16 imm; u8 t, n; };
 struct inst_sub_imm { u32 imm; u8 d, n; };
+struct inst_sub_imm_carry { u32 imm; u8 d, n; };
 struct inst_sub_reg { imm_shift shift; u8 dst_reg, op1_reg, op2_reg; };
 struct inst_sub_reg_carry { imm_shift shift; u8 d, n, m; };
 struct inst_sub_rev_imm { u16 imm; u8 d, n; };

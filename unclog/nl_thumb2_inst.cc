@@ -222,6 +222,10 @@ void print(inst_sub_imm const& s) {
   printf("  SUB_IMM %s, %s, #%d\n", s_rn[s.d], s_rn[s.n], int(s.imm));
 }
 
+void print(inst_sub_imm_carry const &s) {
+  printf("  SUB_IMM_CARRY %s, %s, #%d\n", s_rn[s.d], s_rn[s.n], int(s.imm));
+};
+
 void print(inst_sub_reg const& s) {
   printf("  SUB_REG %s, %s, %s <%s #%u>\n", s_rn[s.dst_reg], s_rn[s.op1_reg],
     s_rn[s.op2_reg], s_sn[int(s.shift.t)], unsigned(s.shift.n));
@@ -432,7 +436,6 @@ bool decode_16bit_inst(u16 const w0, inst& out_inst) {
     return true;
   }
 
-  // TODO: read label + imm, pass func start addr to parse
   if ((w0 & 0xF800u) == 0x4800u) { // 4.6.44 LDR (literal), T1 encoding (pg 4-102)
     u16 const imm{u16((w0 & 0xFFu) << 2u)};
     out_inst.type = inst_type::LOAD_LIT;
@@ -496,7 +499,8 @@ bool decode_16bit_inst(u16 const w0, inst& out_inst) {
 
   if ((w0 & 0xFF00u) == 0x4600u) { // 4.6.77 MOV (reg), T1 encoding (pg 4-168)
     out_inst.type = inst_type::MOV;
-    out_inst.i.mov = { .m = u8((w0 >> 3u) & 0xFu), .d = u8((w0 & 7u) | ((w0 & 8u) >> 4u)) };
+    out_inst.i.mov = { .m = u8((w0 >> 3u) & 0xFu),
+      .d = u8((w0 & 7u) | ((w0 & 0x80u) >> 4u)) };
     return true;
   }
 
@@ -759,6 +763,15 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
   if (w0 == 0xE8BDu) { // 4.6.98 POP, T2 encoding (pg 4-209)
     out_inst.type = inst_type::POP;
     out_inst.i.pop = { .reg_list = uint16_t(w1 & 0xDFFFu) };
+    return true;
+  }
+
+  // 4.6.123 SBC (imm), T1 encoding (pg 4-259)
+  if (((w0 & 0xFBE0u) == 0xF160u) && ((w1 & 0x8000u) == 0)) {
+    u32 const imm8{w1 & 0xFFu}, imm3{(w1 >> 12u) & 7u}, i{(w0 >> 10u) & 1u};
+    out_inst.type = inst_type::SUB_IMM_CARRY;
+    out_inst.i.sub_imm_carry = { .n = u8(w0 & 0xFu), .d = u8((w1 >> 8u) & 0xFu),
+      .imm = decode_imm12((i << 11u) | (imm3 << 8u) | imm8) };
     return true;
   }
 
