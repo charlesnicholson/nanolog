@@ -19,8 +19,9 @@
 #include "nanoprintf.h"
 
 using u32_vec_t = std::vector<uint32_t>;
-using imm_addr_pq_t = std::priority_queue<uint32_t, u32_vec_t, std::greater<uint32_t>>;
-using sym_addr_map_t = std::unordered_map<uint32_t, std::vector<elf_symbol32 const*>>;
+using imm_addr_pq_t = std::priority_queue<u32, u32_vec_t, std::greater<u32>>;
+using sym_addr_map_t = std::unordered_map<u32, std::vector<elf_symbol32 const*>>;
+using str_addr_map_t = std::unordered_map<u32, char const *>;
 
 struct nl_str_desc {
   unsigned guid = 0;
@@ -36,6 +37,7 @@ struct state {
   std::vector<elf_symbol32 const*> nl_funcs;
   sym_addr_map_t non_nl_funcs_sym_map;
   nl_str_desc_map_t nl_str_desc_map;
+  str_addr_map_t missed_nl_strs_map;
 };
 
 struct nl_str_ref {
@@ -65,6 +67,20 @@ bool load(state& s) {
   // nanolog section
   s.nl_hdr = find_nl_hdr(e.sec_hdrs, e.sec_names, (int)e.elf_hdr->e_shnum);
   assert(s.nl_hdr);
+
+  {  // populate the "missed strings" map
+    u32 const nl_str_off{s.nl_hdr->sh_offset}, nl_str_addr{s.nl_hdr->sh_addr};
+    char const *src{&e.bytes[nl_str_off]}, *b{src};
+    u32 rem{s.nl_hdr->sh_size};
+    while (rem) {
+      auto [iter, inserted] =
+        s.missed_nl_strs_map.insert({u32(uintptr_t(src - b) + nl_str_addr), src});
+      assert(inserted);
+      u32 const n{u32(strlen(src))};
+      rem -= n; src += n;
+      while (rem && !*src) { --rem; ++src; }
+    }
+  }
 
   // nanolog functions, and non-nanolog-function-addr-to-symbol-map
   auto n = e.symtab_hdr->sh_size / e.symtab_hdr->sh_entsize;
@@ -203,6 +219,15 @@ int main(int, char const *[]) {
 
       printf("\"%s\"\n",
         &e.bytes[s.nl_hdr->sh_offset + (call.fmt_str_addr - s.nl_hdr->sh_addr)]);
+
+      s.missed_nl_strs_map.erase(call.fmt_str_addr);
+    }
+  }
+
+  if (!s.missed_nl_strs_map.empty()) {
+    printf("Missed format strings:\n");
+    for (auto const& [addr, str]: s.missed_nl_strs_map) {
+      printf("  %x: \"%s\"\n", addr, str);
     }
   }
 
