@@ -702,8 +702,17 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
   if (((w0 & 0xFBEFu) == 0xF04Fu) && ((w1 & 0x8000u) == 0)) {
     u32 const imm8{w1 & 0xFFu}, imm3{(w1 >> 12u) & 7u}, i{(w0 >> 10u) & 1u};
     out_inst.type = inst_type::MOV_IMM;
-    out_inst.i.mov_imm = inst_mov_imm{ .d = u8((w1 >> 8u) & 0xFu),
+    out_inst.i.mov_imm = { .d = u8((w1 >> 8u) & 0xFu),
       .imm = decode_imm12((i << 11u) | (imm3 << 8u) | imm8) };
+    return true;
+  }
+
+  // 4.6.76 MOV (imm), T3 encoding (pg 4-166)
+  if (((w0 & 0xFBF0u) == 0xF240u) && ((w1 & 0x8000u) == 0)) {
+    u32 const imm8{w1 & 0xFFu}, imm3{(w1 >> 12u) & 7u}, i{(w0 >> 10u) & 1u}, imm4{w0 & 0xFu};
+    out_inst.type = inst_type::MOV_IMM;
+    out_inst.i.mov_imm = { .d = u8((w1 >> 8u) & 0xFu),
+      .imm = (imm4 << 12u) | (i << 11u) | (imm3 << 8u) | imm8 };
     return true;
   }
 
