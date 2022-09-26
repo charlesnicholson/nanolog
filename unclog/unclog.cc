@@ -165,20 +165,20 @@ int main(int, char const *[]) {
   load(s);
   elf const& e{s.elf};
 
-  for (auto i{0u}; i < e.elf_hdr->e_shnum; ++i) {
-    nl_elf_print(e.sec_hdrs[i], e.sec_names);
-  }
-  printf("\n");
+  //for (auto i{0u}; i < e.elf_hdr->e_shnum; ++i) {
+  //  nl_elf_print(e.sec_hdrs[i], e.sec_names);
+  //}
+  //printf("\n");
 
-  printf("Non-nanolog functions:\n");
-  for (auto const& sym_entry : s.non_nl_funcs_sym_map) {
-    printf("  0x%08x ", sym_entry.first);
-    for (auto const* sym : sym_entry.second) {
-      printf("%s", &e.strtab[sym->st_name]);
-    }
-    printf("\n");
-  }
-  printf("\n");
+  //printf("Non-nanolog functions:\n");
+  //for (auto const& sym_entry : s.non_nl_funcs_sym_map) {
+  //  printf("  0x%08x ", sym_entry.first);
+  //  for (auto const* sym : sym_entry.second) {
+  //    printf("%s ", &e.strtab[sym->st_name]);
+  //  }
+  //  printf("\n");
+  //}
+  //printf("\n");
 
   printf("Nanolog public functions:\n");
   for (auto const& nl_func : s.nl_funcs) {

@@ -133,25 +133,28 @@ bool thumb2_analyze_func(elf const& e,
 
     for (;;) {
       if (func.st_size && (path.regs[reg::PC] >= s.func_end)) {
-        printf("  Exit: Ran off the end!\n");
+        printf("  Stopping path: Ran off the end!\n");
         break;
       }
 
       inst pc_i;
-      if (!inst_decode(&e.bytes[s.func_ofs],
-                       s.func_start,
-                       path.regs[reg::PC] - s.func_start,
-                       pc_i)) {
-        printf("  Exit: Unknown instruction!\n");
+      bool const decode_ok = inst_decode(&e.bytes[s.func_ofs], s.func_start,
+        path.regs[reg::PC] - s.func_start, pc_i);
+
+      printf("    %x: %04x ", path.regs[reg::PC], pc_i.w0);
+      if (pc_i.len == 2) { printf("       "); } else { printf("%04x   ", pc_i.w1); }
+      inst_print(pc_i);
+      printf("\n");
+
+      if (!decode_ok) {
+        printf("  Stopping path: Unknown instruction!\n");
         break;
       }
-
-      inst_print(pc_i);
 
       mark_visited(path.regs[reg::PC], s);
 
       if (inst_terminates_path(pc_i, s)) {
-        printf("  Exit: terminal pattern\n");
+        printf("  Stopping path: terminal pattern\n");
         break;
       }
 
