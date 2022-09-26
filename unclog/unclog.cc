@@ -54,7 +54,7 @@ elf_section_hdr32 const *find_nl_hdr(elf_section_hdr32 const *sec_hdrs,
                                      char const *sec_names,
                                      int sec_n) {
   for (int i = 0; i < sec_n; ++i) {
-    elf_section_hdr32 const& sh = sec_hdrs[i];
+    elf_section_hdr32 const& sh{sec_hdrs[i]};
     if (sh.sh_type && !strcmp(".nanolog", &sec_names[sh.sh_name])) { return &sh; }
   }
   return nullptr;
@@ -62,7 +62,7 @@ elf_section_hdr32 const *find_nl_hdr(elf_section_hdr32 const *sec_hdrs,
 
 bool load(state& s) {
   if (!nl_elf_load(s.elf, "nrf52832_xxaa.out")) { return false; }
-  elf const& e = s.elf;
+  elf const& e{s.elf};
 
   // nanolog section
   s.nl_hdr = find_nl_hdr(e.sec_hdrs, e.sec_names, (int)e.elf_hdr->e_shnum);
@@ -72,26 +72,26 @@ bool load(state& s) {
     u32 const nl_str_off{s.nl_hdr->sh_offset}, nl_str_addr{s.nl_hdr->sh_addr};
     char const *src{&e.bytes[nl_str_off]}, *b{src};
     u32 rem{s.nl_hdr->sh_size};
+    auto& m{s.missed_nl_strs_map};
     while (rem) {
-      auto [iter, inserted] =
-        s.missed_nl_strs_map.insert({u32(uintptr_t(src - b) + nl_str_addr), src});
+      auto [iter, inserted] = m.insert({u32(uintptr_t(src - b) + nl_str_addr), src});
       assert(inserted);
-      u32 const n{u32(strlen(src))};
+      u32 const n{u32(strlen(src) + 1)};
       rem -= n; src += n;
       while (rem && !*src) { --rem; ++src; }
     }
   }
 
   // nanolog functions, and non-nanolog-function-addr-to-symbol-map
-  auto n = e.symtab_hdr->sh_size / e.symtab_hdr->sh_entsize;
-  for (auto i = 0u; i < n; ++i) {
-    elf_symbol32 const& sym = e.symtab[i];
+  auto const n{e.symtab_hdr->sh_size / e.symtab_hdr->sh_entsize};
+  for (auto i{0u}; i < n; ++i) {
+    elf_symbol32 const& sym{e.symtab[i]};
     if ((sym.st_info & 0xF) != ELF_SYM_TYPE_FUNC) { continue; }
 
     if (strstr(&e.strtab[sym.st_name], "nanolog_") == &e.strtab[sym.st_name]) {
       s.nl_funcs.push_back(&sym);
     } else {
-      auto found = s.non_nl_funcs_sym_map.find(sym.st_value);
+      auto found{s.non_nl_funcs_sym_map.find(sym.st_value)};
       if (found == s.non_nl_funcs_sym_map.end()) {
         bool ok;
         std::tie(found, ok) = s.non_nl_funcs_sym_map.insert({sym.st_value, {}});
@@ -129,15 +129,13 @@ void print(nl_str_desc const &d) {
 }
 
 elf_symbol32 const *get_nl_func(state const& s, uint32_t cand) {
-  for (auto const *nl_func : s.nl_funcs) {
-    if ((nl_func->st_value & ~1u) == cand) { return nl_func; }
-  }
-
-  return nullptr;
+  auto iter{std::find_if(std::begin(s.nl_funcs), std::end(s.nl_funcs),
+    [=](auto const *f){ return (f->st_value & ~1u) == cand; })};
+  return (iter != std::end(s.nl_funcs)) ? *iter : nullptr;
 }
 
 nl_str_desc_map_t build_nl_str_desc_map(nl_str_refs_t const& nl_str_refs) {
-  unsigned guid = 0;
+  unsigned guid{0};
   nl_str_desc_map_t m;
   for (auto const &nl_str_ref : nl_str_refs) {
     auto [val, inserted] = m.insert({nl_str_ref.str, nl_str_desc{}});
@@ -148,7 +146,7 @@ nl_str_desc_map_t build_nl_str_desc_map(nl_str_refs_t const& nl_str_refs) {
       char const *cur = nl_str_ref.str;
       while (*cur) {
         npf_format_spec_t fs;
-        int const n = (*cur != '%') ? 0 : npf_parse_format_spec(cur, &fs);
+        int const n{(*cur != '%') ? 0 : npf_parse_format_spec(cur, &fs)};
         if (n) {
           val->second.args.push_back(fs);
           cur += n;
@@ -165,9 +163,9 @@ nl_str_desc_map_t build_nl_str_desc_map(nl_str_refs_t const& nl_str_refs) {
 int main(int, char const *[]) {
   state s;
   load(s);
-  elf const& e = s.elf;
+  elf const& e{s.elf};
 
-  for (auto i = 0u; i < e.elf_hdr->e_shnum; ++i) {
+  for (auto i{0u}; i < e.elf_hdr->e_shnum; ++i) {
     nl_elf_print(e.sec_hdrs[i], e.sec_names);
   }
   printf("\n");
@@ -190,7 +188,7 @@ int main(int, char const *[]) {
 
   std::vector<log_call_analysis> log_calls;
   for (auto const& func_syms : s.non_nl_funcs_sym_map) {
-    elf_symbol32 const& func = *func_syms.second[0];
+    elf_symbol32 const& func{*func_syms.second[0]};
     log_call_analysis lca(func);
     thumb2_analyze_func(e, func, s.nl_funcs, lca);
     if (!lca.log_calls.empty()) { log_calls.push_back(lca); }
