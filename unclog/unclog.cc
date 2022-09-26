@@ -223,7 +223,7 @@ int main(int, char const *[]) {
   }
 
   if (!s.missed_nl_strs_map.empty()) {
-    printf("Missed format strings:\n");
+    printf("\nMissed format strings:\n");
     for (auto const& [addr, str]: s.missed_nl_strs_map) {
       printf("  %x: \"%s\"\n", addr, str);
     }
