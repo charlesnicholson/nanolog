@@ -81,6 +81,7 @@ struct imm_shift { imm_shift_type t; u8 n; };
   X(RSHIFT_ARITH_IMM, rshift_arith_imm) \
   X(RSHIFT_LOG, rshift_log) \
   X(STORE_BYTE_IMM, store_byte_imm) \
+  X(STORE_HALF_IMM, store_half_imm) \
   X(STORE_IMM, store_imm) \
   X(STORE_MULT_DEC_BEF, store_mult_dec_bef) \
   X(STORE_REG, store_reg) \
@@ -122,7 +123,7 @@ struct inst_if_then { u8 firstcond, mask; };
 struct inst_load_byte_imm { u16 imm; u8 t, n; };
 struct inst_load_byte_reg { u8 dst_reg, base_reg, ofs_reg; };
 struct inst_load_dbl_reg { u16 imm; u8 dst1_reg, dst2_reg, base, index, add; };
-struct inst_load_half_imm { u8 dst_reg, src_reg, imm; };
+struct inst_load_half_imm { u16 imm; u8 t, n, add, index; };
 struct inst_load_imm { u16 imm; u8 n, t, add, index; };
 struct inst_load_lit { u32 imm, addr; u8 t, add; };
 struct inst_load_mult_inc_after { u16 regs; u8 base_reg; };
@@ -141,6 +142,7 @@ struct inst_rshift_log { imm_shift shift; u8 dst_reg, src_reg; };
 struct inst_rshift_arith_imm { imm_shift shift; u8 dst_reg, src_reg; };
 struct inst_store_byte_imm { u16 imm; u8 t, n, add; };
 struct inst_store_imm { u8 t, n; u16 imm; };
+struct inst_store_half_imm { u16 imm; u8 t, n, index, add; };
 struct inst_store_mult_dec_bef { u16 regs; u8 n; };
 struct inst_store_reg { imm_shift shift; u8 src_reg, base_reg, ofs_reg; };
 struct inst_store_reg_byte { u16 imm; u8 n, t, index, add; };

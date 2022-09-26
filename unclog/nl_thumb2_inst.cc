@@ -145,7 +145,7 @@ void print(inst_load_imm const& l) {
 }
 
 void print(inst_load_half_imm const& l) {
-  printf("LDRH_IMM %s, [%s, #%d]", s_rn[l.dst_reg], s_rn[l.src_reg], int(l.imm));
+  printf("LDRH_IMM %s, [%s, #%d]", s_rn[l.t], s_rn[l.n], int(l.imm));
 }
 
 void print(inst_load_lit const& l) {
@@ -195,6 +195,10 @@ void print(inst_or_reg_reg const& o) {
 
 void print(inst_store_byte_imm const& s) {
   printf("STRB_IMM %s, [%s, #%d]", s_rn[s.t], s_rn[s.n], int(s.imm));
+}
+
+void print(inst_store_half_imm const& s) {
+  printf("STRH %s, [%s, #%d]", s_rn[s.t], s_rn[s.n], int(s.imm));
 }
 
 void print(inst_store_imm const& s) {
@@ -288,7 +292,7 @@ bool decode_16bit_inst(u16 const w0, inst& out_inst) {
 
   if ((w0 & 0xF800u) == 0xA800u) { // 4.5.5 ADD (SP + imm), T1 encoding (pg 4-24)
     out_inst.type = inst_type::ADD_SP_IMM;
-    out_inst.i.add_sp_imm = { .d = u8((w0 >> 8u) & 7u), .imm = u16(w0 & 0xFFu) };
+    out_inst.i.add_sp_imm = { .d = u8((w0 >> 8u) & 7u), .imm = u16((w0 & 0xFFu) << 2u) };
     return true;
   }
 
@@ -469,8 +473,8 @@ bool decode_16bit_inst(u16 const w0, inst& out_inst) {
 
   if ((w0 & 0xF800u) == 0x8800u) { // 4.6.55 LDRH (imm), T1 encoding (pg 4-124)
     out_inst.type = inst_type::LOAD_HALF_IMM;
-    out_inst.i.load_half_imm = { .imm = (u8)(((w0 >> 6u) & 0x1Fu) << 1u),
-      .dst_reg = u8(w0 & 7u), .src_reg = u8((w0 >> 3u) & 7u) };
+    out_inst.i.load_half_imm = { .imm = (u8)(((w0 >> 6u) & 0x1Fu) << 1u), .add = 1u,
+      .t = u8(w0 & 7u), .n = u8((w0 >> 3u) & 7u), .index = 1u };
   }
 
   if ((w0 & 0xF800u) == 0) { // 4.6.68 LSL (imm), T1 encoding (pg 4-150)
@@ -717,6 +721,13 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
     return true;
   }
 
+  if ((w0 & 0xFFF0u) == 0xF8B0u) { // 4.6.55 LDRH (imm), T2 encoding (pg 4-124)
+    out_inst.type = inst_type::LOAD_HALF_IMM;
+    out_inst.i.load_half_imm = { .imm = u16(w1 & 0xFFFu), .t = u8((w1 >> 12u) & 0xFu),
+      .n = u8(w0 & 0xFu), .add = 1u, .index = 1u };
+    return true;
+  }
+
   // 4.6.76 MOV (imm), T2 encoding (pg 4-166)
   if (((w0 & 0xFBEFu) == 0xF04Fu) && ((w1 & 0x8000u) == 0)) {
     u32 const imm8{w1 & 0xFFu}, imm3{(w1 >> 12u) & 7u}, i{(w0 >> 10u) & 1u};
@@ -826,6 +837,13 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
   if (((w0 & 0xFFF0u) == 0xE8D0u) && ((w1 & 0xF0u) == 0)) {
     out_inst.type = inst_type::TABLE_BRANCH_BYTE;
     out_inst.i.table_branch_byte = { .base_reg = u8(w0 & 0xFu), .idx_reg = u8(w1 & 0xFu) };
+    return true;
+  }
+
+  if ((w0 & 0xFFF0u) == 0xF8A0u) {
+    out_inst.type = inst_type::STORE_HALF_IMM;
+    out_inst.i.store_half_imm = { .n = u8(w0 & 0xFu), .imm = u16(w1 & 0xFFFu), .add = 1u,
+      .t = u8((w1 >> 12u) & 0xFu), .index = 1u };
     return true;
   }
 
