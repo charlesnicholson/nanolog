@@ -6,12 +6,12 @@
 
 namespace {
 
-#define X(NAME, VAL) case cond_code::NAME: return #NAME;
 char const *cond_code_name(cond_code cc) {
+#define X(NAME, VAL) case cond_code::NAME: return #NAME;
   switch (cc) { CONDITION_CODE_X_LIST() }
+#undef X
   return "unknown";
 }
-#undef X
 
 #define X(NAME) #NAME,
 char const *s_rn[] = { REGISTER_X_LIST() };
@@ -887,20 +887,23 @@ u32 inst_align(u32 val, u32 align) { // Rounding and Aligning, A-16
 
 bool inst_decode(char const *text, u32 func_addr, u32 pc_addr, inst& out_inst) {
   out_inst.addr = func_addr + pc_addr;
+  out_inst.w1 = 0;
 
-  u16 w0;
-  memcpy(&w0, &text[pc_addr], 2);
-  printf("  %6x: %04x ", out_inst.addr, w0);
-  if (is_16bit_inst(w0)) {
+  memcpy(&out_inst.w0, &text[pc_addr], 2);
+  printf("  %6x: %04x ", out_inst.addr, out_inst.w0);
+  if (is_16bit_inst(out_inst.w0)) {
     printf("     ");
-    if (!decode_16bit_inst(w0, out_inst)) { printf("  ?\n"); return false; }
+    if (!decode_16bit_inst(out_inst.w0, out_inst)) { printf("  ?\n"); return false; }
     return true;
   }
 
-  u16 w1;
-  memcpy(&w1, &text[pc_addr + 2], 2);
-  printf("%04x ", w1);
-  if (!decode_32bit_inst(w0, w1, out_inst)) { printf("  ?\n"); return false; }
+  memcpy(&out_inst.w1, &text[pc_addr + 2], 2);
+  printf("%04x ", out_inst.w1);
+  if (!decode_32bit_inst(out_inst.w1, out_inst.w1, out_inst)) {
+    printf("  ?\n");
+    return false;
+  }
+
   return true;
 }
 

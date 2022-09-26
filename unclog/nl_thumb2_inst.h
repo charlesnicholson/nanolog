@@ -152,11 +152,12 @@ struct inst_svc { u32 imm; };
 struct inst_table_branch_byte { u8 base_reg, idx_reg; };
 
 struct inst {
+  u32 addr;
+  u16 w0, w1;
 #define X(ENUM, TYPE) inst_##TYPE TYPE;
   union { INST_TYPE_X_LIST() } i;
 #undef X
   inst_type type;
-  u32 addr;
   u8 len; // 2 or 4
 };
 
