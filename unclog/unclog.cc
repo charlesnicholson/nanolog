@@ -61,7 +61,7 @@ elf_section_hdr32 const *find_nl_hdr(elf_section_hdr32 const *sec_hdrs,
 }
 
 bool load(state& s) {
-  if (!nl_elf_load(s.elf, "nrf52832_xxaa.out")) { return false; }
+  if (!nl_elf_load(s.elf, "nrf52_blinky.elf")) { return false; }
   elf const& e{s.elf};
 
   // nanolog section
