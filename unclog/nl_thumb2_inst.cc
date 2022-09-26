@@ -26,20 +26,25 @@ void print(inst_unknown const&) { printf("??"); }
 void print(inst_add_carry_reg const& a) {
   printf("ADC_REG %s, %s, %s <%s #%d>", s_rn[a.d], s_rn[a.m], s_rn[a.n],
     s_sn[int(a.shift.t)], int(a.shift.n));
-};
+}
 
 void print(inst_add_imm const& a) {
   printf("ADD_IMM %s, %s, #%d", s_rn[a.d], s_rn[a.n], int(a.imm));
-};
+}
 
 void print(inst_add_sp_imm const& a) {
-  printf("ADD %s, [SP, #%d]", s_rn[a.d], (int)a.imm);
+  printf("ADD %s, [%s, #%d]", s_rn[a.d], s_rn[reg::SP], (int)a.imm);
+}
+
+void print(inst_add_sp_reg const& a) {
+  printf("ADD %s, %s, %s <%s, #%d>", s_rn[a.d], s_rn[reg::SP], s_rn[a.m],
+    s_sn[int(a.shift.t)], int(a.shift.n));
 }
 
 void print(inst_add_reg const& a) {
   printf("ADD_REG %s, %s, %s <%s #%d>", s_rn[a.d], s_rn[a.n], s_rn[a.m],
     s_sn[int(a.shift.t)], int(a.shift.n));
-};
+}
 
 void print(inst_adr const& a) {
   printf("ADR %s, PC, #%d", s_rn[a.dst_reg], (int)a.imm);
@@ -48,11 +53,11 @@ void print(inst_adr const& a) {
 void print(inst_and_reg const& a) {
   printf("AND_REG %s, %s, %s <%s #%d>", s_rn[a.dst_reg], s_rn[a.op1_reg],
     s_rn[a.op2_reg], s_sn[int(a.shift.t)], int(a.shift.n));
-};
+}
 
 void print(inst_and_reg_imm const& a) {
   printf("AND_REG_IMM %s, %s, #%d", s_rn[a.dst_reg], s_rn[a.src_reg], int(a.imm));
-};
+}
 
 void print(inst_push const& p) {
   printf("PUSH { ");
@@ -74,11 +79,11 @@ void print(inst_rshift_log const& r) {
 
 void print(inst_rshift_arith_imm const& r) {
   printf("ASR %s, %s, #%d", s_rn[r.dst_reg], s_rn[r.src_reg], int(r.shift.n));
-};
+}
 
 void print(inst_bit_clear_imm const& b) {
   printf("BIC_IMM %s, %s, #%d", s_rn[b.d], s_rn[b.n], int(b.imm));
-};
+}
 
 void print(inst_bit_clear_reg const& b) {
   printf("BIC_REG %s, %s, %s, <%s #%d>", s_rn[b.d], s_rn[b.n], s_rn[b.m],
@@ -602,6 +607,23 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
     out_inst.type = inst_type::ADD_IMM;
     out_inst.i.add_imm = { .n = u8(w0 & 0xFu), .d = u8((w1 >> 8u) & 0xFu),
       .imm = u16(decode_imm12((i << 11u) | (imm3 << 8u) | imm8)) };
+    return true;
+  }
+
+  if ((w0 & 0xFFE0u) == 0xEB00u) { // 4.6.4 ADD (reg), T3 encoding (pg 4-22)
+    u32 const imm3{(w1 >> 12u) & 7u}, imm2{(w1 >> 6u) & 3u};
+    u8 const n{u8(w0 & 0xFu)}, s{u8((w0 >> 4u) & 1u)}, m{u8(w1 & 0xFu)},
+      d{u8((w1 >> 8u) & 0xFu)}, type{u8((w1 >> 4u) & 3u)}, si{u8((imm3 << 2u) | imm2)};
+    if (s && (d == u8(reg::PC))) { // CMN (reg) pg 4-70
+      return false;
+    }
+    if (n == u8(reg::SP)) { // ADD (SP + reg), T3 encoding (pg 4-26)
+      out_inst.type = inst_type::ADD_SP_REG;
+      out_inst.i.add_sp_reg = { .m = m, .d = d, .shift = decode_imm_shift(type, si) };
+      return true;
+    }
+    out_inst.type = inst_type::ADD_REG;
+    out_inst.i.add_reg = { .m = m, .n = n, .d = d, .shift = decode_imm_shift(type, si) };
     return true;
   }
 

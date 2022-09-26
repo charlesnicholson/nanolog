@@ -43,6 +43,7 @@ struct imm_shift { imm_shift_type t; u8 n; };
   X(ADD_CARRY_REG, add_carry_reg) \
   X(ADD_IMM, add_imm) \
   X(ADD_SP_IMM, add_sp_imm) \
+  X(ADD_SP_REG, add_sp_reg) \
   X(ADD_REG, add_reg) \
   X(ADR, adr) \
   X(AND_REG, and_reg) \
@@ -103,6 +104,7 @@ struct inst_unknown {};
 struct inst_add_carry_reg { imm_shift shift; u8 d, n, m; };
 struct inst_add_imm { u16 imm; u8 d, n; };
 struct inst_add_sp_imm { u16 imm; u8 d; };
+struct inst_add_sp_reg { imm_shift shift; u8 d, m; };
 struct inst_add_reg { imm_shift shift; u8 d, n, m; };
 struct inst_adr { u8 dst_reg, imm; };
 struct inst_and_reg { imm_shift shift; u8 dst_reg, op1_reg, op2_reg; };
