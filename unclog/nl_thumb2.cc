@@ -71,6 +71,10 @@ bool inst_terminates_path(inst const& i, func_state& s) {
       if (i.i.pop.reg_list & (1u << u16(reg::PC))) { return true; }
       break;
 
+    case inst_type::LOAD_IMM: // LDR PC, [..], #..
+      if (i.i.load_imm.t == reg::PC) { return true; }
+      break;
+
     case inst_type::LOAD_LIT: // LDR PC, [PC, #x]
       // TODO: implement
       break;

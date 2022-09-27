@@ -88,12 +88,12 @@ void print(inst_bit_clear_imm const& b) {
 void print(inst_bit_clear_reg const& b) {
   printf("BIC_REG %s, %s, %s, <%s #%d>", s_rn[b.d], s_rn[b.n], s_rn[b.m],
     s_sn[int(b.shift.t)], int(b.shift.n));
-};
+}
 
 void print(inst_bitfield_extract_unsigned const& b) {
   printf("UBFX %s, %s, #%d, #%d", s_rn[b.d], s_rn[b.n], int(b.lsbit),
     int(b.widthminus1 + 1));
-};
+}
 
 void print(inst_branch const& i) {
   printf("B%s #%d (%x)", i.cc >= cond_code::AL1 ? "" : cond_code_name(i.cc),
@@ -126,7 +126,7 @@ void print(inst_cmp_reg const& c) {
 
 void print(inst_if_then const& i) {
   printf("IT %x, %x", unsigned(i.firstcond), unsigned(i.mask));
-};
+}
 
 void print(inst_count_leading_zeros const& c) {
   printf("CLZ %s, %s", s_rn[c.d], s_rn[c.m]);
@@ -143,7 +143,7 @@ void print(inst_load_byte_reg const& l) {
 void print(inst_load_dbl_reg const& l) {
   printf("LDRD_REG %s, %s, [%s], #%s%d", s_rn[l.dst1_reg], s_rn[l.dst2_reg],
     s_rn[l.base], l.add ? "" : "-", int(l.imm));
-};
+}
 
 void print(inst_load_imm const& l) {
   printf("LDR_IMM %s, [%s], #%d", s_rn[l.t], s_rn[l.n], int(l.imm));
@@ -187,16 +187,16 @@ void print(inst_mov_imm const& m) {
 
 void print(inst_mov_neg_imm const& m) {
   printf("MOV_NEG_IMM %s, #%d (%#x)", s_rn[m.d], unsigned(m.imm), unsigned(m.imm));
-};
+}
 
 void print(inst_or_reg_imm const& o) {
   printf("ORR_IMM %s, %s, #%d", s_rn[o.d], s_rn[o.n], int(o.imm));
-};
+}
 
 void print(inst_or_reg_reg const& o) {
   printf("ORR_REG %s, %s, %s <%s #%d>", s_rn[o.d], s_rn[o.m], s_rn[o.n],
     s_sn[int(o.shift.t)], int(o.shift.n));
-};
+}
 
 void print(inst_store_byte_imm const& s) {
   printf("STRB_IMM %s, [%s, #%d]", s_rn[s.t], s_rn[s.n], int(s.imm));
@@ -225,15 +225,15 @@ void print(inst_store_mult_inc_after const& s) {
 void print(inst_store_reg const& s) {
   printf("STR_REG %s, [%s, %s <%s #%d>", s_rn[s.src_reg], s_rn[s.base_reg],
     s_rn[s.ofs_reg], s_sn[int(s.shift.t)], int(s.shift.n));
-};
+}
 
 void print(inst_store_reg_byte const& s) {
   printf("STR_REG_B %s, [%s, #%d]", s_rn[s.t], s_rn[s.n], int(s.imm));
-};
+}
 
 void print(inst_store_reg_byte_unpriv const& s) {
   printf("STRBT %s, [%s, #%d]", s_rn[s.t], s_rn[s.n], int(s.imm));
-};
+}
 
 void print(inst_store_reg_double_imm const &s) {
   printf("STRD %s, %s, [%s], #%d", s_rn[s.t], s_rn[s.t2], s_rn[s.n], int(s.imm));
@@ -249,7 +249,7 @@ void print(inst_sub_sp_imm const& s) {
 
 void print(inst_sub_imm_carry const &s) {
   printf("SUB_IMM_CARRY %s, %s, #%d", s_rn[s.d], s_rn[s.n], int(s.imm));
-};
+}
 
 void print(inst_sub_reg const& s) {
   printf("SUB_REG %s, %s, %s <%s #%u>", s_rn[s.dst_reg], s_rn[s.op1_reg],
@@ -467,6 +467,13 @@ bool decode_16bit_inst(u16 const w0, inst& out_inst) {
     return true;
   }
 
+  if ((w0 & 0xF800u) == 0x9800u) { // 4.6.43 LDR (imm), T2 encoding (pg 4-100)
+    out_inst.type = inst_type::LOAD_IMM;
+    out_inst.i.load_imm = { .n = 13u, .index = 1u, .add = 1u, .t = u8((w0 >> 8u) & 7u),
+      .imm = u16((w0 & 0xFFu) << 2u) };
+    return true;
+  }
+
   if ((w0 & 0xF800u) == 0x4800u) { // 4.6.44 LDR (literal), T1 encoding (pg 4-102)
     u16 const imm{u16((w0 & 0xFFu) << 2u)};
     out_inst.type = inst_type::LOAD_LIT;
@@ -500,6 +507,7 @@ bool decode_16bit_inst(u16 const w0, inst& out_inst) {
     out_inst.type = inst_type::LOAD_HALF_IMM;
     out_inst.i.load_half_imm = { .imm = (u8)(((w0 >> 6u) & 0x1Fu) << 1u), .add = 1u,
       .t = u8(w0 & 7u), .n = u8((w0 >> 3u) & 7u), .index = 1u };
+    return true;
   }
 
   if ((w0 & 0xF800u) == 0) { // 4.6.68 LSL (imm), T1 encoding (pg 4-150)
@@ -581,7 +589,7 @@ bool decode_16bit_inst(u16 const w0, inst& out_inst) {
   if ((w0 & 0xF800u) == 0x9000u) { // 4.6.162 STR (imm), T2 encoding (pg 4-337)
     out_inst.type = inst_type::STORE_IMM;
     out_inst.i.store_imm = { .n = reg::SP, .t = u8((w0 >> 8u) & 7u),
-      .imm = u16(w0 & 0xFFu) };
+      .imm = u16((w0 & 0xFFu) << 2u) };
     return true;
   }
 
