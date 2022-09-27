@@ -135,7 +135,7 @@ struct inst_load_lit { u32 imm, addr; u8 t, add; };
 struct inst_load_mult_inc_after { u16 regs; u8 n; };
 struct inst_load_reg { imm_shift shift; u8 t, n, m; };
 struct inst_lshift_log_imm { u8 dst_reg, src_reg, imm; };
-struct inst_lshift_log_reg { u8 dst_reg, src_reg; };
+struct inst_lshift_log_reg { u8 d, n, m; };
 struct inst_mov { u8 d, m; };
 struct inst_mov_imm { u32 imm; u8 d; };
 struct inst_mov_neg_imm { u32 imm; u8 d; };

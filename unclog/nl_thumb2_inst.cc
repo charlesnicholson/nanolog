@@ -174,7 +174,7 @@ void print(inst_lshift_log_imm const& l) {
 }
 
 void print(inst_lshift_log_reg const& l) {
-  printf("LSL_REG %s, %s", s_rn[l.dst_reg], s_rn[l.src_reg]);
+  printf("LSL_REG %s, %s, %s", s_rn[l.d], s_rn[l.n], s_rn[l.m]);
 }
 
 void print(inst_mov const& m) {
@@ -522,8 +522,9 @@ bool decode_16bit_inst(u16 const w0, inst& out_inst) {
   }
 
   if ((w0 & 0xFFC0u) == 0x4080u) { // 4.6.69 LSL (reg), T1 encoding (pg 4-152)
+    u8 const dn{u8(w0 & 7u)};
     out_inst.type = inst_type::LSHIFT_LOG_REG;
-    out_inst.i.lshift_log_reg = { .dst_reg = u8(w0 & 7u), .src_reg = u8((w0 >> 3u) & 7u) };
+    out_inst.i.lshift_log_reg = { .d = dn, .n = dn, .m = u8((w0 >> 3u) & 7u) };
     return true;
   }
 
@@ -797,6 +798,14 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
     out_inst.type = inst_type::LOAD_HALF_IMM;
     out_inst.i.load_half_imm = { .imm = u16(w1 & 0xFFFu), .t = u8((w1 >> 12u) & 0xFu),
       .n = u8(w0 & 0xFu), .add = 1u, .index = 1u };
+    return true;
+  }
+
+  // 4.6.69 LSL (reg), T2 encoding (pg 4-152)
+  if (((w0 & 0xFFE0u) == 0xFA00u) && ((w1 & 0xF0F0u) == 0xF000u)) {
+    out_inst.type = inst_type::LSHIFT_LOG_REG;
+    out_inst.i.lshift_log_reg = { .m = u8(w1 & 0xFu), .d = u8((w1 >> 8u) & 0xFu),
+      .n = u8(w0 & 0xFu) };
     return true;
   }
 
