@@ -159,7 +159,7 @@ void print(inst_load_lit const& l) {
 }
 
 void print(inst_load_mult_inc_after const& l) {
-  printf("LDMIA %s!, { ", s_rn[l.n]);
+  printf("LDMIA %s%s, { ", s_rn[l.n], l.wback ? "!" : "");
   for (int i = 0; i < 16; ++i) { if (l.regs & (1 << i)) { printf("%s ", s_rn[i]); } }
   printf("}");
 }
@@ -217,7 +217,7 @@ void print(inst_store_mult_dec_bef const& s) {
 }
 
 void print(inst_store_mult_inc_after const& s) {
-  printf("STMIA %s!, { ", s_rn[s.n]);
+  printf("STMIA %s%s, { ", s_rn[s.n], s.wback ? "!" : "");
   for (int i = 0; i < 16; ++i) { if (s.regs & (1 << i)) { printf("%s ", s_rn[i]); } }
   printf("}");
 }
@@ -459,8 +459,10 @@ bool decode_16bit_inst(u16 const w0, inst& out_inst) {
   }
 
   if ((w0 & 0xF800u) == 0xC800u) { // 4.6.42 LDMIA, T1 encoding (pg 4-98)
+    u16 const regs{u16(w0 & 0xFFu)};
+    u8 const n{u8((w0 >> 8u) & 7u)};
     out_inst.type = inst_type::LOAD_MULT_INC_AFTER;
-    out_inst.i.load_mult_inc_after = { .n = u8((w0 >> 8u) & 7u), .regs = u16(w0 & 0xFFu) };
+    out_inst.i.load_mult_inc_after = { .n = n, .regs = regs, .wback = !(regs & (1u << n)) };
     return true;
   }
 
@@ -580,7 +582,8 @@ bool decode_16bit_inst(u16 const w0, inst& out_inst) {
 
   if ((w0 & 0xF800u) == 0xC000u) { // 4.6.161 STMIA, T1 encoding (pg 4-335)
     out_inst.type = inst_type::STORE_MULT_INC_AFTER;
-    out_inst.i.store_mult_inc_after = { .n = u8((w0 >> 8u) & 7u), .regs = u8(w0 & 0xFFu) };
+    out_inst.i.store_mult_inc_after = { .n = u8((w0 >> 8u) & 7u), .regs = u8(w0 & 0xFFu),
+      .wback = 1u };
     return true;
   }
 
@@ -882,6 +885,13 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
   if ((w0 & 0xFFD0u) == 0xE900u) { // 4.6.160 STMDB, T1 encoding (pg 4-333)
     out_inst.type = inst_type::STORE_MULT_DEC_BEF;
     out_inst.i.store_mult_dec_bef = { .n = u8(w0 & 0xFu), .regs = u16(w1 & 0x5FFFu) };
+    return true;
+  }
+
+  if ((w0 & 0xFFD0u) == 0xE880u) { // 4.6.161 STMIA, T2 encoding (pg 4-335)
+    out_inst.type = inst_type::STORE_MULT_INC_AFTER;
+    out_inst.i.store_mult_inc_after = { .regs = u16(w1 & 0x5FFFu), .n = u8(w0 & 0xFu),
+      .wback = u8((w0 >> 5u) & 1u) };
     return true;
   }
 
