@@ -159,7 +159,7 @@ void print(inst_load_lit const& l) {
 }
 
 void print(inst_load_mult_inc_after const& l) {
-  printf("LDMIA %s!, { ", s_rn[l.base_reg]);
+  printf("LDMIA %s!, { ", s_rn[l.n]);
   for (int i = 0; i < 16; ++i) { if (l.regs & (1 << i)) { printf("%s ", s_rn[i]); } }
   printf("}");
 }
@@ -216,6 +216,12 @@ void print(inst_store_mult_dec_bef const& s) {
   printf("}");
 }
 
+void print(inst_store_mult_inc_after const& s) {
+  printf("STMIA %s!, { ", s_rn[s.n]);
+  for (int i = 0; i < 16; ++i) { if (s.regs & (1 << i)) { printf("%s ", s_rn[i]); } }
+  printf("}");
+}
+
 void print(inst_store_reg const& s) {
   printf("STR_REG %s, [%s, %s <%s #%d>", s_rn[s.src_reg], s_rn[s.base_reg],
     s_rn[s.ofs_reg], s_sn[int(s.shift.t)], int(s.shift.n));
@@ -229,8 +235,16 @@ void print(inst_store_reg_byte_unpriv const& s) {
   printf("STRBT %s, [%s, #%d]", s_rn[s.t], s_rn[s.n], int(s.imm));
 };
 
+void print(inst_store_reg_double_imm const &s) {
+  printf("STRD %s, %s, [%s], #%d", s_rn[s.t], s_rn[s.t2], s_rn[s.n], int(s.imm));
+}
+
 void print(inst_sub_imm const& s) {
   printf("SUB_IMM %s, %s, #%d", s_rn[s.d], s_rn[s.n], int(s.imm));
+}
+
+void print(inst_sub_sp_imm const& s) {
+  printf("SUB_IMM %s, %s, #%d", s_rn[s.d], s_rn[reg::SP], int(s.imm));
 }
 
 void print(inst_sub_imm_carry const &s) {
@@ -440,6 +454,12 @@ bool decode_16bit_inst(u16 const w0, inst& out_inst) {
     return true;
   }
 
+  if ((w0 & 0xF800u) == 0xC800u) { // 4.6.42 LDMIA, T1 encoding (pg 4-98)
+    out_inst.type = inst_type::LOAD_MULT_INC_AFTER;
+    out_inst.i.load_mult_inc_after = { .n = u8((w0 >> 8u) & 7u), .regs = u16(w0 & 0xFFu) };
+    return true;
+  }
+
   if ((w0 & 0xF800u) == 0x6800u) { // 4.6.43 LDR (imm), T1 encoding (pg 4-100)
     out_inst.type = inst_type::LOAD_IMM;
     out_inst.i.load_imm = { .imm = u16(((w0 >> 6u) & 0x1Fu) << 2u), .add = 1u,
@@ -545,6 +565,12 @@ bool decode_16bit_inst(u16 const w0, inst& out_inst) {
     return true;
   }
 
+  if ((w0 & 0xF800u) == 0xC000u) { // 4.6.161 STMIA, T1 encoding (pg 4-335)
+    out_inst.type = inst_type::STORE_MULT_INC_AFTER;
+    out_inst.i.store_mult_inc_after = { .n = u8((w0 >> 8u) & 7u), .regs = u8(w0 & 0xFFu) };
+    return true;
+  }
+
   if ((w0 & 0xF800u) == 0x6000u) { // 4.6.162 STR (imm), T1 encoding (pg 4-337)
     out_inst.type = inst_type::STORE_IMM;
     out_inst.i.store_imm = { .t = u8(w0 & 7u), .n = u8((w0 >> 3u) & 7u),
@@ -592,6 +618,12 @@ bool decode_16bit_inst(u16 const w0, inst& out_inst) {
     out_inst.i.sub_reg = { .shift = decode_imm_shift(0b00, 0),
       .dst_reg = u8(w0 & 7u), .op1_reg = u8((w0 >> 3u) & 7u),
       .op2_reg = u8((w0 >> 6u) & 7u) };
+    return true;
+  }
+
+  if ((w0 & 0xFF80u) == 0xB080u) {
+    out_inst.type = inst_type::SUB_SP_IMM;
+    out_inst.i.sub_sp_imm = { .d = u8(13u), .imm = (w0 & 0x7Fu) << 2u };
     return true;
   }
 
@@ -852,6 +884,18 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
       out_inst.i.store_byte_imm = {
         .t = u8((w1 >> 12u) & 0xFu), .n = u8(w0 & 0xFu), .add = u8((puw >> 1u) & 1u) };
     }
+    return true;
+  }
+
+  if ((w0 & 0xFE50u) == 0xE840u) { // 4.6.167 STRD (imm), T1 encoding (pg 4-347)
+    u8 const p{u8((w0 >> 8u) & 1u)}, w{u8((w0 >> 5u) & 1u)};
+    if (!p && !w) { // "SEE Load/store double and exclusive, and table branch on pg 3-28"
+      return false;
+    }
+    out_inst.type = inst_type::STORE_REG_DOUBLE_IMM;
+    out_inst.i.store_reg_double_imm = { .imm = u16((w1 & 0xFFu) << 2u), .n = u8(w0 & 0xFu),
+      .t = u8((w1 >> 12u) & 0xFu), .t2 = u8((w1 >> 8u) & 0xFu), .add = u8((w0 >> 7u) & 1u),
+      .index = p };
     return true;
   }
 

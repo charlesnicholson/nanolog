@@ -85,14 +85,17 @@ struct imm_shift { imm_shift_type t; u8 n; };
   X(STORE_HALF_IMM, store_half_imm) \
   X(STORE_IMM, store_imm) \
   X(STORE_MULT_DEC_BEF, store_mult_dec_bef) \
+  X(STORE_MULT_INC_AFTER, store_mult_inc_after) \
   X(STORE_REG, store_reg) \
   X(STORE_REG_BYTE, store_reg_byte) \
   X(STORE_REG_BYTE_UNPRIV, store_reg_byte_unpriv) \
+  X(STORE_REG_DOUBLE_IMM, store_reg_double_imm) \
   X(SUB_IMM, sub_imm) \
   X(SUB_IMM_CARRY, sub_imm_carry) \
   X(SUB_REG, sub_reg) \
   X(SUB_REG_CARRY, sub_reg_carry) \
   X(SUB_REV_IMM, sub_rev_imm) \
+  X(SUB_SP_IMM, sub_sp_imm) \
   X(SVC, svc) \
   X(TABLE_BRANCH_BYTE, table_branch_byte)
 
@@ -128,7 +131,7 @@ struct inst_load_dbl_reg { u16 imm; u8 dst1_reg, dst2_reg, base, index, add; };
 struct inst_load_half_imm { u16 imm; u8 t, n, add, index; };
 struct inst_load_imm { u16 imm; u8 n, t, add, index; };
 struct inst_load_lit { u32 imm, addr; u8 t, add; };
-struct inst_load_mult_inc_after { u16 regs; u8 base_reg; };
+struct inst_load_mult_inc_after { u16 regs; u8 n; };
 struct inst_load_reg { imm_shift shift; u8 t, n, m; };
 struct inst_lshift_log_imm { u8 dst_reg, src_reg, imm; };
 struct inst_lshift_log_reg { u8 dst_reg, src_reg; };
@@ -146,14 +149,17 @@ struct inst_store_byte_imm { u16 imm; u8 t, n, add; };
 struct inst_store_imm { u8 t, n; u16 imm; };
 struct inst_store_half_imm { u16 imm; u8 t, n, index, add; };
 struct inst_store_mult_dec_bef { u16 regs; u8 n; };
+struct inst_store_mult_inc_after { u16 regs; u8 n; };
 struct inst_store_reg { imm_shift shift; u8 src_reg, base_reg, ofs_reg; };
 struct inst_store_reg_byte { u16 imm; u8 n, t, index, add; };
 struct inst_store_reg_byte_unpriv { u16 imm; u8 t, n; };
+struct inst_store_reg_double_imm { u16 imm; u8 t, t2, n, add, index; };
 struct inst_sub_imm { u32 imm; u8 d, n; };
 struct inst_sub_imm_carry { u32 imm; u8 d, n; };
 struct inst_sub_reg { imm_shift shift; u8 dst_reg, op1_reg, op2_reg; };
 struct inst_sub_reg_carry { imm_shift shift; u8 d, n, m; };
 struct inst_sub_rev_imm { u16 imm; u8 d, n; };
+struct inst_sub_sp_imm { u32 imm; u8 d; };
 struct inst_svc { u32 imm; };
 struct inst_table_branch_byte { u8 base_reg, idx_reg; };
 

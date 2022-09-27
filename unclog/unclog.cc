@@ -60,8 +60,8 @@ elf_section_hdr32 const *find_nl_hdr(elf_section_hdr32 const *sec_hdrs,
   return nullptr;
 }
 
-bool load(state& s) {
-  if (!nl_elf_load(s.elf, "nrf52_blinky.elf")) { return false; }
+bool load(state& s, char const *filename) {
+  if (!nl_elf_load(s.elf, filename)) { return false; }
   elf const& e{s.elf};
 
   // nanolog section
@@ -160,9 +160,10 @@ nl_str_desc_map_t build_nl_str_desc_map(nl_str_refs_t const& nl_str_refs) {
 }
 }
 
-int main(int, char const *[]) {
+int main(int argc, char const *argv[]) {
+  assert(argc > 1);
   state s;
-  load(s);
+  load(s, argv[1]);
   elf const& e{s.elf};
 
   //for (auto i{0u}; i < e.elf_hdr->e_shnum; ++i) {
