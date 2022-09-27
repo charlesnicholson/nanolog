@@ -271,6 +271,10 @@ void print(inst_table_branch_byte const& t) {
   printf("TBB [%s, %s]", s_rn[t.base_reg], s_rn[t.idx_reg]);
 }
 
+void print(inst_unsigned_extend_half const& u) {
+  printf("UXTH %s, %s, <%d>", s_rn[u.d], s_rn[u.m], int(u.rotation));
+}
+
 u32 decode_imm12(u32 imm12) { // 4.2.2 Operation (pg 4-9)
   if ((imm12 & 0xC00u) == 0) {
     u32 const imm8{imm12 & 0xFFu};
@@ -629,12 +633,18 @@ bool decode_16bit_inst(u16 const w0, inst& out_inst) {
     return true;
   }
 
-  if ((w0 & 0xFF80u) == 0xB080u) {
+  if ((w0 & 0xFF80u) == 0xB080u) { // 4.6.178 SUB (SP - imm), T1 encoding (pg 4-369)
     out_inst.type = inst_type::SUB_SP_IMM;
     out_inst.i.sub_sp_imm = { .d = u8(13u), .imm = (w0 & 0x7Fu) << 2u };
     return true;
   }
 
+  if ((w0 & 0xFFC0u) == 0xB280u) { // 4.6.226 UXTH, T1 encoding (pg 4-465)
+    out_inst.type = inst_type::UNSIGNED_EXTEND_HALF;
+    out_inst.i.unsigned_extend_half = { .d = u8(w0 & 7u), .m = u8((w0 >> 3u) & 7u),
+      .rotation = 0 };
+    return true;
+  }
   return false;
 }
 

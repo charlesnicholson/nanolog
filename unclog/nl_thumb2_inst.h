@@ -97,7 +97,8 @@ struct imm_shift { imm_shift_type t; u8 n; };
   X(SUB_REV_IMM, sub_rev_imm) \
   X(SUB_SP_IMM, sub_sp_imm) \
   X(SVC, svc) \
-  X(TABLE_BRANCH_BYTE, table_branch_byte)
+  X(TABLE_BRANCH_BYTE, table_branch_byte) \
+  X(UNSIGNED_EXTEND_HALF, unsigned_extend_half)
 
 #define X(ENUM, TYPE) ENUM,
 enum class inst_type : u8 { INST_TYPE_X_LIST() };
@@ -162,6 +163,7 @@ struct inst_sub_rev_imm { u16 imm; u8 d, n; };
 struct inst_sub_sp_imm { u32 imm; u8 d; };
 struct inst_svc { u32 imm; };
 struct inst_table_branch_byte { u8 base_reg, idx_reg; };
+struct inst_unsigned_extend_half { u8 d, m, rotation; };
 
 struct inst {
   u32 addr;
