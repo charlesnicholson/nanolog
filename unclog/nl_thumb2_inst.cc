@@ -281,6 +281,14 @@ void print(inst_unsigned_extend_half const& u) {
   printf("UXTH %s, %s, <%d>", s_rn[u.d], s_rn[u.m], int(u.rotation));
 }
 
+void print(inst_vmov const& v) {
+  if (v.to_arm_regs) {
+    printf("VMOV %s, %s, d%u", s_rn[v.t], s_rn[v.t2], unsigned(v.m));
+  } else {
+    printf("VMOV d%u, %s, %s", unsigned(v.m), s_rn[v.t], s_rn[v.t2]);
+  }
+}
+
 u32 decode_imm12(u32 imm12) { // 4.2.2 Operation (pg 4-9)
   if ((imm12 & 0xC00u) == 0) {
     u32 const imm8{imm12 & 0xFFu};
@@ -1010,6 +1018,14 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
     out_inst.type = inst_type::BITFIELD_EXTRACT_UNSIGNED;
     out_inst.i.bitfield_extract_unsigned = { .d = u8((w1 >> 8u) & 0xFu), .n = u8(w0 & 0xFu),
       .lsbit = u8((imm3 << 2u) | imm2), .widthminus1 = u8(w1 & 0x1Fu) };
+    return true;
+  }
+
+  // A7.7.242 VMOV (2 ARM core regsters and a dword reg), T1 encoding (pg A7-533)
+  if (((w0 & 0xFFE0u) == 0xEC40u) && ((w1 & 0xFD0u) == 0xB10u)) {
+    out_inst.type = inst_type::VMOV;
+    out_inst.i.vmov = { .m = u8((w1 & 0xFu) | ((w1 >> 1u) & 0x10u)), .t2 = u8(w0 & 0xFu),
+      .t = u8((w1 >> 12u) & 0xFu), .to_arm_regs = u8((w0 >> 4u) & 1u) };
     return true;
   }
 
