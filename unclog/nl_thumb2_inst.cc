@@ -776,6 +776,16 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
     return true;
   }
 
+  if ((w0 & 0xFFD0u) == 0xE890u) { // 4.6.42 LDMIA, T2 encoding (pg 4-98)
+    u8 const n{u8(w0 & 0xFu)}, wback{u8((w0 >> 5u) & 1u)};
+    if (wback && (n == 13u)) { // "SEE POP on page 4-209"
+      return false;
+    }
+    out_inst.type = inst_type::LOAD_MULT_INC_AFTER;
+    out_inst.i.load_mult_inc_after = { .n = n, .regs = u16(w1 & 0xDFFFu), .wback = wback };
+    return true;
+  }
+
   if ((w0 & 0xFFF0u) == 0xF8D0u) { // 4.6.43 LDR (imm), T3 encoding (pg 4-100)
     out_inst.type = inst_type::LOAD_IMM;
     out_inst.i.load_imm = { .n = u8(w0 & 0xFu), .t = u8((w1 >> 12u) & 7u), .add = 1u,
