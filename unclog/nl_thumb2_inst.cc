@@ -281,19 +281,26 @@ void print(inst_unsigned_extend_half const& u) {
   printf("UXTH %s, %s, <%d>", s_rn[u.d], s_rn[u.m], int(u.rotation));
 }
 
+void print(inst_vconvert_fp_int const& v) {
+  printf("VCVT.");
+  printf("%c32.", v.to_int ? (v.int_unsigned ? 'U' : 'S') : 'F');
+  printf("%c32 ", v.to_int ? 'F' : (v.int_unsigned ? 'U' : 'S'));
+  printf("S%d, S%d", int(v.d), int(v.m));
+}
+
 void print(inst_vmov_double const& v) {
   if (v.to_arm_regs) {
-    printf("VMOV %s, %s, d%u", s_rn[v.t], s_rn[v.t2], unsigned(v.m));
+    printf("VMOV %s, %s, D%u", s_rn[v.t], s_rn[v.t2], unsigned(v.m));
   } else {
-    printf("VMOV d%u, %s, %s", unsigned(v.m), s_rn[v.t], s_rn[v.t2]);
+    printf("VMOV D%u, %s, %s", unsigned(v.m), s_rn[v.t], s_rn[v.t2]);
   }
 }
 
 void print(inst_vmov_single const& v) {
   if (v.to_arm_reg) {
-    printf("VMOV %s, s%u", s_rn[v.t], unsigned(v.n));
+    printf("VMOV %s, S%u", s_rn[v.t], unsigned(v.n));
   } else {
-    printf("VMOV s%u, %s", unsigned(v.n), s_rn[v.t]);
+    printf("VMOV S%u, %s", unsigned(v.n), s_rn[v.t]);
   }
 }
 //{ u8 t, n, to_arm_reg; };
@@ -1027,6 +1034,22 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
     out_inst.type = inst_type::BITFIELD_EXTRACT_UNSIGNED;
     out_inst.i.bitfield_extract_unsigned = { .d = u8((w1 >> 8u) & 0xFu), .n = u8(w0 & 0xFu),
       .lsbit = u8((imm3 << 2u) | imm2), .widthminus1 = u8(w1 & 0x1Fu) };
+    return true;
+  }
+
+  // A7.7.223 VCVT (between FP and int), T1 encoding (pg A7-?)
+  if (((w0 & 0xFFB8u) == 0xEEB8u) && ((w1 & 0xF50u) == 0xA40u)) {
+    u8 const opc2{u8(w0 & 7u)}, d{u8(((w1 >> 11u) & 0x1Eu) | ((w0 >> 6u) & 1u))},
+      op{u8((w1 >> 7u) & 1u)}, m{u8(((w1 & 0xFu) << 1u) | ((w1 >> 5u) & 1u))},
+      to_int{u8(!!(opc2 & 0b100))};
+    out_inst.type = inst_type::VCONVERT_FP_INT;
+    if (to_int) {
+      out_inst.i.vconvert_fp_int = { .m = m, .d = d, .int_unsigned = ((opc2 & 1u) == 0),
+        .round_zero = op, .to_int = to_int };
+    } else {
+      out_inst.i.vconvert_fp_int = { .m = m, .d = d, .int_unsigned = (op == 0),
+        .round_zero = 0, .to_int = to_int };
+    }
     return true;
   }
 
