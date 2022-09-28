@@ -60,6 +60,7 @@ struct imm_shift { imm_shift_type t; u8 n; };
   X(CMP_IMM, cmp_imm) \
   X(CMP_REG, cmp_reg) \
   X(COUNT_LEADING_ZEROS, count_leading_zeros) \
+  X(DIV_SIGNED, div_signed) \
   X(IF_THEN, if_then) \
   X(LOAD_BYTE_REG, load_byte_reg) \
   X(LOAD_BYTE_IMM, load_byte_imm) \
@@ -74,6 +75,8 @@ struct imm_shift { imm_shift_type t; u8 n; };
   X(MOV, mov) \
   X(MOV_IMM, mov_imm) \
   X(MOV_NEG_IMM, mov_neg_imm) \
+  X(MUL, mul) \
+  X(MUL_SUB, mul_sub) \
   X(NOP, nop) \
   X(OR_REG_IMM, or_reg_imm) \
   X(OR_REG_REG, or_reg_reg) \
@@ -125,6 +128,7 @@ struct inst_cmp_branch_z { u32 addr; u8 n, imm; };
 struct inst_cmp_imm { u8 reg, imm; };
 struct inst_cmp_reg { imm_shift shift; u8 n, m; };
 struct inst_count_leading_zeros { u8 d, m; };
+struct inst_div_signed { u8 d, n, m; };
 struct inst_if_then { u8 firstcond, mask; };
 struct inst_load_byte_imm { u16 imm; u8 t, n; };
 struct inst_load_byte_reg { u8 dst_reg, base_reg, ofs_reg; };
@@ -139,6 +143,8 @@ struct inst_lshift_log_reg { u8 d, n, m; };
 struct inst_mov { u8 d, m; };
 struct inst_mov_imm { u32 imm; u8 d; };
 struct inst_mov_neg_imm { u32 imm; u8 d; };
+struct inst_mul { u8 d, n, m; };
+struct inst_mul_sub { u8 d, n, m, a; };
 struct inst_or_reg_imm { u32 imm; u8 d, n; };
 struct inst_or_reg_reg { u32 imm; imm_shift shift; u8 d, n, m; };
 struct inst_push { u16 reg_list; };
