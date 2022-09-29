@@ -214,6 +214,11 @@ int main(int argc, char const *argv[]) {
             r0_mut.i.i.mov.m,
             lca.reg_muts[r0_mut.par_idxs[0]].i.addr,
             lca.reg_muts[r0_mut.par_idxs[0]].i.i.load_lit.addr);
+          break;
+
+        case fmt_str_strat::ADD_IMM_FROM_BASE_REG:
+          printf("add imm from base: ");
+          break;
       }
 
       printf("\"%s\"\n",

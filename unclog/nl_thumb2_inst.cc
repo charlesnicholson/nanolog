@@ -715,7 +715,6 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
     u32 const imm3{(w1 >> 12u) & 7u}, imm2{(w1 >> 6u) & 3u};
     u8 const n{u8(w0 & 0xFu)}, s{u8((w0 >> 4u) & 1u)}, m{u8(w1 & 0xFu)},
       d{u8((w1 >> 8u) & 0xFu)}, type{u8((w1 >> 4u) & 3u)}, si{u8((imm3 << 2u) | imm2)};
-    printf("s: %d d: %d\n", int(s), int(d));
     if ((s == 1u) && (d == reg::PC)) { // CMN (reg) pg 4-70
       return false;
     }

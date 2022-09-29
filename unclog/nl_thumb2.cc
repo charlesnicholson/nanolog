@@ -127,6 +127,7 @@ void simulate(inst const& i, func_state& fs, reg_state& regs) {
       reg_muts.push_back(
         reg_mut_node{.i = i, .par_idxs[0] = regs.reg_node_idxs[i.i.add_imm.n]});
       regs.reg_node_idxs[i.i.add_imm.d] = u16(reg_muts.size() - 1u);
+      break;
 
     default: break;
   }
@@ -207,6 +208,13 @@ bool thumb2_analyze_func(elf const& e,
               .node_idx = path.reg_node_idxs[reg::R0],
               .s = fmt_str_strat::MOV_FROM_DIRECT_LOAD });
             break;
+
+          case inst_type::ADD_IMM:
+            out_lca.log_calls.push_back(log_call{
+              .fmt_str_addr = path.regs[reg::R0],
+              .log_func_call_addr = pc_i.addr,
+              .node_idx = path.reg_node_idxs[reg::R0],
+              .s = fmt_str_strat::ADD_IMM_FROM_BASE_REG });
 
           default:
             printf("Unrecognized pattern!\n"); break;

@@ -8,7 +8,8 @@ struct elf_symbol32;
 
 #define FMT_STR_STRAT_LIST() \
   X(DIRECT_LOAD) \
-  X(MOV_FROM_DIRECT_LOAD)
+  X(MOV_FROM_DIRECT_LOAD) \
+  X(ADD_IMM_FROM_BASE_REG)
 
 #define X(NAME) NAME,
 enum class fmt_str_strat: u8 { FMT_STR_STRAT_LIST() };
