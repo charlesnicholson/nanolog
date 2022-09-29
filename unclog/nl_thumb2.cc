@@ -33,11 +33,11 @@ struct func_state {
   unsigned const func_start, func_end, func_ofs;
 };
 
-#define X(NAME) case fmt_str_strat::NAME: return #NAME;
 char const *fmt_str_strat_name(fmt_str_strat s) {
+#define X(NAME) case fmt_str_strat::NAME: return #NAME;
   switch (s) { FMT_STR_STRAT_LIST() default: return "unknown"; }
-}
 #undef X
+}
 
 namespace {
 
