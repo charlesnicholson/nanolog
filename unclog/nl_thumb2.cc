@@ -51,8 +51,12 @@ bool test_visited(u32 addr, func_state const& s) {
   return s.visited[(addr - s.func_start) / 2];
 }
 
-inline void mark_reg_known(u16& regs, u8 index) { regs |= (1u << index); }
 inline bool test_reg_known(u16 regs, u8 index) { return (regs >> index) & 1u; }
+inline void mark_reg_known(u16& regs, u8 index) { regs |= (1u << index); }
+
+inline void copy_reg_known(u16& regs, u8 dst_index, u8 src_index) {
+  regs = u16(regs & ~(1u << dst_index)) | u16(((regs >> src_index) & 1u) << dst_index);
+}
 
 bool inst_terminates_path(inst const& i, func_state& s) {
   switch (i.type) {
@@ -112,10 +116,17 @@ void simulate(inst const& i, func_state& fs, reg_state& regs) {
 
     case inst_type::MOV:
       regs.regs[i.i.mov.d] = regs.regs[i.i.mov.m];
-      mark_reg_known(regs.known, i.i.mov.d);
+      copy_reg_known(regs.known, i.i.mov.d, i.i.mov.m);
       reg_muts.push_back(reg_mut_node{.i = i, .par_idxs[0] = regs.reg_node_idxs[i.i.mov.m]});
       regs.reg_node_idxs[i.i.mov.d] = u16(reg_muts.size() - 1u);
       break;
+
+    case inst_type::ADD_IMM:
+      regs.regs[i.i.add_imm.d] = regs.regs[i.i.add_imm.n] + i.i.add_imm.imm;
+      copy_reg_known(regs.known, i.i.add_imm.d, i.i.add_imm.n);
+      reg_muts.push_back(
+        reg_mut_node{.i = i, .par_idxs[0] = regs.reg_node_idxs[i.i.add_imm.n]});
+      regs.reg_node_idxs[i.i.add_imm.d] = u16(reg_muts.size() - 1u);
 
     default: break;
   }
@@ -173,8 +184,12 @@ bool thumb2_analyze_func(elf const& e,
         printf("  Internal branch, pushing state\n");
         s.paths.push(reg_state{.regs[reg::PC] = label});
       } else if (inst_is_log_call(pc_i, log_funcs)) {
-        printf("  Found log function, format string 0x%08x\n", path.regs[reg::R0]);
+        if (!test_reg_known(path.known, reg::R0)) {
+          printf("  Found log function, R0 is unknown\n");
+          break;
+        }
 
+        printf("  Found log function, format string 0x%08x\n", path.regs[reg::R0]);
         inst const& r0_i = s.lca.reg_muts[path.reg_node_idxs[reg::R0]].i;
         switch (r0_i.type) {
           case inst_type::LOAD_LIT:

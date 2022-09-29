@@ -701,8 +701,12 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
   // 4.6.3 ADD (imm), T3 encoding (pg 4-20)
   if (((w0 & 0xFBE0u) == 0xF100u) && ((w1 & 0x8000u) == 0)) {
     u32 const imm8{w1 & 0xFFu}, imm3{(w1 >> 12u) & 0x7u}, i{(w0 >> 10u) & 1u};
+    u8 const d{u8((w1 >> 8u) & 0xFu)}, s{u8((w0 >> 4u) & 1u)};
+    if ((s == 1u) && (d == reg::PC)) { // CMN (imm) pg 4-68
+      return false;
+    }
     out_inst.type = inst_type::ADD_IMM;
-    out_inst.i.add_imm = { .n = u8(w0 & 0xFu), .d = u8((w1 >> 8u) & 0xFu),
+    out_inst.i.add_imm = { .n = u8(w0 & 0xFu), .d = d,
       .imm = u16(decode_imm12((i << 11u) | (imm3 << 8u) | imm8)) };
     return true;
   }
@@ -711,7 +715,8 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
     u32 const imm3{(w1 >> 12u) & 7u}, imm2{(w1 >> 6u) & 3u};
     u8 const n{u8(w0 & 0xFu)}, s{u8((w0 >> 4u) & 1u)}, m{u8(w1 & 0xFu)},
       d{u8((w1 >> 8u) & 0xFu)}, type{u8((w1 >> 4u) & 3u)}, si{u8((imm3 << 2u) | imm2)};
-    if (s && (d == u8(reg::PC))) { // CMN (reg) pg 4-70
+    printf("s: %d d: %d\n", int(s), int(d));
+    if ((s == 1u) && (d == reg::PC)) { // CMN (reg) pg 4-70
       return false;
     }
     if (n == u8(reg::SP)) { // ADD (SP + reg), T3 encoding (pg 4-26)
