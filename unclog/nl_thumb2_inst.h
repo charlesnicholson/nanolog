@@ -61,6 +61,7 @@ struct imm_shift { imm_shift_type t; u8 n; };
   X(CMP_REG, cmp_reg) \
   X(COUNT_LEADING_ZEROS, count_leading_zeros) \
   X(DIV_SIGNED, div_signed) \
+  X(EXCL_OR, excl_or) \
   X(IF_THEN, if_then) \
   X(LOAD_BYTE_IMM, load_byte_imm) \
   X(LOAD_BYTE_LIT, load_byte_lit) \
@@ -135,6 +136,7 @@ struct inst_cmp_imm { u8 reg, imm; };
 struct inst_cmp_reg { imm_shift shift; u8 n, m; };
 struct inst_count_leading_zeros { u8 d, m; };
 struct inst_div_signed { u8 d, n, m; };
+struct inst_excl_or { imm_shift shift; u8 d, n, m; };
 struct inst_if_then { u8 firstcond, mask; };
 struct inst_load_byte_imm { u16 imm; u8 t, n, add, index; };
 struct inst_load_byte_lit { u16 imm; u8 t, add; };
