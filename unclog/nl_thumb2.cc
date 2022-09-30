@@ -149,6 +149,9 @@ bool thumb2_analyze_func(elf const& e,
   while (!s.paths.empty()) {
     reg_state path{s.paths.top()};
     s.paths.pop();
+
+    if (test_visited(path.regs[reg::PC], s)) { continue; }
+
     printf("  Starting path\n");
 
     for (;;) {

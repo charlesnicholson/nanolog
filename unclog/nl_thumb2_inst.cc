@@ -893,7 +893,7 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
   }
 
   // 4.6.85 MVN (imm), T1 encoding (pg 4-183)
-  if (((w0 & 0xFDEFu) == 0xF06Fu) && ((w1 & 0x8000u) == 0)) {
+  if (((w0 & 0xFBEFu) == 0xF06Fu) && ((w1 & 0x8000u) == 0)) {
     u32 const imm8{w1 & 0xFFu}, imm3{(w1 >> 12u) & 7u}, i{(w0 >> 10u) & 1u};
     out_inst.type = inst_type::MOV_NEG_IMM;
     out_inst.i.mov_neg_imm = { .d = u8((w0 >> 8u) & 0xFu),
@@ -921,8 +921,7 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
   }
 
   if (w0 == 0xE8BDu) { // 4.6.98 POP, T2 encoding (pg 4-209)
-    out_inst.type = inst_type::POP;
-    out_inst.i.pop = { .reg_list = uint16_t(w1 & 0xDFFFu) };
+    out_inst.type = inst_type::POP; out_inst.i.pop = { .reg_list = uint16_t(w1 & 0xDFFFu) };
     return true;
   }
 
