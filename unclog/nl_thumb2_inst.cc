@@ -138,8 +138,14 @@ void print(inst_load_byte_imm const& l) {
   printf("LDRB_IMM %s, [%s, #%d]", s_rn[l.t], s_rn[l.n], int(l.imm));
 }
 
+void print(inst_load_byte_lit const& l) {
+  printf("LDRB_LIT %s, [%s, #%c%d]", s_rn[l.t], s_rn[reg::PC], l.add ? '+' : '-',
+    int(l.imm));
+}
+
 void print(inst_load_byte_reg const& l) {
-  printf("LDRB_REG %s, [%s, %s]", s_rn[l.dst_reg], s_rn[l.base_reg], s_rn[l.ofs_reg]);
+  printf("LDRB_REG %s, [%s, %s, %s #%d]", s_rn[l.t], s_rn[l.n], s_rn[l.m],
+    s_sn[int(l.shift.t)], int(l.shift.n));
 }
 
 void print(inst_load_dbl_reg const& l) {
@@ -190,6 +196,10 @@ void print(inst_mov_neg_imm const& m) {
 }
 
 void print(inst_mul const& m) { printf("MUL %s, %s, %s", s_rn[m.d], s_rn[m.n], s_rn[m.m]); }
+
+void print(inst_mul_accum const& m) {
+  printf("MLA %s, %s, %s, %s", s_rn[m.d], s_rn[m.m], s_rn[m.n], s_rn[m.a]);
+}
 
 void print(inst_mul_sub const& m) {
   printf("MLS %s, %s, %s, %s", s_rn[m.d], s_rn[m.n], s_rn[m.m], s_rn[m.a]);
@@ -275,6 +285,10 @@ void print(inst_svc const& s) { printf("SVC %x", unsigned(s.imm)); }
 
 void print(inst_table_branch_byte const& t) {
   printf("TBB [%s, %s]", s_rn[t.base_reg], s_rn[t.idx_reg]);
+}
+
+void print(inst_unsigned_extend_byte const& u) {
+  printf("UXTB %s, %s, <%d>", s_rn[u.d], s_rn[u.m], int(u.rotation));
 }
 
 void print(inst_unsigned_extend_half const& u) {
@@ -541,8 +555,8 @@ bool decode_16bit_inst(u16 const w0, inst& out_inst) {
 
   if ((w0 & 0xFE00u) == 0x5C00u) { // 4.6.48 LDRB (reg), T1 encoding (pg 4-110)
     out_inst.type = inst_type::LOAD_BYTE_REG;
-    out_inst.i.load_byte_reg = { .dst_reg = u8(w0 & 7u), .base_reg = u8((w0 >> 3u) & 7u),
-      .ofs_reg = u8((w0 >> 6u) & 7u) };
+    out_inst.i.load_byte_reg = { .t = u8(w0 & 7u), .n = u8((w0 >> 3u) & 7u),
+      .m = u8((w0 >> 6u) & 7u) };
     return true;
   }
 
@@ -686,12 +700,20 @@ bool decode_16bit_inst(u16 const w0, inst& out_inst) {
     return true;
   }
 
+  if ((w0 & 0xFFC0u) == 0xB2C0u) { // 4.6.224 UXTB, T1 encoding (pg 4-461)
+    out_inst.type = inst_type::UNSIGNED_EXTEND_BYTE;
+    out_inst.i.unsigned_extend_byte = { .d = u8(w0 & 7u), .m = u8((w0 >> 3u) & 7u),
+      .rotation = 0 };
+    return true;
+  }
+
   if ((w0 & 0xFFC0u) == 0xB280u) { // 4.6.226 UXTH, T1 encoding (pg 4-465)
     out_inst.type = inst_type::UNSIGNED_EXTEND_HALF;
     out_inst.i.unsigned_extend_half = { .d = u8(w0 & 7u), .m = u8((w0 >> 3u) & 7u),
       .rotation = 0 };
     return true;
   }
+
   return false;
 }
 
@@ -839,7 +861,43 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
   if ((w0 & 0xFFF0u) == 0xF890u) {  // 4.6.46 LDRB (imm), T2 encoding (pg 4-106)
     out_inst.type = inst_type::LOAD_BYTE_IMM;
     out_inst.i.load_byte_imm = { .t = u8((w1 >> 12u) & 0xFu), .n = u8(w0 & 0xFu),
-      .imm = u16(w1 & 0xFFFu) };
+      .imm = u16(w1 & 0xFFFu), .index = 1u, .add = 1u };
+    return true;
+  }
+
+  // 4.6.46 LDRB (imm), T3 encoding (pg 4-106)
+  if (((w0 & 0xFFF0u) == 0xF810u) && ((w1 & 0x800u) == 0x800u)) {
+    u8 const t{u8((w1 >> 12u) & 0xFu)}, n{u8(w0 & 0xFu)}, puw{u8((w1 >> 8u) & 3u)};
+    if (n == 15) { // "SEE LDRB (literal) on page 4-108"
+      return false;
+    }
+    if ((t == 15) && (puw == 0b110)) { // "SEE LDRBT on page 4-112"
+      return false;
+    }
+    out_inst.type = inst_type::LOAD_BYTE_IMM;
+    out_inst.i.load_byte_imm = { .add = u8((puw >> 1u) & 1u), .index = u8((puw >> 2u) & 1u),
+      .t = t, .n = n, .imm = u16(w1 & 0xFFu) };
+    return true;
+  }
+
+  // 4.6.48 LDRB (reg), T2 encoding (pg 4-110)
+  if (((w0 & 0xFFF0u) == 0xF810u) && ((w1 & 0xFC0u) == 0)) {
+    u8 const t{u8((w1 >> 12u) & 0xFu)}, n{u8(w0 & 0xFu)};
+    if (t == 15) { // "SEE PLD (register) on page 4-203"
+      return false;
+    }
+    if (n == 15) { // "SEE LDRB (literal) on page 4-108"
+      if (t == 15) { // "SEE PLD (immediate) on page 4-201"
+        return false;
+      }
+      out_inst.type = inst_type::LOAD_BYTE_LIT;
+      out_inst.i.load_byte_lit = { .imm = u16(w1 & 0xFFFu), .t = u8((w1 >> 12u) & 0xFu),
+        .add = u8((w0 >> 7u) & 1u) };
+    } else {
+      out_inst.type = inst_type::LOAD_BYTE_REG;
+      out_inst.i.load_byte_reg = { .m = u8(w1 & 0xFu), .n = n, .t = t,
+        .shift = decode_imm_shift(u8(imm_shift_type::LSL), u8((w1 >> 4u) & 3u)) };
+    }
     return true;
   }
 
@@ -863,6 +921,14 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
     out_inst.type = inst_type::LSHIFT_LOG_REG;
     out_inst.i.lshift_log_reg = { .m = u8(w1 & 0xFu), .d = u8((w1 >> 8u) & 0xFu),
       .n = u8(w0 & 0xFu) };
+    return true;
+  }
+
+  // 4.6.74 MLA, T1 encoding (pg 4-162)
+  if (((w0 & 0xFFF0u) == 0xFB00u) && ((w1 & 0xF0u) == 0)) {
+    out_inst.type = inst_type::MUL_ACCUM;
+    out_inst.i.mul_accum = { .m = u8(w1 & 0xFu), .n = u8(w0 & 0xFu),
+      .d = u8((w1 >> 8u) & 0xFu), .a = u8((w1 >> 12u) & 0xFu) };
     return true;
   }
 
