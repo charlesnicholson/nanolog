@@ -55,12 +55,12 @@ void print(inst_adr const& a) {
 }
 
 void print(inst_and_reg const& a) {
-  printf("AND_REG %s, %s, %s <%s #%d>", s_rn[a.dst_reg], s_rn[a.op1_reg],
-    s_rn[a.op2_reg], s_sn[int(a.shift.t)], int(a.shift.n));
+  printf("AND_REG %s, %s, %s <%s #%d>", s_rn[a.d], s_rn[a.n], s_rn[a.m],
+    s_sn[int(a.shift.t)], int(a.shift.n));
 }
 
-void print(inst_and_reg_imm const& a) {
-  printf("AND_REG_IMM %s, %s, #%d", s_rn[a.dst_reg], s_rn[a.src_reg], int(a.imm));
+void print(inst_and_imm const& a) {
+  printf("AND_IMM %s, %s, #%d", s_rn[a.d], s_rn[a.n], int(a.imm));
 }
 
 void print(inst_push const& p) {
@@ -487,7 +487,7 @@ bool decode_16bit_inst(u16 const w0, inst& out_inst) {
   if ((w0 & 0xFFC0u) == 0x4000u) { // 4.6.9 AND, T1 encoding (pg 4-32)
     out_inst.type = inst_type::AND_REG;
     out_inst.i.and_reg = { .shift = decode_imm_shift(0b00, 0),
-      .dst_reg = u8(w0 & 7u), .op1_reg = u8(w0 & 7u), .op2_reg = u8((w0 >> 3u) & 7u) };
+      .d = u8(w0 & 7u), .n = u8(w0 & 7u), .m = u8((w0 >> 3u) & 7u) };
     return true;
   }
 
@@ -905,9 +905,21 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
   // 4.6.8 AND (imm), T1 encoding (pg 4-30)
   if (((w0 & 0xFBE0u) == 0xF000u) && ((w1 & 0x8000u) == 0)) {
     u32 const imm8{w1 & 0xFFu}, imm3{(w1 >> 12u) & 7u}, i{(w0 >> 10u) & 1u};
-    out_inst.type = inst_type::AND_REG_IMM;
-    out_inst.i.and_reg_imm = { .dst_reg = u8((w1 >> 8u) & 0xFu), .src_reg = u8(w0 & 0xFu),
+    out_inst.type = inst_type::AND_IMM;
+    out_inst.i.and_imm = { .d = u8((w1 >> 8u) & 0xFu), .n = u8(w0 & 0xFu),
       .imm = decode_imm12((i << 11u) | (imm3 << 8u) | imm8) };
+    return true;
+  }
+
+  if ((w0 & 0xFFF0u) == 0xEA00u) { // 4.6.9 AND (reg), T2 encoding (pg 4-32)
+    u8 const imm2{u8((w1 >> 6u) & 3u)}, imm3{u8((w1 >> 12u) & 7u)},
+      d{u8((w1 >> 8u) & 0xFu)}, s{u8((w0 >> 4u) & 1u)};
+    if ((d == 15) && (s == 1)) { // "SEE TST (register) on page 4-399"
+      return false;
+    }
+    out_inst.type = inst_type::AND_REG;
+    out_inst.i.and_reg = { .n = u8(w0 & 0xFu), .m = u8(w1 & 0xFu),
+      .d = d, .shift = decode_imm_shift(u8((w1 >> 4u) & 3u), u8((imm3 << 2u) | imm2)) };
     return true;
   }
 

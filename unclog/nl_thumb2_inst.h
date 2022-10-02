@@ -48,7 +48,7 @@ struct imm_shift { imm_shift_type t; u8 n; };
   X(ADD_REG, add_reg) \
   X(ADR, adr) \
   X(AND_REG, and_reg) \
-  X(AND_REG_IMM, and_reg_imm) \
+  X(AND_IMM, and_imm) \
   X(BIT_CLEAR_IMM, bit_clear_imm) \
   X(BIT_CLEAR_REG, bit_clear_reg) \
   X(BITFIELD_EXTRACT_UNSIGNED, bitfield_extract_unsigned) \
@@ -137,8 +137,8 @@ struct inst_add_sp_imm { u16 imm; u8 d; };
 struct inst_add_sp_reg { imm_shift shift; u8 d, m; };
 struct inst_add_reg { imm_shift shift; u8 d, n, m; };
 struct inst_adr { u8 dst_reg, imm; };
-struct inst_and_reg { imm_shift shift; u8 dst_reg, op1_reg, op2_reg; };
-struct inst_and_reg_imm { u32 imm; u8 dst_reg, src_reg; };
+struct inst_and_reg { imm_shift shift; u8 d, n, m; };
+struct inst_and_imm { u32 imm; u8 d, n; };
 struct inst_bit_clear_imm { u32 imm; u8 d, n; };
 struct inst_bit_clear_reg { imm_shift shift; u8 d, n, m; };
 struct inst_bitfield_extract_unsigned { u8 d, n, lsbit, widthminus1; };
