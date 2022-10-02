@@ -72,6 +72,7 @@ struct imm_shift { imm_shift_type t; u8 n; };
   X(LOAD_BYTE_LIT, load_byte_lit) \
   X(LOAD_BYTE_REG, load_byte_reg) \
   X(LOAD_DBL_REG, load_dbl_reg) \
+  X(LOAD_EXCL, load_excl) \
   X(LOAD_HALF_IMM, load_half_imm) \
   X(LOAD_IMM, load_imm) \
   X(LOAD_LIT, load_lit) \
@@ -93,6 +94,7 @@ struct imm_shift { imm_shift_type t; u8 n; };
   X(RSHIFT_ARITH_IMM, rshift_arith_imm) \
   X(RSHIFT_LOG, rshift_log) \
   X(STORE_BYTE_IMM, store_byte_imm) \
+  X(STORE_EXCL, store_excl) \
   X(STORE_HALF_IMM, store_half_imm) \
   X(STORE_IMM, store_imm) \
   X(STORE_MULT_DEC_BEF, store_mult_dec_bef) \
@@ -150,6 +152,7 @@ struct inst_load_byte_imm { u16 imm; u8 t, n, add, index; };
 struct inst_load_byte_lit { u16 imm; u8 t, add; };
 struct inst_load_byte_reg { imm_shift shift; u8 t, n, m; };
 struct inst_load_dbl_reg { u16 imm; u8 t, t2, n, index, add; };
+struct inst_load_excl { u16 imm; u8 t, n; };
 struct inst_load_half_imm { u16 imm; u8 t, n, add, index; };
 struct inst_load_imm { u16 imm; u8 n, t, add, index; };
 struct inst_load_lit { u32 imm, addr; u8 t, add; };
@@ -171,6 +174,7 @@ struct inst_nop {};
 struct inst_rshift_log { imm_shift shift; u8 dst_reg, src_reg; };
 struct inst_rshift_arith_imm { imm_shift shift; u8 dst_reg, src_reg; };
 struct inst_store_byte_imm { u16 imm; u8 t, n, add; };
+struct inst_store_excl { u16 imm; u8 d, t, n; };
 struct inst_store_imm { u8 t, n; u16 imm; };
 struct inst_store_half_imm { u16 imm; u8 t, n, index, add; };
 struct inst_store_mult_dec_bef { u16 regs; u8 n; };

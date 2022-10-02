@@ -179,6 +179,10 @@ void print(inst_load_dbl_reg const& l) {
     l.add ? "" : "-", int(l.imm));
 }
 
+void print(inst_load_excl const& l) {
+  printf("LDREX %s, [%s, #%d]", s_rn[l.t], s_rn[l.n], int(l.imm));
+}
+
 void print(inst_load_imm const& l) {
   printf("LDR_IMM %s, [%s, #%d]", s_rn[l.t], s_rn[l.n], int(l.imm));
 }
@@ -242,6 +246,10 @@ void print(inst_or_reg_reg const& o) {
 
 void print(inst_store_byte_imm const& s) {
   printf("STRB_IMM %s, [%s, #%d]", s_rn[s.t], s_rn[s.n], int(s.imm));
+}
+
+void print(inst_store_excl const& s) {
+  printf("STREX %s, %s, [%s, #%d]", s_rn[s.d], s_rn[s.t], s_rn[s.n], int(s.imm));
 }
 
 void print(inst_store_half_imm const& s) {
@@ -980,8 +988,13 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
 
   if ((w0 & 0xFE50u) == 0xE850u) { // 4.6.50 LDRD (imm), T1 encoding (pg 4-114)
     u8 const p{u8((w0 >> 8u) & 1u)}, u{u8((w0 >> 7u) & 1u)}, w{u8((w0 >> 5u) & 1u)};
-    if ((p == 0) && (w == 0)) {
-      // SEE Load/store double and exclusive, and table branch on page 3-28
+    if ((p == 0) && (w == 0)) { // 4.6.51 LDREX, T1 encoding (pg 4-116)
+      out_inst.type = inst_type::LOAD_EXCL;
+      out_inst.i.load_excl = { .imm = u16((w1 & 0xFFu) << 2u), .n = u8(w0 & 0xFu),
+        .t = u8((w1 >> 12u) & 0xFu) };
+      return true;
+    }
+    if ((p == 0) && (w == 1)) { // 4.6.188 TBB, T1 encoding (4-389)
       return false;
     }
     out_inst.type = inst_type::LOAD_DBL_REG;
@@ -1173,7 +1186,15 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
     return true;
   }
 
-  // 4.6.168 TBB, T1 encoding (pg 4-389)
+
+  if ((w0 & 0xFFF0u) == 0xE840u) {  // 4.6.168 STREX, T1 encoding (pg 4-349)
+    out_inst.type = inst_type::STORE_EXCL;
+    out_inst.i.store_excl = { .imm = u16((w1 & 0xFFu) << 2u), .n = u8(w0 & 0xFu),
+      .t = u8((w1 >> 12u) & 0xFu), .d = u8((w1 >> 8u) & 0xFu) };
+    return true;
+  }
+
+  // 4.6.188 TBB, T1 encoding (pg 4-389)
   if (((w0 & 0xFFF0u) == 0xE8D0u) && ((w1 & 0xF0u) == 0)) {
     out_inst.type = inst_type::TABLE_BRANCH_BYTE;
     out_inst.i.table_branch_byte = { .base_reg = u8(w0 & 0xFu), .idx_reg = u8(w1 & 0xFu) };
