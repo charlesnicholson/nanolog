@@ -40,6 +40,7 @@ struct imm_shift { imm_shift_type t; u8 n; };
 
 #define INST_TYPE_X_LIST() \
   X(UNKNOWN, unknown) \
+  X(ADD_CARRY_IMM, add_carry_imm) \
   X(ADD_CARRY_REG, add_carry_reg) \
   X(ADD_IMM, add_imm) \
   X(ADD_SP_IMM, add_sp_imm) \
@@ -129,6 +130,7 @@ enum class inst_type : u8 { INST_TYPE_X_LIST() };
 #undef X
 
 struct inst_unknown {};
+struct inst_add_carry_imm { u32 imm; u8 d, n; };
 struct inst_add_carry_reg { imm_shift shift; u8 d, n, m; };
 struct inst_add_imm { u16 imm; u8 d, n; };
 struct inst_add_sp_imm { u16 imm; u8 d; };

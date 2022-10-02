@@ -23,8 +23,12 @@ char const *s_sn[] = { SHIFT_X_LIST() };
 
 void print(inst_unknown const&) { printf("??"); }
 
+void print(inst_add_carry_imm const& a) {
+  printf("ADC_IMM %s, %s, #%d", s_rn[a.d], s_rn[a.n], int(a.imm));
+}
+
 void print(inst_add_carry_reg const& a) {
-  printf("ADC_REG %s, %s, %s <%s #%d>", s_rn[a.d], s_rn[a.m], s_rn[a.n],
+  printf("ADC_REG %s, %s, %s <%s #%d>", s_rn[a.d], s_rn[a.n], s_rn[a.m],
     s_sn[int(a.shift.t)], int(a.shift.n));
 }
 
@@ -833,6 +837,24 @@ bool decode_16bit_inst(u16 const w0, inst& out_inst) {
 
 bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
   out_inst.len = 4;
+
+  // 4.6.1 ADC (imm), T1 encoding (pg 4-16)
+  if (((w0 & 0xFBE0u) == 0xF140u) && ((w1 & 0x8000u) == 0)) {
+    u32 const imm8{w1 & 0xFFu}, imm3{(w1 >> 12u) & 7u}, i{(w0 >> 10u) & 1u};
+    out_inst.type = inst_type::ADD_CARRY_IMM;
+    out_inst.i.add_carry_imm = { .n = u8(w0 & 0xFu), .d = u8((w1 >> 8u) & 0xFu),
+      .imm = decode_imm12((i << 11u) | (imm3 << 8u) | imm8) };
+    return true;
+  }
+
+  if ((w0 & 0xFFE0u) == 0xEB40u) { // 4.6.2 ADC (reg), T2 encoding (pg 4-18)
+    u8 const imm3{u8((w1 >> 12u) & 7u)}, imm2{u8((w1 >> 6u) & 3u)};
+    out_inst.type = inst_type::ADD_CARRY_REG;
+    out_inst.i.add_carry_reg = { .m = u8(w1 & 0xFu), .n = u8(w0 & 0xFu),
+      .d = u8((w1 >> 8u) & 0xFu),
+      .shift = decode_imm_shift(u8((w1 >> 4u) & 3u), u8((imm3 << 2u) | imm2)) };
+    return true;
+  }
 
   // 4.6.3 ADD (imm), T3 encoding (pg 4-20)
   if (((w0 & 0xFBE0u) == 0xF100u) && ((w1 & 0x8000u) == 0)) {
