@@ -140,12 +140,12 @@ void print(inst_div_signed const& d) {
 }
 
 void print(inst_excl_or_imm const& e) {
-  printf("EOR %s, %s, #%d", s_rn[e.d], s_rn[e.n], int(e.imm));
+  printf("EOR_IMM %s, %s, #%d", s_rn[e.d], s_rn[e.n], int(e.imm));
 }
 
 void print(inst_excl_or_reg const& e) {
-  printf("EOR %s, %s, %s, <%s #%d>", s_rn[e.d], s_rn[e.n], s_rn[e.m], s_sn[int(e.shift.t)],
-    int(e.shift.n));
+  printf("EOR_REG %s, %s, %s, <%s #%d>", s_rn[e.d], s_rn[e.n], s_rn[e.m],
+    s_sn[int(e.shift.t)], int(e.shift.n));
 }
 
 void print(inst_extend_unsigned_byte const& u) {
@@ -320,6 +320,8 @@ void print(inst_svc const& s) { printf("SVC %x", unsigned(s.imm)); }
 void print(inst_table_branch_byte const& t) {
   printf("TBB [%s, %s]", s_rn[t.base_reg], s_rn[t.idx_reg]);
 }
+
+void print(inst_test_equiv const t) { printf("TEQ %s, #%d", s_rn[t.n], int(t.imm)); }
 
 void print(inst_vconvert_fp_int const& v) {
   printf("VCVT.");
@@ -904,10 +906,16 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
 
   // 4.6.36 EOR (imm), T1 encoding (pg 4-86)
   if (((w0 & 0xFBE0u) == 0xF080u) && ((w1 & 0x8000u) == 0)) {
-    u32 const imm8{w1 & 0xFFu}, imm3{(w1 >> 12u) & 7u}, i{(w0 >> 10u) & 1u};
+    u8 const d{u8((w1 >> 8u) & 0xFu)}, s{u8((w0 >> 4u) & 1u)}, n{u8(w0 & 0xFu)};
+    u32 const imm8{w1 & 0xFFu}, imm3{(w1 >> 12u) & 7u}, i{(w0 >> 10u) & 1u},
+      imm{decode_imm12((i << 11u) | (imm3 << 8u) | imm8)};
+    if ((s == 1) && (d == 15)) { // 4.6.190 TEQ (imm), T1 encoding (pg 4-393)
+      out_inst.type = inst_type::TEST_EQUIV;
+      out_inst.i.test_equiv = { .n = n, .imm = imm };
+      return true;
+    }
     out_inst.type = inst_type::EXCL_OR_IMM;
-    out_inst.i.excl_or_imm = { .n = u8(w0 & 0xFu), .d = u8((w1 >> 8u) & 0xFu),
-      .imm = decode_imm12((i << 11u) | (imm3 << 8u) | imm8)};
+    out_inst.i.excl_or_imm = { .n = n, .d = d, .imm = imm };
     return true;
   }
 
@@ -1176,21 +1184,16 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
 
   if ((w0 & 0xFE50u) == 0xE840u) { // 4.6.167 STRD (imm), T1 encoding (pg 4-347)
     u8 const p{u8((w0 >> 8u) & 1u)}, w{u8((w0 >> 5u) & 1u)};
-    if (!p && !w) { // "SEE Load/store double and exclusive, and table branch on pg 3-28"
-      return false;
+    if ((p == 0) && (w == 0)) {  // 4.6.168 STREX, T1 encoding (pg 4-349)
+      out_inst.type = inst_type::STORE_EXCL;
+      out_inst.i.store_excl = { .imm = u16((w1 & 0xFFu) << 2u), .n = u8(w0 & 0xFu),
+        .t = u8((w1 >> 12u) & 0xFu), .d = u8((w1 >> 8u) & 0xFu) };
+      return true;
     }
     out_inst.type = inst_type::STORE_REG_DOUBLE_IMM;
     out_inst.i.store_reg_double_imm = { .imm = u16((w1 & 0xFFu) << 2u), .n = u8(w0 & 0xFu),
       .t = u8((w1 >> 12u) & 0xFu), .t2 = u8((w1 >> 8u) & 0xFu), .add = u8((w0 >> 7u) & 1u),
       .index = p };
-    return true;
-  }
-
-
-  if ((w0 & 0xFFF0u) == 0xE840u) {  // 4.6.168 STREX, T1 encoding (pg 4-349)
-    out_inst.type = inst_type::STORE_EXCL;
-    out_inst.i.store_excl = { .imm = u16((w1 & 0xFFu) << 2u), .n = u8(w0 & 0xFu),
-      .t = u8((w1 >> 12u) & 0xFu), .d = u8((w1 >> 8u) & 0xFu) };
     return true;
   }
 
