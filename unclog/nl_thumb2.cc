@@ -83,6 +83,9 @@ bool inst_terminates_path(inst const& i, func_state& s) {
       if (i.i.load_mult_inc_after.regs & (1u << reg::PC)) { return true; }
       break;
 
+    case inst_type::LOAD_REG: // LDR PC, [...]
+      if (i.i.load_reg.t == reg::PC) { return true; }
+
     case inst_type::LOAD_LIT: // LDR PC, [PC, #x]
       // TODO: implement
       break;
@@ -104,7 +107,6 @@ bool inst_is_log_call(inst const& i, std::vector<elf_symbol32 const*> const& log
 void simulate(inst const& i, func_state& fs, reg_state& regs) {
   u32 branch_label;
   if (inst_is_goto(i, branch_label) && address_in_func(branch_label, fs)) {
-    printf("unconditional branch to %x\n", branch_label);
     regs.regs[reg::PC] = branch_label;
     return;
   }

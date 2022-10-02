@@ -74,6 +74,8 @@ struct imm_shift { imm_shift_type t; u8 n; };
   X(LOAD_DBL_REG, load_dbl_reg) \
   X(LOAD_EXCL, load_excl) \
   X(LOAD_HALF_IMM, load_half_imm) \
+  X(LOAD_SIGNED_HALF_IMM, load_signed_half_imm) \
+  X(LOAD_SIGNED_HALF_REG, load_signed_half_reg) \
   X(LOAD_IMM, load_imm) \
   X(LOAD_LIT, load_lit) \
   X(LOAD_MULT_INC_AFTER, load_mult_inc_after) \
@@ -160,6 +162,8 @@ struct inst_load_imm { u16 imm; u8 n, t, add, index; };
 struct inst_load_lit { u32 imm, addr; u8 t, add; };
 struct inst_load_mult_inc_after { u16 regs; u8 n, wback; };
 struct inst_load_reg { imm_shift shift; u8 t, n, m; };
+struct inst_load_signed_half_imm { u16 imm; u8 t, n, index, add; };
+struct inst_load_signed_half_reg { imm_shift shift; u8 t, n, m; };
 struct inst_lshift_log_imm { u8 dst_reg, src_reg, imm; };
 struct inst_lshift_log_reg { u8 d, n, m; };
 struct inst_mov { u8 d, m; };

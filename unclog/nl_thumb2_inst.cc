@@ -207,6 +207,15 @@ void print(inst_load_reg const& l) {
     s_sn[int(l.shift.t)], int(l.shift.n));
 }
 
+void print(inst_load_signed_half_imm const& l) {
+  printf("LDRSH_IMM %s, [%s, #%d]", s_rn[l.t], s_rn[l.n], int(l.imm));
+}
+
+void print(inst_load_signed_half_reg const& l) {
+  printf("LDRSH_REG %s, [%s, %s, %s #%d]", s_rn[l.t], s_rn[l.n], s_rn[l.m],
+    s_sn[int(l.shift.t)], int(l.shift.n));
+}
+
 void print(inst_lshift_log_imm const& l) {
   printf("LSL_IMM %s, %s, #%d", s_rn[l.dst_reg], s_rn[l.src_reg], int(l.imm));
 }
@@ -1027,6 +1036,35 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
     out_inst.type = inst_type::LOAD_HALF_IMM;
     out_inst.i.load_half_imm = { .imm = u16(w1 & 0xFFFu), .t = u8((w1 >> 12u) & 0xFu),
       .n = u8(w0 & 0xFu), .add = 1u, .index = 1u };
+    return true;
+  }
+
+  if ((w0 & 0xFFF0u) == 0xF9B0u) { // 4.6.63 LDRSH (imm), T1 encoding (pg 4-140)
+    u8 const n{u8(w0 & 0xFu)}, t{u8((w1 >> 12u) & 0xFu)};
+    if (n == 15) { // "SEE LDRSH (literal) on page 4-142"
+      return false;
+    }
+    if (t == 15) { // "SEE Memory hints on page 4-14"
+      return false;
+    }
+    out_inst.type = inst_type::LOAD_SIGNED_HALF_IMM;
+    out_inst.i.load_signed_half_imm = { .add = 1u, .index = 1u, .n = n, .t = t,
+      .imm = u16(w1 & 0xFFFu) };
+    return true;
+  }
+
+  // 4.6.65 LDRSH (reg), T2 encoding (pg 4-144)
+  if (((w0 & 0xFFF0u) == 0xF930u) && ((w1 & 0xFC0u) == 0)) {
+    u8 const t{u8((w1 >> 12u) & 0xFu)}, n{u8(w0 & 0xFu)};
+    if (n == 15) { // "SEE LDRSH (literal) on page 4-142"
+      return false;
+    }
+    if (t == 15) { // "SEE Memory hints on page 4-14"
+      return false;
+    }
+    out_inst.type = inst_type::LOAD_SIGNED_HALF_REG;
+    out_inst.i.load_signed_half_reg = { .n = n, .t = t, .m = u8(w1 & 0xFu),
+      .shift = decode_imm_shift(u8(imm_shift_type::LSL), u8((w1 >> 4u) & 3u)) };
     return true;
   }
 
