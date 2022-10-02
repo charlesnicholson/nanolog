@@ -277,8 +277,13 @@ void print(inst_store_reg const& s) {
     s_rn[s.ofs_reg], s_sn[int(s.shift.t)], int(s.shift.n));
 }
 
-void print(inst_store_reg_byte const& s) {
-  printf("STR_REG_B %s, [%s, #%d]", s_rn[s.t], s_rn[s.n], int(s.imm));
+void print(inst_store_reg_byte_imm const& s) {
+  printf("STR_REG_B_IMM %s, [%s, #%d]", s_rn[s.t], s_rn[s.n], int(s.imm));
+}
+
+void print(inst_store_reg_byte_reg const& s) {
+  printf("STR_REG_B_REG %s, [%s, %s, %s #%d]", s_rn[s.t], s_rn[s.n], s_rn[s.m],
+    s_sn[int(s.shift.t)], int(s.shift.n));
 }
 
 void print(inst_store_reg_byte_unpriv const& s) {
@@ -705,6 +710,13 @@ bool decode_16bit_inst(u16 const w0, inst& out_inst) {
     out_inst.type = inst_type::STORE_BYTE_IMM;
     out_inst.i.store_byte_imm = { .imm = u16((w0 >> 6u) & 0x1Fu), .t = u8(w0 & 7u),
       .n = u8((w0 >> 3u) & 7u) };
+    return true;
+  }
+
+  if ((w0 & 0xFE00u) == 0x5400u) {  // 4.6.165 STRB (reg), T1 encoding (pg 4-343)
+    out_inst.type = inst_type::STORE_REG_BYTE_REG;
+    out_inst.i.store_reg_byte_reg = { .t = u8(w0 & 7u), .n = u8((w0 >> 3u) & 7u),
+      .m = u8((w0 >> 6u) & 7u), .shift = decode_imm_shift(0b00, 0) };
     return true;
   }
 
@@ -1161,8 +1173,8 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
   }
 
   if ((w0 & 0xFFF0u) == 0xF880u) { // 4.6.164 STRB (imm), T2 encoding (pg 4.341)
-    out_inst.type = inst_type::STORE_REG_BYTE;
-    out_inst.i.store_reg_byte = { .imm = u16(w1 & 0xFFFu), .t = u8((w1 >> 12u) & 0xFu),
+    out_inst.type = inst_type::STORE_REG_BYTE_IMM;
+    out_inst.i.store_reg_byte_imm = { .imm = u16(w1 & 0xFFFu), .t = u8((w1 >> 12u) & 0xFu),
       .n = u8(w0 & 0xFu), .add = 1u, .index = 1u };
     return true;
   }
@@ -1307,6 +1319,16 @@ bool inst_is_unconditional_branch(inst const& i, u32& label) {
       label = i.i.branch.addr; return cond_code_is_always(i.i.branch.cc);
     case inst_type::BRANCH_LINK: label = i.i.branch_link.addr; return true;
     case inst_type::BRANCH_LINK_XCHG_REG: label = 0; return true; // TODO: register state
+    default: break;
+  }
+
+  return false;
+}
+
+bool inst_is_goto(inst const& i, u32& label) {
+  switch (i.type) {
+    case inst_type::BRANCH:
+      label = i.i.branch.addr; return cond_code_is_always(i.i.branch.cc);
     default: break;
   }
 

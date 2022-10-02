@@ -102,6 +102,13 @@ bool inst_is_log_call(inst const& i, std::vector<elf_symbol32 const*> const& log
 }
 
 void simulate(inst const& i, func_state& fs, reg_state& regs) {
+  u32 branch_label;
+  if (inst_is_goto(i, branch_label) && address_in_func(branch_label, fs)) {
+    printf("unconditional branch to %x\n", branch_label);
+    regs.regs[reg::PC] = branch_label;
+    return;
+  }
+
   std::vector<reg_mut_node>& reg_muts = fs.lca.reg_muts;
 
   switch (i.type) {
@@ -131,6 +138,8 @@ void simulate(inst const& i, func_state& fs, reg_state& regs) {
 
     default: break;
   }
+
+  regs.regs[reg::PC] += i.len;
 }
 }
 
@@ -187,7 +196,9 @@ bool thumb2_analyze_func(elf const& e,
           !test_visited(label, s)) {
         printf("  Internal branch, pushing state\n");
         s.paths.push(reg_state{.regs[reg::PC] = label});
-      } else if (inst_is_log_call(pc_i, log_funcs)) {
+      }
+
+      if (inst_is_log_call(pc_i, log_funcs)) {
         if (!test_reg_known(path.known, reg::R0)) {
           printf("  Found log function, R0 is unknown\n");
           break;
@@ -226,12 +237,11 @@ bool thumb2_analyze_func(elf const& e,
             printf("\n***\n");
             break;
         }
-      } else {
-        simulate(pc_i, s, path);
       }
 
-      path.regs[reg::PC] += pc_i.len;
+      simulate(pc_i, s, path);
     }
   }
+
   return true;
 }

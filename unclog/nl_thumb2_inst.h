@@ -100,7 +100,8 @@ struct imm_shift { imm_shift_type t; u8 n; };
   X(STORE_MULT_DEC_BEF, store_mult_dec_bef) \
   X(STORE_MULT_INC_AFTER, store_mult_inc_after) \
   X(STORE_REG, store_reg) \
-  X(STORE_REG_BYTE, store_reg_byte) \
+  X(STORE_REG_BYTE_IMM, store_reg_byte_imm) \
+  X(STORE_REG_BYTE_REG, store_reg_byte_reg) \
   X(STORE_REG_BYTE_UNPRIV, store_reg_byte_unpriv) \
   X(STORE_REG_DOUBLE_IMM, store_reg_double_imm) \
   X(SUB_IMM, sub_imm) \
@@ -181,7 +182,8 @@ struct inst_store_half_imm { u16 imm; u8 t, n, index, add; };
 struct inst_store_mult_dec_bef { u16 regs; u8 n; };
 struct inst_store_mult_inc_after { u16 regs; u8 n, wback; };
 struct inst_store_reg { imm_shift shift; u8 src_reg, base_reg, ofs_reg; };
-struct inst_store_reg_byte { u16 imm; u8 n, t, index, add; };
+struct inst_store_reg_byte_imm { u16 imm; u8 n, t, index, add; };
+struct inst_store_reg_byte_reg { imm_shift shift; u8 t, m, n; };
 struct inst_store_reg_byte_unpriv { u16 imm; u8 t, n; };
 struct inst_store_reg_double_imm { u16 imm; u8 t, t2, n, add, index; };
 struct inst_sub_imm { u32 imm; u8 d, n; };
@@ -209,6 +211,7 @@ struct inst {
 
 bool inst_is_conditional_branch(inst const& i, u32& target);
 bool inst_is_unconditional_branch(inst const& i, u32& label);
+bool inst_is_goto(inst const& i, u32& label);
 u32 inst_align(u32 val, u32 align);
 bool inst_decode(char const *text, u32 func_addr, u32 pc_addr, inst& out_inst);
 void inst_print(inst const& i);
