@@ -299,6 +299,11 @@ void print(inst_store_reg_byte_unpriv const& s) {
   printf("STRBT %s, [%s, #%d]", s_rn[s.t], s_rn[s.n], int(s.imm));
 }
 
+void print(inst_store_reg_half_reg const& s) {
+  printf("STRH %s, [%s, %s, %s #%d]", s_rn[s.t], s_rn[s.n], s_rn[s.m], s_sn[int(s.shift.t)],
+    int(s.shift.n));
+}
+
 void print(inst_store_reg_double_imm const &s) {
   printf("STRD %s, %s, [%s], #%d", s_rn[s.t], s_rn[s.t2], s_rn[s.n], int(s.imm));
 }
@@ -733,6 +738,13 @@ bool decode_16bit_inst(u16 const w0, inst& out_inst) {
     out_inst.type = inst_type::STORE_HALF_IMM;
     out_inst.i.store_half_imm = { .t = u8(w0 & 7u), .n = u8((w0 >> 3u) & 7u),
       .imm = u16(((w0 >> 6u) & 0x1F) << 1u), .index = 1u, .add = 1u };
+    return true;
+  }
+
+  if ((w0 & 0xFE00u) == 0x5200u) { // 4.6.173 STRG (reg), T1 encoding (pg 4-359)
+    out_inst.type = inst_type::STORE_REG_HALF_REG;
+    out_inst.i.store_reg_half_reg = { .t = u8(w0 & 7u), .n = u8((w0 >> 3u) & 7u),
+      .m = u8((w0 >> 6u) & 3u), .shift = decode_imm_shift(0b00, 0) };
     return true;
   }
 
