@@ -175,7 +175,7 @@ struct inst_sub_imm { u32 imm; u8 d, n; };
 struct inst_sub_imm_carry { u32 imm; u8 d, n; };
 struct inst_sub_reg { imm_shift shift; u8 dst_reg, op1_reg, op2_reg; };
 struct inst_sub_reg_carry { imm_shift shift; u8 d, n, m; };
-struct inst_sub_rev_imm { u16 imm; u8 d, n; };
+struct inst_sub_rev_imm { u32 imm; u8 d, n; };
 struct inst_sub_sp_imm { u32 imm; u8 d; };
 struct inst_svc { u32 imm; };
 struct inst_table_branch_byte { u8 base_reg, idx_reg; };

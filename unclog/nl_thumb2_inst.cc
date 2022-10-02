@@ -1023,6 +1023,15 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
     return true;
   }
 
+  // 4.6.118 RSB (imm), T2 encoding (pg 4-249)
+  if (((w0 & 0xFBE0u) == 0xF1C0u) && ((w1 & 0x8000u) == 0)) {
+    u32 const imm8{w1 & 0xFFu}, imm3{(w1 >> 12u) & 7u}, i{(w0 >> 10u) & 1u};
+    out_inst.type = inst_type::SUB_REV_IMM;
+    out_inst.i.sub_rev_imm = { .n = u8(w0 & 0xFu), .d = u8((w1 >> 8u) & 0xFu),
+      .imm = decode_imm12((i << 11u) | (imm3 << 8u) | imm8) };
+    return true;
+  }
+
   // 4.6.123 SBC (imm), T1 encoding (pg 4-259)
   if (((w0 & 0xFBE0u) == 0xF160u) && ((w1 & 0x8000u) == 0)) {
     u32 const imm8{w1 & 0xFFu}, imm3{(w1 >> 12u) & 7u}, i{(w0 >> 10u) & 1u};
@@ -1128,9 +1137,9 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
 
   // 4.6.176 SUB, T4 encoding (pg 4-365)
   if (((w0 & 0xFBF0u) == 0xF2A0u) && ((w1 & 0x8000u) == 0)) {
-    u8 const n{u8(w0 & 0xFu)}, imm3{u8((w1 >> 12u) & 7u)}, imm8{u8(w1 & 0xFFu)},
-      i{u8((w0 >> 10u) & 1u)}, d{u8((w1 >> 8u) & 0xFu)};
-    u16 const imm{u16((i << 11u) | (imm3 << 8u) | imm8)};
+    u8 const n{u8(w0 & 0xFu)}, d{u8((w1 >> 8u) & 0xFu)};
+    u16 const imm3{u8((w1 >> 12u) & 7u)}, imm8{u8(w1 & 0xFFu)}, i{u8((w0 >> 10u) & 1u)},
+      imm{u16((i << 11u) | (imm3 << 8u) | imm8)};
     if (n == 15) { // "SEE ADR on page 4-28"
       return false;
     }
