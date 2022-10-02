@@ -95,6 +95,11 @@ void print(inst_bitfield_extract_unsigned const& b) {
     int(b.widthminus1 + 1));
 }
 
+void print(inst_bitfield_insert const& b) {
+  printf("BFI %s, %s, #%d, #%d", s_rn[b.d], s_rn[b.n], int(b.lsbit),
+    int(b.msbit - b.lsbit));
+}
+
 void print(inst_branch const& i) {
   printf("B%s #%d (%x)", i.cc >= cond_code::AL1 ? "" : cond_code_name(i.cc),
     int(i32(i.imm)), unsigned(i.addr));
@@ -134,9 +139,25 @@ void print(inst_div_signed const& d) {
   printf("SDIV %s, %s, %s", s_rn[d.d], s_rn[d.n], s_rn[d.m]);
 }
 
-void print(inst_excl_or const& e) {
+void print(inst_excl_or_imm const& e) {
+  printf("EOR %s, %s, #%d", s_rn[e.d], s_rn[e.n], int(e.imm));
+}
+
+void print(inst_excl_or_reg const& e) {
   printf("EOR %s, %s, %s, <%s #%d>", s_rn[e.d], s_rn[e.n], s_rn[e.m], s_sn[int(e.shift.t)],
     int(e.shift.n));
+}
+
+void print(inst_extend_unsigned_byte const& u) {
+  printf("UXTB %s, %s, <%d>", s_rn[u.d], s_rn[u.m], int(u.rotation));
+}
+
+void print(inst_extend_unsigned_half const& u) {
+  printf("UXTH %s, %s, <%d>", s_rn[u.d], s_rn[u.m], int(u.rotation));
+}
+
+void print(inst_extend_signed_byte const& u) {
+  printf("SXTB %s, %s, <%d>", s_rn[u.d], s_rn[u.m], int(u.rotation));
 }
 
 void print(inst_load_byte_imm const& l) {
@@ -154,8 +175,8 @@ void print(inst_load_byte_reg const& l) {
 }
 
 void print(inst_load_dbl_reg const& l) {
-  printf("LDRD_REG %s, %s, [%s, #%s%d]", s_rn[l.dst1_reg], s_rn[l.dst2_reg],
-    s_rn[l.base], l.add ? "" : "-", int(l.imm));
+  printf("LDRD_REG %s, %s, [%s, #%s%d]", s_rn[l.t], s_rn[l.t2], s_rn[l.n],
+    l.add ? "" : "-", int(l.imm));
 }
 
 void print(inst_load_imm const& l) {
@@ -290,14 +311,6 @@ void print(inst_svc const& s) { printf("SVC %x", unsigned(s.imm)); }
 
 void print(inst_table_branch_byte const& t) {
   printf("TBB [%s, %s]", s_rn[t.base_reg], s_rn[t.idx_reg]);
-}
-
-void print(inst_unsigned_extend_byte const& u) {
-  printf("UXTB %s, %s, <%d>", s_rn[u.d], s_rn[u.m], int(u.rotation));
-}
-
-void print(inst_unsigned_extend_half const& u) {
-  printf("UXTH %s, %s, <%d>", s_rn[u.d], s_rn[u.m], int(u.rotation));
 }
 
 void print(inst_vconvert_fp_int const& v) {
@@ -503,10 +516,10 @@ bool decode_16bit_inst(u16 const w0, inst& out_inst) {
     return true;
   }
 
-  if ((w0 & 0xFFC0u) == 0x4040u) {
+  if ((w0 & 0xFFC0u) == 0x4040u) { // 4.6.37 EOR (reg), T1 encoding (pg 4-88)
     u8 const rdn{u8(w0 & 7u)};
-    out_inst.type = inst_type::EXCL_OR;
-    out_inst.i.excl_or = { .d = rdn, .n = rdn, .m = u8((w0 >> 3u) & 7u),
+    out_inst.type = inst_type::EXCL_OR_REG;
+    out_inst.i.excl_or_reg = { .d = rdn, .n = rdn, .m = u8((w0 >> 3u) & 7u),
       .shift = decode_imm_shift(0b00, 0) };
     return true;
   }
@@ -720,16 +733,23 @@ bool decode_16bit_inst(u16 const w0, inst& out_inst) {
     return true;
   }
 
+  if ((w0 & 0xFFC0u) == 0xB240u) { // 4.6.185 SXTB, T1 encoding (pg 4-383)
+    out_inst.type = inst_type::EXTEND_SIGNED_BYTE;
+    out_inst.i.extend_signed_byte = { .d = u8(w0 & 7u), .m = u8((w0 >> 3u) & 7u),
+      .rotation = 0 };
+    return true;
+  }
+
   if ((w0 & 0xFFC0u) == 0xB2C0u) { // 4.6.224 UXTB, T1 encoding (pg 4-461)
-    out_inst.type = inst_type::UNSIGNED_EXTEND_BYTE;
-    out_inst.i.unsigned_extend_byte = { .d = u8(w0 & 7u), .m = u8((w0 >> 3u) & 7u),
+    out_inst.type = inst_type::EXTEND_UNSIGNED_BYTE;
+    out_inst.i.extend_unsigned_byte = { .d = u8(w0 & 7u), .m = u8((w0 >> 3u) & 7u),
       .rotation = 0 };
     return true;
   }
 
   if ((w0 & 0xFFC0u) == 0xB280u) { // 4.6.226 UXTH, T1 encoding (pg 4-465)
-    out_inst.type = inst_type::UNSIGNED_EXTEND_HALF;
-    out_inst.i.unsigned_extend_half = { .d = u8(w0 & 7u), .m = u8((w0 >> 3u) & 7u),
+    out_inst.type = inst_type::EXTEND_UNSIGNED_HALF;
+    out_inst.i.extend_unsigned_half = { .d = u8(w0 & 7u), .m = u8((w0 >> 3u) & 7u),
       .rotation = 0 };
     return true;
   }
@@ -810,6 +830,18 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
     return true;
   }
 
+  // 4.6.14 BFI, T1 encoding (pg 4-42)
+  if (((w0 & 0xFBF0u) == 0xF360u) && ((w1 & 0x8000u) == 0)) {
+    u8 const imm2{u8((w1 >> 6u) & 3u)}, imm3{u8((w1 >> 12u) & 7u)}, n{u8(w1 & 0xFu)};
+    if (n == 15) { // "SEE BFC on page 4-40"
+      return false;
+    }
+    out_inst.type = inst_type::BITFIELD_INSERT;
+    out_inst.i.bitfield_insert = { .d = u8((w1 >> 8u) & 0xFu), .n = n,
+      .msbit = u8(w1 & 0x1Fu), .lsbit = u8((imm3 << 2u) | imm2) };
+    return true;
+  }
+
   // 4.6.15 BIC (imm), T1 encoding (pg 4-44)
   if (((w0 & 0xFBE0u) == 0xF020u) && ((w1 & 0x8000u) == 0)) {
     u32 const imm8{w1 & 0xFFu}, imm3{(w1 >> 12u) & 7u}, i{(w0 >> 10u) & 1u};
@@ -843,6 +875,15 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
   if (((w0 & 0xFFF0u) == 0xFAB0u) && ((w1 & 0xF0F0u) == 0xF080u)) {
     out_inst.type = inst_type::COUNT_LEADING_ZEROS;
     out_inst.i.count_leading_zeros = { .d = u8(w1 & 7u), .m = u8((w1 >> 8u) & 0xFu) };
+    return true;
+  }
+
+  // 4.6.36 EOR (imm), T1 encoding (pg 4-86)
+  if (((w0 & 0xFBE0u) == 0xF080u) && ((w1 & 0x8000u) == 0)) {
+    u32 const imm8{w1 & 0xFFu}, imm3{(w1 >> 12u) & 7u}, i{(w0 >> 10u) & 1u};
+    out_inst.type = inst_type::EXCL_OR_IMM;
+    out_inst.i.excl_or_imm = { .n = u8(w0 & 0xFu), .d = u8((w1 >> 8u) & 0xFu),
+      .imm = decode_imm12((i << 11u) | (imm3 << 8u) | imm8)};
     return true;
   }
 
@@ -922,10 +963,14 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
   }
 
   if ((w0 & 0xFE50u) == 0xE850u) { // 4.6.50 LDRD (imm), T1 encoding (pg 4-114)
+    u8 const p{u8((w0 >> 8u) & 1u)}, u{u8((w0 >> 7u) & 1u)}, w{u8((w0 >> 5u) & 1u)};
+    if ((p == 0) && (w == 0)) {
+      // SEE Load/store double and exclusive, and table branch on page 3-28
+      return false;
+    }
     out_inst.type = inst_type::LOAD_DBL_REG;
-    out_inst.i.load_dbl_reg = { .imm = u16((w1 & 0xFFu) << 2u), .base = u8(w0 & 0xFu),
-      .dst1_reg = u8((w1 >> 12u) & 0xFu), .dst2_reg = u8((w1 >> 8u) & 0xFu),
-      .add = u8((w0 >> 7u) & 1u), .index = u8((w0 >> 8u) & 1u) };
+    out_inst.i.load_dbl_reg = { .imm = u16((w1 & 0xFFu) << 2u), .n = u8(w0 & 0xFu),
+      .t = u8((w1 >> 12u) & 0xFu), .t2 = u8((w1 >> 8u) & 0xFu), .add = u, .index = p };
     return true;
   }
 

@@ -51,6 +51,7 @@ struct imm_shift { imm_shift_type t; u8 n; };
   X(BIT_CLEAR_IMM, bit_clear_imm) \
   X(BIT_CLEAR_REG, bit_clear_reg) \
   X(BITFIELD_EXTRACT_UNSIGNED, bitfield_extract_unsigned) \
+  X(BITFIELD_INSERT, bitfield_insert) \
   X(BRANCH, branch) \
   X(BRANCH_LINK, branch_link) \
   X(BRANCH_LINK_XCHG_REG, branch_link_xchg_reg) \
@@ -61,7 +62,11 @@ struct imm_shift { imm_shift_type t; u8 n; };
   X(CMP_REG, cmp_reg) \
   X(COUNT_LEADING_ZEROS, count_leading_zeros) \
   X(DIV_SIGNED, div_signed) \
-  X(EXCL_OR, excl_or) \
+  X(EXCL_OR_IMM, excl_or_imm) \
+  X(EXCL_OR_REG, excl_or_reg) \
+  X(EXTEND_SIGNED_BYTE, extend_signed_byte) \
+  X(EXTEND_UNSIGNED_BYTE, extend_unsigned_byte) \
+  X(EXTEND_UNSIGNED_HALF, extend_unsigned_half) \
   X(IF_THEN, if_then) \
   X(LOAD_BYTE_IMM, load_byte_imm) \
   X(LOAD_BYTE_LIT, load_byte_lit) \
@@ -104,8 +109,6 @@ struct imm_shift { imm_shift_type t; u8 n; };
   X(SUB_SP_IMM, sub_sp_imm) \
   X(SVC, svc) \
   X(TABLE_BRANCH_BYTE, table_branch_byte) \
-  X(UNSIGNED_EXTEND_BYTE, unsigned_extend_byte) \
-  X(UNSIGNED_EXTEND_HALF, unsigned_extend_half) \
   X(VCONVERT_FP_INT, vconvert_fp_int) \
   X(VMOV_SINGLE, vmov_single) \
   X(VMOV_DOUBLE, vmov_double)
@@ -126,6 +129,7 @@ struct inst_and_reg_imm { u32 imm; u8 dst_reg, src_reg; };
 struct inst_bit_clear_imm { u32 imm; u8 d, n; };
 struct inst_bit_clear_reg { imm_shift shift; u8 d, n, m; };
 struct inst_bitfield_extract_unsigned { u8 d, n, lsbit, widthminus1; };
+struct inst_bitfield_insert { u8 d, n, msbit, lsbit; };
 struct inst_branch { u32 imm; u32 addr; cond_code cc; };
 struct inst_branch_link { u32 imm, addr; };
 struct inst_branch_link_xchg_reg { u8 reg; };
@@ -136,12 +140,16 @@ struct inst_cmp_imm { u8 reg, imm; };
 struct inst_cmp_reg { imm_shift shift; u8 n, m; };
 struct inst_count_leading_zeros { u8 d, m; };
 struct inst_div_signed { u8 d, n, m; };
-struct inst_excl_or { imm_shift shift; u8 d, n, m; };
+struct inst_excl_or_imm { u32 imm; u8 d, n; };
+struct inst_excl_or_reg { imm_shift shift; u8 d, n, m; };
+struct inst_extend_signed_byte { u8 d, m, rotation; };
+struct inst_extend_unsigned_byte { u8 d, m, rotation; };
+struct inst_extend_unsigned_half { u8 d, m, rotation; };
 struct inst_if_then { u8 firstcond, mask; };
 struct inst_load_byte_imm { u16 imm; u8 t, n, add, index; };
 struct inst_load_byte_lit { u16 imm; u8 t, add; };
 struct inst_load_byte_reg { imm_shift shift; u8 t, n, m; };
-struct inst_load_dbl_reg { u16 imm; u8 dst1_reg, dst2_reg, base, index, add; };
+struct inst_load_dbl_reg { u16 imm; u8 t, t2, n, index, add; };
 struct inst_load_half_imm { u16 imm; u8 t, n, add, index; };
 struct inst_load_imm { u16 imm; u8 n, t, add, index; };
 struct inst_load_lit { u32 imm, addr; u8 t, add; };
@@ -179,8 +187,6 @@ struct inst_sub_rev_imm { u32 imm; u8 d, n; };
 struct inst_sub_sp_imm { u32 imm; u8 d; };
 struct inst_svc { u32 imm; };
 struct inst_table_branch_byte { u8 base_reg, idx_reg; };
-struct inst_unsigned_extend_byte { u8 d, m, rotation; };
-struct inst_unsigned_extend_half { u8 d, m, rotation; };
 struct inst_vconvert_fp_int { u8 d, m, to_int, int_unsigned, round_zero; };
 struct inst_vmov_double { u8 t, t2, m, to_arm_regs; };
 struct inst_vmov_single { u8 t, n, to_arm_reg; };
