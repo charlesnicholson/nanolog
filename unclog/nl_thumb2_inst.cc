@@ -1126,6 +1126,24 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
     return true;
   }
 
+  // 4.6.176 SUB, T4 encoding (pg 4-365)
+  if (((w0 & 0xFBF0u) == 0xF2A0u) && ((w1 & 0x8000u) == 0)) {
+    u8 const n{u8(w0 & 0xFu)}, imm3{u8((w1 >> 12u) & 7u)}, imm8{u8(w1 & 0xFFu)},
+      i{u8((w0 >> 10u) & 1u)}, d{u8((w1 >> 8u) & 0xFu)};
+    u16 const imm{u16((i << 11u) | (imm3 << 8u) | imm8)};
+    if (n == 15) { // "SEE ADR on page 4-28"
+      return false;
+    }
+    if (n == 13) { // 4.6.178 SUB (SP minus imm), T3 encoding, (pg 4-369)
+      out_inst.type = inst_type::SUB_SP_IMM;
+      out_inst.i.sub_sp_imm = { .d = d, .imm = imm };
+      return true;
+    }
+    out_inst.type = inst_type::SUB_IMM;
+    out_inst.i.sub_imm = { .d = d, .n = n, .imm = imm };
+    return true;
+  }
+
   // 4.6.197 UBFX, T1 encoding (pg 4-407)
   if (((w0 & 0xFBF0u) == 0xF3C0u) && ((w1 & 0x8000u) == 0)) {
     u32 const imm2{(w1 >> 6u) & 3u}, imm3{(w1 >> 12u) & 7u };
