@@ -773,6 +773,22 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
     return true;
   }
 
+  // 4.6.3 ADD (imm), T4 encoding (pg 4-20)
+  if (((w0 & 0xFBF0u) == 0xF200u) && ((w1 & 0x8000u) == 0)) {
+    u8 const n{u8(w0 & 0xFu)};
+    u32 const i{(w0 >> 10u) & 1u}, imm3{(w1 >> 12u) & 7u}, imm8{w1 & 0xFFu};
+    if (n == 15) { // "SEE ADR on page 4-28"
+      return false;
+    }
+    if (n == 13) { // "SEE ADD (SP plus immediate) on page 4-24"
+      return false;
+    }
+    out_inst.type = inst_type::ADD_IMM;
+    out_inst.i.add_imm = { .n = n, .d = u8((w1 >> 8u) & 0xFu),
+      .imm = u16((i << 11u) | (imm3 << 8u) | imm8) };
+    return true;
+  }
+
   if ((w0 & 0xFFE0u) == 0xEB00u) { // 4.6.4 ADD (reg), T3 encoding (pg 4-22)
     u32 const imm3{(w1 >> 12u) & 7u}, imm2{(w1 >> 6u) & 3u};
     u8 const n{u8(w0 & 0xFu)}, s{u8((w0 >> 4u) & 1u)}, m{u8(w1 & 0xFu)},

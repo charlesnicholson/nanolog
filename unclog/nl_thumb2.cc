@@ -218,9 +218,13 @@ bool thumb2_analyze_func(elf const& e,
               .log_func_call_addr = pc_i.addr,
               .node_idx = path.reg_node_idxs[reg::R0],
               .s = fmt_str_strat::ADD_IMM_FROM_BASE_REG });
+            break;
 
           default:
-            printf("Unrecognized pattern!\n"); break;
+            printf("Unrecognized pattern!\n***\n");
+            inst_print(r0_i);
+            printf("\n***\n");
+            break;
         }
       } else {
         simulate(pc_i, s, path);
