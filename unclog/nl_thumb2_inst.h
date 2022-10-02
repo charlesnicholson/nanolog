@@ -90,6 +90,7 @@ struct imm_shift { imm_shift_type t; u8 n; };
   X(MOV_NEG_IMM, mov_neg_imm) \
   X(MUL, mul) \
   X(MUL_ACCUM, mul_accum) \
+  X(MUL_ACCUM_SIGNED_LONG, mul_accum_signed_long) \
   X(MUL_SUB, mul_sub) \
   X(NOP, nop) \
   X(OR_REG_IMM, or_reg_imm) \
@@ -148,7 +149,7 @@ struct inst_byte_rev_packed_half { u8 d, m; };
 struct inst_cmp_branch_nz { u32 addr; u8 n, imm; };
 struct inst_cmp_branch_z { u32 addr; u8 n, imm; };
 struct inst_change_proc_state { u8 enable, disable, changemode, aff_a, aff_i, aff_f; };
-struct inst_cmp_imm { u8 reg, imm; };
+struct inst_cmp_imm { u32 imm; u8 n; };
 struct inst_cmp_reg { imm_shift shift; u8 n, m; };
 struct inst_count_leading_zeros { u8 d, m; };
 struct inst_div_signed { u8 d, n, m; };
@@ -178,6 +179,7 @@ struct inst_mov_imm { u32 imm; u8 d; };
 struct inst_mov_neg_imm { u32 imm; u8 d; };
 struct inst_mul { u8 d, n, m; };
 struct inst_mul_accum { u8 d, n, m, a; };
+struct inst_mul_accum_signed_long { u8 dlo, dhi, n, m; };
 struct inst_mul_sub { u8 d, n, m, a; };
 struct inst_or_reg_imm { u32 imm; u8 d, n; };
 struct inst_or_reg_reg { u32 imm; imm_shift shift; u8 d, n, m; };
@@ -200,7 +202,7 @@ struct inst_store_reg_half_reg { imm_shift shift; u8 t, n, m; };
 struct inst_store_reg_double_imm { u16 imm; u8 t, t2, n, add, index; };
 struct inst_sub_imm { u32 imm; u8 d, n; };
 struct inst_sub_imm_carry { u32 imm; u8 d, n; };
-struct inst_sub_reg { imm_shift shift; u8 dst_reg, op1_reg, op2_reg; };
+struct inst_sub_reg { imm_shift shift; u8 d, n, m; };
 struct inst_sub_reg_carry { imm_shift shift; u8 d, n, m; };
 struct inst_sub_rev_imm { u32 imm; u8 d, n; };
 struct inst_sub_sp_imm { u32 imm; u8 d; };

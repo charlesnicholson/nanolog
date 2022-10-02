@@ -129,7 +129,7 @@ void print(inst_change_proc_state const& c) {
     c.aff_a ? "A" : "", c.aff_f ? "F" : "", c.aff_i ? "I" : "");
 }
 
-void print(inst_cmp_imm const& c) { printf("CMP_IMM %s, #%d", s_rn[c.reg], int(c.imm)); }
+void print(inst_cmp_imm const& c) { printf("CMP_IMM %s, #%d", s_rn[c.n], int(c.imm)); }
 
 void print(inst_cmp_reg const& c) {
   printf("CMP_REG %s, %s <%s #%d>", s_rn[c.n], s_rn[c.m], s_sn[int(c.shift.t)],
@@ -253,6 +253,10 @@ void print(inst_mul_accum const& m) {
   printf("MLA %s, %s, %s, %s", s_rn[m.d], s_rn[m.m], s_rn[m.n], s_rn[m.a]);
 }
 
+void print(inst_mul_accum_signed_long const& m) {
+  printf("SMLAL %s, %s, %s, %s", s_rn[m.dlo], s_rn[m.dhi], s_rn[m.n], s_rn[m.m]);
+}
+
 void print(inst_mul_sub const& m) {
   printf("MLS %s, %s, %s, %s", s_rn[m.d], s_rn[m.n], s_rn[m.m], s_rn[m.a]);
 }
@@ -334,8 +338,8 @@ void print(inst_sub_imm_carry const &s) {
 }
 
 void print(inst_sub_reg const& s) {
-  printf("SUB_REG %s, %s, %s <%s #%u>", s_rn[s.dst_reg], s_rn[s.op1_reg],
-    s_rn[s.op2_reg], s_sn[int(s.shift.t)], unsigned(s.shift.n));
+  printf("SUB_REG %s, %s, %s <%s #%u>", s_rn[s.d], s_rn[s.n], s_rn[s.m],
+    s_sn[int(s.shift.t)], unsigned(s.shift.n));
 }
 
 void print(inst_sub_reg_carry const& s) {
@@ -540,7 +544,7 @@ bool decode_16bit_inst(u16 const w0, inst& out_inst) {
 
   if ((w0 & 0xF800u) == 0x2800u) { // 4.6.29 CMP (imm), T1 encoding (pg 4-72)
     out_inst.type = inst_type::CMP_IMM;
-    out_inst.i.cmp_imm = { .reg = u8((w0 >> 8u) & 7u), .imm = u8(w0 & 0xFFu) };
+    out_inst.i.cmp_imm = { .n = u8((w0 >> 8u) & 7u), .imm = u8(w0 & 0xFFu) };
     return true;
   }
 
@@ -793,8 +797,7 @@ bool decode_16bit_inst(u16 const w0, inst& out_inst) {
   if ((w0 & 0xFE00u) == 0x1A00u) { // 4.6.177 SUB (reg), T1 encoding (pg 4-367)
     out_inst.type = inst_type::SUB_REG;
     out_inst.i.sub_reg = { .shift = decode_imm_shift(0b00, 0),
-      .dst_reg = u8(w0 & 7u), .op1_reg = u8((w0 >> 3u) & 7u),
-      .op2_reg = u8((w0 >> 6u) & 7u) };
+      .d = u8(w0 & 7u), .n = u8((w0 >> 3u) & 7u), .m = u8((w0 >> 6u) & 7u) };
     return true;
   }
 
@@ -1230,6 +1233,14 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
     return true;
   }
 
+  // 4.6.139 SMLAL, T1 encoding (pg 4-291)
+  if (((w0 & 0xFFF0u) == 0xFBC0u) && ((w1 & 0xF0u) == 0)) {
+    out_inst.type = inst_type::MUL_ACCUM_SIGNED_LONG;
+    out_inst.i.mul_accum_signed_long = { .m = u8(w1 & 0xFu), .n = u8(w0 & 0xFu),
+      .dhi = u8((w1 >> 8u) & 0xFu), .dlo = u8((w1 >> 12u) & 0xFu) };
+    return true;
+  }
+
   if ((w0 & 0xFFD0u) == 0xE900u) { // 4.6.160 STMDB, T1 encoding (pg 4-333)
     out_inst.type = inst_type::STORE_MULT_DEC_BEF;
     out_inst.i.store_mult_dec_bef = { .n = u8(w0 & 0xFu), .regs = u16(w1 & 0x5FFFu) };
@@ -1287,6 +1298,21 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
     return true;
   }
 
+  if ((w0 & 0xFFE0u) == 0xEBA0u) { // 4.6.177 SUB (reg), T2 encoding (pg 4-367)
+    u8 const d{u8((w1 >> 8u) & 0xFu)}, n{u8(w0 & 0xFu)}, s{u8((w0 >> 4u) & 1u)},
+      imm2{u8((w1 >> 6u) & 3u)}, imm3{u8((w1 >> 12u) & 7u)};
+    if ((d == 15) && (s == 1)) { // "SEE CMP (register) on page 4-74"
+      return false;
+    }
+    if (n == 13) { // "SEE SUB (SP minus register) on page 4-371"
+      return false;
+    }
+    out_inst.type = inst_type::SUB_REG;
+    out_inst.i.sub_reg = { .d = d, .n = n, .m = u8(w1 & 0xFu),
+      .shift = decode_imm_shift(u8((w1 >> 4u) & 3u), u8(imm3 << 2u) | imm2) };
+    return true;
+  }
+
   // 4.6.188 TBB, T1 encoding (pg 4-389)
   if (((w0 & 0xFFF0u) == 0xE8D0u) && ((w1 & 0xF0u) == 0)) {
     out_inst.type = inst_type::TABLE_BRANCH_BYTE;
@@ -1301,16 +1327,26 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
     return true;
   }
 
-  // 4.6.176 SUB, T3 encoding (pg 4-365)
+  // 4.6.176 SUB (imm), T3 encoding (pg 4-365)
   if (((w0 & 0xFBE0u) == 0xF1A0u) && ((w1 & 0x8000u) == 0)) {
     u32 const imm8{w1 & 0xFFu}, imm3{(w1 >> 12u) & 7u}, i{(w0 >> 10u) & 1u};
+    u8 const d{u8((w1 >> 8u) & 0xFu)}, n{u8(w0 & 0xFu)}, s{u8((w0 >> 4u) & 1u)};
+    if ((d == 15) && (s == 1)) { // 4.6.29 CMP (imm), T2 encoding (pg 4-72)
+      out_inst.type = inst_type::CMP_IMM;
+      out_inst.i.cmp_imm = { .n = u8(w0 & 0xFu),
+        .imm = decode_imm12((i << 11u) | (imm3 << 8u) | imm8) };
+      return true;
+    }
+    if (n == 13) { // "SEE SUB (SP minus immediate) on page 4-369"
+      return false;
+    }
     out_inst.type = inst_type::SUB_IMM;
-    out_inst.i.sub_imm = { .d = u8((w1 & 0xF) >> 8u), .n = u8(w0 & 0xFu),
+    out_inst.i.sub_imm = { .d = d, .n = n,
       .imm = decode_imm12((i << 11u) | (imm3 << 8u) | imm8) };
     return true;
   }
 
-  // 4.6.176 SUB, T4 encoding (pg 4-365)
+  // 4.6.176 SUB (imm), T4 encoding (pg 4-365)
   if (((w0 & 0xFBF0u) == 0xF2A0u) && ((w1 & 0x8000u) == 0)) {
     u8 const n{u8(w0 & 0xFu)}, d{u8((w1 >> 8u) & 0xFu)};
     u16 const imm3{u8((w1 >> 12u) & 7u)}, imm8{u8(w1 & 0xFFu)}, i{u8((w0 >> 10u) & 1u)},
