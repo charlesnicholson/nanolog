@@ -112,12 +112,21 @@ void print(inst_branch_link const& i) {
 void print(inst_branch_link_xchg_reg const& b) { printf("BLX %s", s_rn[b.reg]); }
 void print(inst_branch_xchg const& i) { printf("BX %s", s_rn[int(i.m)]); }
 
+void print(inst_byte_rev_packed_half const& b) {
+  printf("REV16 %s, %s", s_rn[b.d], s_rn[b.m]);
+}
+
 void print(inst_cmp_branch_nz const& c) {
   printf("CBNZ %s, #%d (%x)", s_rn[c.n], unsigned(c.imm), unsigned(c.addr));
 }
 
 void print(inst_cmp_branch_z const& c) {
   printf("CBZ %s, #%d (%x)", s_rn[c.n], unsigned(c.imm), unsigned(c.addr));
+}
+
+void print(inst_change_proc_state const& c) {
+  printf("CPS%s %s%s%s", c.enable ? "IE" : (c.disable ? "ID" : ""),
+    c.aff_a ? "A" : "", c.aff_f ? "F" : "", c.aff_i ? "I" : "");
 }
 
 void print(inst_cmp_imm const& c) { printf("CMP_IMM %s, #%d", s_rn[c.reg], int(c.imm)); }
@@ -137,6 +146,10 @@ void print(inst_count_leading_zeros const& c) {
 
 void print(inst_div_signed const& d) {
   printf("SDIV %s, %s, %s", s_rn[d.d], s_rn[d.n], s_rn[d.m]);
+}
+
+void print(inst_div_unsigned const& d) {
+  printf("UDIV %s, %s, %s", s_rn[d.d], s_rn[d.n], s_rn[d.m]);
 }
 
 void print(inst_excl_or_imm const& e) {
@@ -545,6 +558,15 @@ bool decode_16bit_inst(u16 const w0, inst& out_inst) {
     return true;
   }
 
+  if ((w0 & 0xFFE8u) == 0xB660u) { // 4.6.31 CPS, T1 encoding (pg 4-76)
+    u8 const im{u8((w0 >> 4u) & 1u)};
+    out_inst.type = inst_type::CHANGE_PROC_STATE;
+    out_inst.i.change_proc_state = { .enable = (im == 0), .disable = (im == 1),
+      .changemode = 0, .aff_a = u8((w0 >> 2u) & 1u), .aff_f = u8(w0 & 1u),
+      .aff_i = u8((w0 >> 1u) & 1u) };
+    return true;
+  }
+
   if ((w0 & 0xFFC0u) == 0x4040u) { // 4.6.37 EOR (reg), T1 encoding (pg 4-88)
     u8 const rdn{u8(w0 & 7u)};
     out_inst.type = inst_type::EXCL_OR_REG;
@@ -683,6 +705,12 @@ bool decode_16bit_inst(u16 const w0, inst& out_inst) {
   if ((w0 & 0xFE00u) == 0xB400u) { // 4.6.99 PUSH, T1 encoding (pg 4-211)
     out_inst.type = inst_type::PUSH;
     out_inst.i.push = { .reg_list = u16(((w0 & 0x0100u) << 6u) | (w0 & 0xFFu)) };
+    return true;
+  }
+
+  if ((w0 & 0xFFC0u) == 0xBA40u) { // 4.6.112 REV16, T1 encoding (pg 4-237)
+    out_inst.type = inst_type::BYTE_REV_PACKED_HALF;
+    out_inst.i.byte_rev_packed_half = { .d = u8(w0 & 7u), .m = u8((w0 >> 3u) & 7u)};
     return true;
   }
 
@@ -1306,6 +1334,14 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
     out_inst.type = inst_type::BITFIELD_EXTRACT_UNSIGNED;
     out_inst.i.bitfield_extract_unsigned = { .d = u8((w1 >> 8u) & 0xFu), .n = u8(w0 & 0xFu),
       .lsbit = u8((imm3 << 2u) | imm2), .widthminus1 = u8(w1 & 0x1Fu) };
+    return true;
+  }
+
+  // 4.6.198 UDIV, T1 encoding (pg 4-409)
+  if (((w0 & 0xFFF0u) == 0xFBB0) && ((w1 & 0xF0u) == 0xF0u)) {
+    out_inst.type = inst_type::DIV_UNSIGNED;
+    out_inst.i.div_unsigned = { .m = u8(w1 & 0xFu), .d = u8((w1 >> 8u) & 0xFu),
+      .n = u8(w0 & 0xFu) };
     return true;
   }
 

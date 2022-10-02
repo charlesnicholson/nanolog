@@ -56,12 +56,15 @@ struct imm_shift { imm_shift_type t; u8 n; };
   X(BRANCH_LINK, branch_link) \
   X(BRANCH_LINK_XCHG_REG, branch_link_xchg_reg) \
   X(BRANCH_XCHG, branch_xchg) \
+  X(BYTE_REV_PACKED_HALF, byte_rev_packed_half) \
   X(CBNZ, cmp_branch_nz) \
   X(CBZ, cmp_branch_z) \
+  X(CHANGE_PROC_STATE, change_proc_state) \
   X(CMP_IMM, cmp_imm) \
   X(CMP_REG, cmp_reg) \
   X(COUNT_LEADING_ZEROS, count_leading_zeros) \
   X(DIV_SIGNED, div_signed) \
+  X(DIV_UNSIGNED, div_unsigned) \
   X(EXCL_OR_IMM, excl_or_imm) \
   X(EXCL_OR_REG, excl_or_reg) \
   X(EXTEND_SIGNED_BYTE, extend_signed_byte) \
@@ -141,12 +144,15 @@ struct inst_branch { u32 imm; u32 addr; cond_code cc; };
 struct inst_branch_link { u32 imm, addr; };
 struct inst_branch_link_xchg_reg { u8 reg; };
 struct inst_branch_xchg { u8 m; };
+struct inst_byte_rev_packed_half { u8 d, m; };
 struct inst_cmp_branch_nz { u32 addr; u8 n, imm; };
 struct inst_cmp_branch_z { u32 addr; u8 n, imm; };
+struct inst_change_proc_state { u8 enable, disable, changemode, aff_a, aff_i, aff_f; };
 struct inst_cmp_imm { u8 reg, imm; };
 struct inst_cmp_reg { imm_shift shift; u8 n, m; };
 struct inst_count_leading_zeros { u8 d, m; };
 struct inst_div_signed { u8 d, n, m; };
+struct inst_div_unsigned { u8 d, n, m; };
 struct inst_excl_or_imm { u32 imm; u8 d, n; };
 struct inst_excl_or_reg { imm_shift shift; u8 d, n, m; };
 struct inst_extend_signed_byte { u8 d, m, rotation; };
