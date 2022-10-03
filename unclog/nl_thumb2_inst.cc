@@ -244,6 +244,11 @@ void print(inst_load_signed_byte_imm const& l) {
   printf("LDRSB_IMM %s, [%s, #%d]", s_rn[l.t], s_rn[l.n], int(l.imm));
 }
 
+void print(inst_load_signed_byte_reg const& l) {
+  printf("LDRSB_REG %s, [%s, %s, %s #%d]", s_rn[l.t], s_rn[l.n], s_rn[l.m],
+    s_sn[int(l.shift.t)], int(l.shift.n));
+}
+
 void print(inst_load_signed_half_imm const& l) {
   printf("LDRSH_IMM %s, [%s, #%d]", s_rn[l.t], s_rn[l.n], int(l.imm));
 }
@@ -685,6 +690,13 @@ bool decode_16bit_inst(u16 const w0, inst& out_inst) {
     out_inst.type = inst_type::LOAD_HALF_REG;
     out_inst.i.load_half_reg = { .t = u8(w0 & 7u), .n = u8((w0 >> 3u) & 7u),
       .m = u8((w0 >> 6u) & 7u) };
+    return true;
+  }
+
+  if ((w0 & 0xFE00u) == 0x5600u) {
+    out_inst.type = inst_type::LOAD_SIGNED_BYTE_REG;
+    out_inst.i.load_signed_byte_reg = { .t = u8(w0 & 7u), .n = u8((w0 >> 3u) & 7u),
+      .m = u8((w0 >> 6u) & 7u), .shift = decode_imm_shift(0b00, 0) };
     return true;
   }
 
