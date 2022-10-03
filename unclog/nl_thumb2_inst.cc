@@ -144,6 +144,7 @@ void print(inst_change_proc_state const& c) {
 }
 
 void print(inst_cmp_imm const& c) { printf("CMP_IMM %s, #%d", s_rn[c.n], int(c.imm)); }
+void print(inst_cmp_neg_imm const& c) { printf("CMN_IMM %s, #%d", s_rn[c.n], int(c.imm)); }
 
 void print(inst_cmp_reg const& c) {
   printf("CMP_REG %s, %s <%s #%d>", s_rn[c.n], s_rn[c.m], s_sn[int(c.shift.t)],
@@ -914,14 +915,17 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
 
   // 4.6.3 ADD (imm), T3 encoding (pg 4-20)
   if (((w0 & 0xFBE0u) == 0xF100u) && ((w1 & 0x8000u) == 0)) {
-    u32 const imm8{w1 & 0xFFu}, imm3{(w1 >> 12u) & 0x7u}, i{(w0 >> 10u) & 1u};
-    u8 const d{u8((w1 >> 8u) & 0xFu)}, s{u8((w0 >> 4u) & 1u)};
-    if ((s == 1u) && (d == reg::PC)) { // CMN (imm) pg 4-68
-      return false;
+    u32 const imm8{w1 & 0xFFu}, imm3{(w1 >> 12u) & 0x7u}, i{(w0 >> 10u) & 1u},
+      imm{decode_imm12((i << 11u) | (imm3 << 8u) | imm8)};
+    u8 const d{u8((w1 >> 8u) & 0xFu)}, s{u8((w0 >> 4u) & 1u)},
+      n{u8(w0 & 0xFu)};
+    if ((s == 1) && (d == 15)) { // 4.6.27 CMN (imm), T1 encoding (pg 4-68)
+      out_inst.type = inst_type::CMP_NEG_IMM;
+      out_inst.i.cmp_neg_imm = { .n = n, .imm = imm };
+      return true;
     }
     out_inst.type = inst_type::ADD_IMM;
-    out_inst.i.add_imm = { .n = u8(w0 & 0xFu), .d = d,
-      .imm = u16(decode_imm12((i << 11u) | (imm3 << 8u) | imm8)) };
+    out_inst.i.add_imm = { .n = n, .d = d, .imm = imm };
     return true;
   }
 

@@ -63,6 +63,7 @@ struct imm_shift { imm_shift_type t; u8 n; };
   X(CBZ, cmp_branch_z) \
   X(CHANGE_PROC_STATE, change_proc_state) \
   X(CMP_IMM, cmp_imm) \
+  X(CMP_NEG_IMM, cmp_neg_imm) \
   X(CMP_REG, cmp_reg) \
   X(COUNT_LEADING_ZEROS, count_leading_zeros) \
   X(DIV_SIGNED, div_signed) \
@@ -139,7 +140,7 @@ enum class inst_type : u8 { INST_TYPE_X_LIST() };
 struct inst_unknown {};
 struct inst_add_carry_imm { u32 imm; u8 d, n; };
 struct inst_add_carry_reg { imm_shift shift; u8 d, n, m; };
-struct inst_add_imm { u16 imm; u8 d, n; };
+struct inst_add_imm { u32 imm; u8 d, n; };
 struct inst_add_sp_imm { u16 imm; u8 d; };
 struct inst_add_sp_reg { imm_shift shift; u8 d, m; };
 struct inst_add_reg { imm_shift shift; u8 d, n, m; };
@@ -160,6 +161,7 @@ struct inst_cmp_branch_nz { u32 addr; u8 n, imm; };
 struct inst_cmp_branch_z { u32 addr; u8 n, imm; };
 struct inst_change_proc_state { u8 enable, disable, changemode, aff_a, aff_i, aff_f; };
 struct inst_cmp_imm { u32 imm; u8 n; };
+struct inst_cmp_neg_imm { u32 imm; u8 n; };
 struct inst_cmp_reg { imm_shift shift; u8 n, m; };
 struct inst_count_leading_zeros { u8 d, m; };
 struct inst_div_signed { u8 d, n, m; };
