@@ -1249,6 +1249,15 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
     return true;
   }
 
+  // 4.6.70 LSR (imm), T2 encoding (pg 4-154)
+  if (((w0 & 0xFFEFu) == 0xEA4Fu) && ((w1 & 0x30u) == 0x10u)) {
+    u8 const imm3{u8((w1 >> 12u) & 7u)}, imm2{u8((w1 >> 6u) & 7u)};
+    out_inst.type = inst_type::RSHIFT_LOG_IMM;
+    out_inst.i.rshift_log_imm = { .m = u8(w1 & 0xFu), .d = u8((w1 >> 8u) & 0xFu),
+      .shift = decode_imm_shift(0b01, u8((imm3 << 2u) | imm2)) };
+    return true;
+  }
+
   // 4.6.74 MLA, T1 encoding (pg 4-162)
   if (((w0 & 0xFFF0u) == 0xFB00u) && ((w1 & 0xF0u) == 0)) {
     out_inst.type = inst_type::MUL_ACCUM;
