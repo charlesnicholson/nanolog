@@ -79,6 +79,8 @@ struct imm_shift { imm_shift_type t; u8 n; };
   X(LOAD_DBL_REG, load_dbl_reg) \
   X(LOAD_EXCL, load_excl) \
   X(LOAD_HALF_IMM, load_half_imm) \
+  X(LOAD_HALF_REG, load_half_reg) \
+  X(LOAD_SIGNED_BYTE_IMM, load_signed_byte_imm) \
   X(LOAD_SIGNED_HALF_IMM, load_signed_half_imm) \
   X(LOAD_SIGNED_HALF_REG, load_signed_half_reg) \
   X(LOAD_IMM, load_imm) \
@@ -102,7 +104,8 @@ struct imm_shift { imm_shift_type t; u8 n; };
   X(POP, pop) \
   X(REVERSE_BITS, reverse_bits) \
   X(RSHIFT_ARITH_IMM, rshift_arith_imm) \
-  X(RSHIFT_LOG, rshift_log) \
+  X(RSHIFT_LOG_IMM, rshift_log_imm) \
+  X(RSHIFT_LOG_REG, rshift_log_reg) \
   X(STORE_BYTE_IMM, store_byte_imm) \
   X(STORE_EXCL, store_excl) \
   X(STORE_HALF_IMM, store_half_imm) \
@@ -124,6 +127,7 @@ struct imm_shift { imm_shift_type t; u8 n; };
   X(SVC, svc) \
   X(TABLE_BRANCH_BYTE, table_branch_byte) \
   X(TEST_EQUIV, test_equiv) \
+  X(TEST_REG, test_reg) \
   X(VCONVERT_FP_INT, vconvert_fp_int) \
   X(VMOV_SINGLE, vmov_single) \
   X(VMOV_DOUBLE, vmov_double)
@@ -172,10 +176,12 @@ struct inst_load_byte_reg { imm_shift shift; u8 t, n, m; };
 struct inst_load_dbl_reg { u16 imm; u8 t, t2, n, index, add; };
 struct inst_load_excl { u16 imm; u8 t, n; };
 struct inst_load_half_imm { u16 imm; u8 t, n, add, index; };
+struct inst_load_half_reg { imm_shift shift; u8 t, n, m; };
 struct inst_load_imm { u16 imm; u8 n, t, add, index; };
 struct inst_load_lit { u32 imm, addr; u8 t, add; };
 struct inst_load_mult_inc_after { u16 regs; u8 n, wback; };
 struct inst_load_reg { imm_shift shift; u8 t, n, m; };
+struct inst_load_signed_byte_imm { u16 imm; u8 t, n, index, add; };
 struct inst_load_signed_half_imm { u16 imm; u8 t, n, index, add; };
 struct inst_load_signed_half_reg { imm_shift shift; u8 t, n, m; };
 struct inst_lshift_log_imm { imm_shift shift; u8 d, m; };
@@ -194,7 +200,8 @@ struct inst_push { u16 reg_list; };
 struct inst_pop { u16 reg_list; };
 struct inst_nop {};
 struct inst_reverse_bits { u8 d, m; };
-struct inst_rshift_log { imm_shift shift; u8 dst_reg, src_reg; };
+struct inst_rshift_log_imm { imm_shift shift; u8 d, m; };
+struct inst_rshift_log_reg { u8 d, n, m; };
 struct inst_rshift_arith_imm { imm_shift shift; u8 dst_reg, src_reg; };
 struct inst_store_byte_imm { u16 imm; u8 t, n, add; };
 struct inst_store_excl { u16 imm; u8 d, t, n; };
@@ -215,8 +222,9 @@ struct inst_sub_reg_carry { imm_shift shift; u8 d, n, m; };
 struct inst_sub_rev_imm { u32 imm; u8 d, n; };
 struct inst_sub_sp_imm { u32 imm; u8 d; };
 struct inst_svc { u32 imm; };
-struct inst_table_branch_byte { u8 base_reg, idx_reg; };
+struct inst_table_branch_byte { u8 n, m; };
 struct inst_test_equiv { u32 imm; u8 n; };
+struct inst_test_reg { imm_shift shift; u8 n, m; };
 struct inst_vconvert_fp_int { u8 d, m, to_int, int_unsigned, round_zero; };
 struct inst_vmov_double { u8 t, t2, m, to_arm_regs; };
 struct inst_vmov_single { u8 t, n, to_arm_reg; };

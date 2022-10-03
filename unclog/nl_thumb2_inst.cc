@@ -78,8 +78,12 @@ void print(inst_pop const& p) {
 void print(inst_nop const&) { printf("NOP"); }
 void print(inst_reverse_bits const& r) { printf("RBIT %s, %s", s_rn[r.d], s_rn[r.m]); }
 
-void print(inst_rshift_log const& r) {
-  printf("LSR %s, %s, #%d", s_rn[r.dst_reg], s_rn[r.src_reg], int(r.shift.n));
+void print(inst_rshift_log_imm const& r) {
+  printf("LSR_IMM %s, %s, #%d", s_rn[r.d], s_rn[r.m], int(r.shift.n));
+}
+
+void print(inst_rshift_log_reg const& r) {
+  printf("LSR_REG %s, %s, %s", s_rn[r.d], s_rn[r.m], s_rn[r.n]);
 }
 
 void print(inst_rshift_arith_imm const& r) {
@@ -214,6 +218,11 @@ void print(inst_load_half_imm const& l) {
   printf("LDRH_IMM %s, [%s, #%d]", s_rn[l.t], s_rn[l.n], int(l.imm));
 }
 
+void print(inst_load_half_reg const& l) {
+  printf("LDRH_REG %s, [%s, %s, %s #%d]", s_rn[l.t], s_rn[l.n], s_rn[l.m],
+    s_sn[int(l.shift.t)], int(l.shift.n));
+}
+
 void print(inst_load_lit const& l) {
   printf("LDR %s, [PC, #%s%d] (%x)", s_rn[l.t], l.add ? "" : "-", int(l.imm),
     unsigned(l.addr));
@@ -228,6 +237,10 @@ void print(inst_load_mult_inc_after const& l) {
 void print(inst_load_reg const& l) {
   printf("LDR_REG %s, [%s, %s <%s #%d>]", s_rn[l.t], s_rn[l.n], s_rn[l.m],
     s_sn[int(l.shift.t)], int(l.shift.n));
+}
+
+void print(inst_load_signed_byte_imm const& l) {
+  printf("LDRSB_IMM %s, [%s, #%d]", s_rn[l.t], s_rn[l.n], int(l.imm));
 }
 
 void print(inst_load_signed_half_imm const& l) {
@@ -369,10 +382,15 @@ void print(inst_sub_rev_imm const& s) {
 void print(inst_svc const& s) { printf("SVC %x", unsigned(s.imm)); }
 
 void print(inst_table_branch_byte const& t) {
-  printf("TBB [%s, %s]", s_rn[t.base_reg], s_rn[t.idx_reg]);
+  printf("TBB [%s, %s]", s_rn[t.n], s_rn[t.m]);
 }
 
-void print(inst_test_equiv const t) { printf("TEQ %s, #%d", s_rn[t.n], int(t.imm)); }
+void print(inst_test_equiv const& t) { printf("TEQ %s, #%d", s_rn[t.n], int(t.imm)); }
+
+void print(inst_test_reg const& t) {
+  printf("TST %s, %s, %s #%d", s_rn[t.n], s_rn[t.m], s_sn[int(t.shift.t)],
+    int(t.shift.n));
+}
 
 void print(inst_vconvert_fp_int const& v) {
   printf("VCVT.");
@@ -396,7 +414,6 @@ void print(inst_vmov_single const& v) {
     printf("VMOV S%u, %s", unsigned(v.n), s_rn[v.t]);
   }
 }
-//{ u8 t, n, to_arm_reg; };
 
 u32 decode_imm12(u32 imm12) { // 4.2.2 Operation (pg 4-9)
   if ((imm12 & 0xC00u) == 0) {
@@ -663,6 +680,13 @@ bool decode_16bit_inst(u16 const w0, inst& out_inst) {
     return true;
   }
 
+  if ((w0 & 0xFE00u) == 0x5A00u) { // 4.6.57 LDRH (reg), T1 encoding (pg 4-128)
+    out_inst.type = inst_type::LOAD_HALF_REG;
+    out_inst.i.load_half_reg = { .t = u8(w0 & 7u), .n = u8((w0 >> 3u) & 7u),
+      .m = u8((w0 >> 6u) & 7u) };
+    return true;
+  }
+
   if ((w0 & 0xF800u) == 0) { // 4.6.68 LSL (imm), T1 encoding (pg 4-150)
     out_inst.type = inst_type::LSHIFT_LOG_IMM;
     out_inst.i.lshift_log_imm = { .shift = decode_imm_shift(0b00, u8((w0 >> 6u) & 0x1Fu)),
@@ -678,9 +702,16 @@ bool decode_16bit_inst(u16 const w0, inst& out_inst) {
   }
 
   if ((w0 & 0xF800u) == 0x800u) { // 4.6.70 LSR (imm), T1 encoding (pg 4-154)
-    out_inst.type = inst_type::RSHIFT_LOG;
-    out_inst.i.rshift_log = { .dst_reg = u8(w0 & 7u), .src_reg = u8((w0 >> 3u) & 7u),
+    out_inst.type = inst_type::RSHIFT_LOG_IMM;
+    out_inst.i.rshift_log_imm = { .d = u8(w0 & 7u), .m = u8((w0 >> 3u) & 7u),
       .shift = decode_imm_shift(0b01, u8((w0 >> 6u) & 0x1Fu)) };
+    return true;
+  }
+
+  if ((w0 & 0xFFC0u) == 0x40C0u) { // 4.6.71 LSR (reg), T1 encoding (pg 4-156)
+    u8 const rdn{u8(w0 & 7u)};
+    out_inst.type = inst_type::RSHIFT_LOG_REG;
+    out_inst.i.rshift_log_reg = { .d = rdn, .n = rdn, .m = u8((w0 >> 3u) & 7u) };
     return true;
   }
 
@@ -833,6 +864,13 @@ bool decode_16bit_inst(u16 const w0, inst& out_inst) {
     out_inst.type = inst_type::EXTEND_SIGNED_BYTE;
     out_inst.i.extend_signed_byte = { .d = u8(w0 & 7u), .m = u8((w0 >> 3u) & 7u),
       .rotation = 0 };
+    return true;
+  }
+
+  if ((w0 & 0xFFC0u) == 0x4200u) { // 4.6.193 TST, T1 encoding (pg 4-399)
+    out_inst.type = inst_type::TEST_REG;
+    out_inst.i.test_reg = { .shift = decode_imm_shift(0b00, 0), .n = u8(w0 & 7u),
+      .m = u8((w0 >> 3u) & 7u) };
     return true;
   }
 
@@ -1112,14 +1150,17 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
 
   if ((w0 & 0xFE50u) == 0xE850u) { // 4.6.50 LDRD (imm), T1 encoding (pg 4-114)
     u8 const p{u8((w0 >> 8u) & 1u)}, u{u8((w0 >> 7u) & 1u)}, w{u8((w0 >> 5u) & 1u)};
-    if ((p == 0) && (w == 0)) { // 4.6.51 LDREX, T1 encoding (pg 4-116)
-      out_inst.type = inst_type::LOAD_EXCL;
-      out_inst.i.load_excl = { .imm = u16((w1 & 0xFFu) << 2u), .n = u8(w0 & 0xFu),
-        .t = u8((w1 >> 12u) & 0xFu) };
-      return true;
-    }
-    if ((p == 0) && (w == 1)) { // 4.6.188 TBB, T1 encoding (4-389)
-      return false;
+    if ((p == 0) && (w == 0)) {
+      if (u == 0) { // 4.6.51 LDREX, T1 encoding (pg 4-116)
+        out_inst.type = inst_type::LOAD_EXCL;
+        out_inst.i.load_excl = { .imm = u16((w1 & 0xFFu) << 2u), .n = u8(w0 & 0xFu),
+          .t = u8((w1 >> 12u) & 0xFu) };
+        return true;
+      } else { // 4.6.188 TBB, T1 encoding (4-389)
+        out_inst.type = inst_type::TABLE_BRANCH_BYTE;
+        out_inst.i.table_branch_byte = { .n = u8(w0 & 0xFu), .m = u8(w1 & 0xFu) };
+        return true;
+      }
     }
     out_inst.type = inst_type::LOAD_DBL_REG;
     out_inst.i.load_dbl_reg = { .imm = u16((w1 & 0xFFu) << 2u), .n = u8(w0 & 0xFu),
@@ -1131,6 +1172,13 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
     out_inst.type = inst_type::LOAD_HALF_IMM;
     out_inst.i.load_half_imm = { .imm = u16(w1 & 0xFFFu), .t = u8((w1 >> 12u) & 0xFu),
       .n = u8(w0 & 0xFu), .add = 1u, .index = 1u };
+    return true;
+  }
+
+  if ((w0 & 0xFFF0u) == 0xF990u) { // 4.6.59 LDRSB (imm), T1 encoding (pg 4-132)
+    out_inst.type = inst_type::LOAD_SIGNED_BYTE_IMM;
+    out_inst.i.load_signed_byte_imm = { .imm = u16(w1 & 0xFFFu), .n = u8(w0 & 0xFu),
+      .add = 1u, .index = 1u, .t = u8((w0 >> 12u) & 0xFu) };
     return true;
   }
 
@@ -1404,13 +1452,6 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
     out_inst.type = inst_type::SUB_REG;
     out_inst.i.sub_reg = { .d = d, .n = n, .m = u8(w1 & 0xFu),
       .shift = decode_imm_shift(u8((w1 >> 4u) & 3u), u8(imm3 << 2u) | imm2) };
-    return true;
-  }
-
-  // 4.6.188 TBB, T1 encoding (pg 4-389)
-  if (((w0 & 0xFFF0u) == 0xE8D0u) && ((w1 & 0xF0u) == 0)) {
-    out_inst.type = inst_type::TABLE_BRANCH_BYTE;
-    out_inst.i.table_branch_byte = { .base_reg = u8(w0 & 0xFu), .idx_reg = u8(w1 & 0xFu) };
     return true;
   }
 
