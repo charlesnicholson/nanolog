@@ -52,6 +52,7 @@ struct imm_shift { imm_shift_type t; u8 n; };
   X(BIT_CLEAR_IMM, bit_clear_imm) \
   X(BIT_CLEAR_REG, bit_clear_reg) \
   X(BITFIELD_EXTRACT_UNSIGNED, bitfield_extract_unsigned) \
+  X(BITFIELD_EXTRACT_SIGNED, bitfield_extract_signed) \
   X(BITFIELD_INSERT, bitfield_insert) \
   X(BRANCH, branch) \
   X(BRANCH_LINK, branch_link) \
@@ -89,6 +90,7 @@ struct imm_shift { imm_shift_type t; u8 n; };
   X(MOV, mov) \
   X(MOV_IMM, mov_imm) \
   X(MOV_NEG_IMM, mov_neg_imm) \
+  X(MOV_NEV_REG, mov_neg_reg) \
   X(MUL, mul) \
   X(MUL_ACCUM, mul_accum) \
   X(MUL_ACCUM_SIGNED_LONG, mul_accum_signed_long) \
@@ -98,6 +100,7 @@ struct imm_shift { imm_shift_type t; u8 n; };
   X(OR_REG_REG, or_reg_reg) \
   X(PUSH, push) \
   X(POP, pop) \
+  X(REVERSE_BITS, reverse_bits) \
   X(RSHIFT_ARITH_IMM, rshift_arith_imm) \
   X(RSHIFT_LOG, rshift_log) \
   X(STORE_BYTE_IMM, store_byte_imm) \
@@ -141,6 +144,7 @@ struct inst_and_reg { imm_shift shift; u8 d, n, m; };
 struct inst_and_imm { u32 imm; u8 d, n; };
 struct inst_bit_clear_imm { u32 imm; u8 d, n; };
 struct inst_bit_clear_reg { imm_shift shift; u8 d, n, m; };
+struct inst_bitfield_extract_signed { u8 d, n, lsbit, widthminus1; };
 struct inst_bitfield_extract_unsigned { u8 d, n, lsbit, widthminus1; };
 struct inst_bitfield_insert { u8 d, n, msbit, lsbit; };
 struct inst_branch { u32 imm; u32 addr; cond_code cc; };
@@ -174,11 +178,12 @@ struct inst_load_mult_inc_after { u16 regs; u8 n, wback; };
 struct inst_load_reg { imm_shift shift; u8 t, n, m; };
 struct inst_load_signed_half_imm { u16 imm; u8 t, n, index, add; };
 struct inst_load_signed_half_reg { imm_shift shift; u8 t, n, m; };
-struct inst_lshift_log_imm { u8 dst_reg, src_reg, imm; };
-struct inst_lshift_log_reg { u8 d, n, m; };
+struct inst_lshift_log_imm { imm_shift shift; u8 d, m; };
+struct inst_lshift_log_reg { imm_shift shift; u8 d, n, m; };
 struct inst_mov { u8 d, m; };
 struct inst_mov_imm { u32 imm; u8 d; };
 struct inst_mov_neg_imm { u32 imm; u8 d; };
+struct inst_mov_neg_reg { imm_shift shift; u8 d, m; };
 struct inst_mul { u8 d, n, m; };
 struct inst_mul_accum { u8 d, n, m, a; };
 struct inst_mul_accum_signed_long { u8 dlo, dhi, n, m; };
@@ -188,6 +193,7 @@ struct inst_or_reg_reg { u32 imm; imm_shift shift; u8 d, n, m; };
 struct inst_push { u16 reg_list; };
 struct inst_pop { u16 reg_list; };
 struct inst_nop {};
+struct inst_reverse_bits { u8 d, m; };
 struct inst_rshift_log { imm_shift shift; u8 dst_reg, src_reg; };
 struct inst_rshift_arith_imm { imm_shift shift; u8 dst_reg, src_reg; };
 struct inst_store_byte_imm { u16 imm; u8 t, n, add; };
@@ -196,7 +202,7 @@ struct inst_store_imm { u8 t, n; u16 imm; };
 struct inst_store_half_imm { u16 imm; u8 t, n, index, add; };
 struct inst_store_mult_dec_bef { u16 regs; u8 n; };
 struct inst_store_mult_inc_after { u16 regs; u8 n, wback; };
-struct inst_store_reg { imm_shift shift; u8 src_reg, base_reg, ofs_reg; };
+struct inst_store_reg { imm_shift shift; u8 t, n, m; };
 struct inst_store_reg_byte_imm { u16 imm; u8 n, t, index, add; };
 struct inst_store_reg_byte_reg { imm_shift shift; u8 t, m, n; };
 struct inst_store_reg_byte_unpriv { u16 imm; u8 t, n; };
