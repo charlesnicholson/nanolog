@@ -130,6 +130,7 @@ struct imm_shift { imm_shift_type t; u8 n; };
   X(SUB_REG, sub_reg) \
   X(SUB_REG_CARRY, sub_reg_carry) \
   X(SUB_REV_IMM, sub_rev_imm) \
+  X(SUB_REV_REG, sub_rev_reg) \
   X(SUB_SP_IMM, sub_sp_imm) \
   X(SVC, svc) \
   X(TABLE_BRANCH_BYTE, table_branch_byte) \
@@ -234,6 +235,7 @@ struct inst_sub_imm_carry { u32 imm; u8 d, n; };
 struct inst_sub_reg { imm_shift shift; u8 d, n, m; };
 struct inst_sub_reg_carry { imm_shift shift; u8 d, n, m; };
 struct inst_sub_rev_imm { u32 imm; u8 d, n; };
+struct inst_sub_rev_reg { imm_shift shift; u8 d, n, m; };
 struct inst_sub_sp_imm { u32 imm; u8 d; };
 struct inst_svc { u32 imm; };
 struct inst_table_branch_byte { u8 n, m; };

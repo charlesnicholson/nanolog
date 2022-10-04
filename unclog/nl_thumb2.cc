@@ -12,6 +12,12 @@ struct reg_state {
   u16 reg_node_idxs[16];
 };
 
+reg_state reg_state_branch(reg_state const& r, u32 label) {
+  reg_state b{r};
+  b.regs[reg::PC] = label;
+  return b;
+}
+
 struct func_state {
   func_state(elf_symbol32 const& f_,
              elf const& e_,
@@ -130,6 +136,13 @@ void simulate(inst const& i, func_state& fs, reg_state& regs) {
       regs.reg_node_idxs[i.i.mov.d] = u16(reg_muts.size() - 1u);
       break;
 
+    case inst_type::MOV_IMM:
+      regs.regs[i.i.mov_imm.d] = i.i.mov_imm.imm;
+      mark_reg_known(regs.known, i.i.mov_imm.d);
+      reg_muts.push_back(reg_mut_node{.i = i});
+      regs.reg_node_idxs[i.i.mov_imm.d] = u16(reg_muts.size() - 1u);
+      break;
+
     case inst_type::ADD_IMM:
       regs.regs[i.i.add_imm.d] = regs.regs[i.i.add_imm.n] + i.i.add_imm.imm;
       copy_reg_known(regs.known, i.i.add_imm.d, i.i.add_imm.n);
@@ -142,6 +155,12 @@ void simulate(inst const& i, func_state& fs, reg_state& regs) {
   }
 
   regs.regs[reg::PC] += i.len;
+}
+
+void print(reg_state const& r) {
+  for (auto i = 0u; i < 16; ++i) {
+    printf("  R%d: 0x%08x known: %d\n", int(i), r.regs[i], (r.known >> i) & 1);
+  }
 }
 }
 
@@ -164,6 +183,7 @@ bool thumb2_analyze_func(elf const& e,
     if (test_visited(path.regs[reg::PC], s)) { continue; }
 
     printf("  Starting path\n");
+    //print(path);
 
     for (;;) {
       if (func.st_size && (path.regs[reg::PC] >= s.func_end)) {
@@ -197,7 +217,7 @@ bool thumb2_analyze_func(elf const& e,
           address_in_func(label, s) &&
           !test_visited(label, s)) {
         printf("  Internal branch, pushing state\n");
-        s.paths.push(reg_state{.regs[reg::PC] = label});
+        s.paths.push(reg_state_branch(path, label));
       }
 
       if (inst_is_log_call(pc_i, log_funcs)) {
