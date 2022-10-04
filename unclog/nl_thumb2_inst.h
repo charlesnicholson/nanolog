@@ -98,6 +98,7 @@ struct imm_shift { imm_shift_type t; u8 n; };
   X(MUL, mul) \
   X(MUL_ACCUM, mul_accum) \
   X(MUL_ACCUM_SIGNED_LONG, mul_accum_signed_long) \
+  X(MUL_ACCUM_UNSIGNED_LONG, mul_accum_unsigned_long) \
   X(MUL_SUB, mul_sub) \
   X(NOP, nop) \
   X(OR_REG_IMM, or_reg_imm) \
@@ -197,6 +198,7 @@ struct inst_mov_neg_reg { imm_shift shift; u8 d, m; };
 struct inst_mul { u8 d, n, m; };
 struct inst_mul_accum { u8 d, n, m, a; };
 struct inst_mul_accum_signed_long { u8 dlo, dhi, n, m; };
+struct inst_mul_accum_unsigned_long { u8 dlo, dhi, n, m; };
 struct inst_mul_sub { u8 d, n, m, a; };
 struct inst_or_reg_imm { u32 imm; u8 d, n; };
 struct inst_or_reg_reg { u32 imm; imm_shift shift; u8 d, n, m; };

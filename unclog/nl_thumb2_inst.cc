@@ -291,6 +291,10 @@ void print(inst_mul_accum_signed_long const& m) {
   printf("SMLAL %s, %s, %s, %s", s_rn[m.dlo], s_rn[m.dhi], s_rn[m.n], s_rn[m.m]);
 }
 
+void print(inst_mul_accum_unsigned_long const& m) {
+  printf("UMLAL %s, %s, %s, %s", s_rn[m.dlo], s_rn[m.dhi], s_rn[m.n], s_rn[m.m]);
+}
+
 void print(inst_mul_sub const& m) {
   printf("MLS %s, %s, %s, %s", s_rn[m.d], s_rn[m.n], s_rn[m.m], s_rn[m.a]);
 }
@@ -1557,6 +1561,14 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
     out_inst.type = inst_type::DIV_UNSIGNED;
     out_inst.i.div_unsigned = { .m = u8(w1 & 0xFu), .d = u8((w1 >> 8u) & 0xFu),
       .n = u8(w0 & 0xFu) };
+    return true;
+  }
+
+  // 4.6.206 UMLAL, T1 encoding (pg 4-425)
+  if (((w0 & 0xFFF0u) == 0xFBE0u) && ((w1 & 0xF0u) == 0)) {
+    out_inst.type = inst_type::MUL_ACCUM_UNSIGNED_LONG;
+    out_inst.i.mul_accum_unsigned_long = { .m = u8(w1 & 0xFu), .n = u8(w0 & 0xFu),
+      .dlo = u8((w1 >> 12u) & 0xFu), .dhi = u8((w1 >> 8u) & 0xFu)};
     return true;
   }
 
