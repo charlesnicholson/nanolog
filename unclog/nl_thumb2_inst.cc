@@ -1512,20 +1512,21 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
 
   // 4.6.176 SUB (imm), T3 encoding (pg 4-365)
   if (((w0 & 0xFBE0u) == 0xF1A0u) && ((w1 & 0x8000u) == 0)) {
-    u32 const imm8{w1 & 0xFFu}, imm3{(w1 >> 12u) & 7u}, i{(w0 >> 10u) & 1u};
+    u32 const imm8{w1 & 0xFFu}, imm3{(w1 >> 12u) & 7u}, i{(w0 >> 10u) & 1u},
+      imm{decode_imm12((i << 11u) | (imm3 << 8u) | imm8)};
     u8 const d{u8((w1 >> 8u) & 0xFu)}, n{u8(w0 & 0xFu)}, s{u8((w0 >> 4u) & 1u)};
     if ((d == 15) && (s == 1)) { // 4.6.29 CMP (imm), T2 encoding (pg 4-72)
       out_inst.type = inst_type::CMP_IMM;
-      out_inst.i.cmp_imm = { .n = u8(w0 & 0xFu),
-        .imm = decode_imm12((i << 11u) | (imm3 << 8u) | imm8) };
+      out_inst.i.cmp_imm = { .n = n, .imm = imm };
       return true;
     }
-    if (n == 13) { // "SEE SUB (SP minus immediate) on page 4-369"
-      return false;
+    if (n == 13) { // 4.6.178 SUB (SP minus imm), T2 encoding (pg 4-369)
+      out_inst.type = inst_type::SUB_SP_IMM;
+      out_inst.i.sub_sp_imm = { .d = d, .imm = imm };
+      return true;
     }
     out_inst.type = inst_type::SUB_IMM;
-    out_inst.i.sub_imm = { .d = d, .n = n,
-      .imm = decode_imm12((i << 11u) | (imm3 << 8u) | imm8) };
+    out_inst.i.sub_imm = { .d = d, .n = n, .imm = imm };
     return true;
   }
 
