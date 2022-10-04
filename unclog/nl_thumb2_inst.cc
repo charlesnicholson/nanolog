@@ -50,6 +50,10 @@ void print(inst_add_reg const& a) {
     s_sn[int(a.shift.t)], int(a.shift.n));
 }
 
+void print(inst_add_8_unsigned const& a) {
+  printf("UADD8 %s, %s, %s", s_rn[a.d], s_rn[a.n], s_rn[a.m]);
+}
+
 void print(inst_adr const& a) {
   printf("ADR %s, PC, #%d", s_rn[a.dst_reg], (int)a.imm);
 }
@@ -92,7 +96,7 @@ void print(inst_rshift_log_reg const& r) {
 }
 
 void print(inst_rshift_arith_imm const& r) {
-  printf("ASR %s, %s, #%d", s_rn[r.dst_reg], s_rn[r.src_reg], int(r.shift.n));
+  printf("ASR %s, %s, #%d", s_rn[r.d], s_rn[r.m], int(r.shift.n));
 }
 
 void print(inst_bit_clear_imm const& b) {
@@ -130,6 +134,7 @@ void print(inst_branch_link const& i) {
 
 void print(inst_branch_link_xchg_reg const& b) { printf("BLX %s", s_rn[b.reg]); }
 void print(inst_branch_xchg const& i) { printf("BX %s", s_rn[int(i.m)]); }
+void print(inst_breakpoint const& b) { printf("BKPT 0x%04hx", b.imm); }
 
 void print(inst_byte_rev_packed_half const& b) {
   printf("REV16 %s, %s", s_rn[b.d], s_rn[b.m]);
@@ -311,6 +316,10 @@ void print(inst_or_reg_imm const& o) {
 void print(inst_or_reg_reg const& o) {
   printf("ORR_REG %s, %s, %s <%s #%d>", s_rn[o.d], s_rn[o.n], s_rn[o.m],
     s_sn[int(o.shift.t)], int(o.shift.n));
+}
+
+void print(inst_select_bytes const& s) {
+  printf("SEL %s, %s, %s", s_rn[s.d], s_rn[s.n], s_rn[s.m]);
 }
 
 void print(inst_store_byte_imm const& s) {
@@ -536,8 +545,8 @@ bool decode_16bit_inst(u16 const w0, inst& out_inst) {
 
   if ((w0 & 0xF800) == 0x1000u) { // 4.6.10 ASR (imm), T1 encoding (pg 4-34)
     out_inst.type = inst_type::RSHIFT_ARITH_IMM;
-    out_inst.i.rshift_arith_imm = { .dst_reg = u8(w0 & 7u),
-      .src_reg = u8((w0 >> 3u) & 7u), .shift = decode_imm_shift(0b10, (w0 >> 6u) & 0x1Fu) };
+    out_inst.i.rshift_arith_imm = { .d = u8(w0 & 7u), .m = u8((w0 >> 3u) & 7u),
+      .shift = decode_imm_shift(0b10, (w0 >> 6u) & 0x1Fu) };
     return true;
   }
 
@@ -558,6 +567,12 @@ bool decode_16bit_inst(u16 const w0, inst& out_inst) {
     out_inst.type = inst_type::BRANCH;
     out_inst.i.branch = { .cc = cond_code::AL2, .imm = imm32,
       .addr = u32(out_inst.addr + 4u + imm32)  };
+    return true;
+  }
+
+  if ((w0 & 0xFF00u) == 0xBE00u) { // 4.6.17 BKPT, T1 encoding (pg 4-48)
+    out_inst.type = inst_type::BREAKPOINT;
+    out_inst.i.breakpoint = { .imm = u16(w0 & 0xFFu) };
     return true;
   }
 
@@ -1004,6 +1019,15 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
     return true;
   }
 
+  // 4.6.10 ASR (imm), T2 encoding (pg 4-34)
+  if (((w0 & 0xFFEFu) == 0xEA4Fu) && ((w1 & 0x30u) == 0x20u)) {
+    u8 const imm3{u8((w1 >> 12u) & 7u)}, imm2{u8((w1 >> 6u) & 3u)};
+    out_inst.type = inst_type::RSHIFT_ARITH_IMM;
+    out_inst.i.rshift_arith_imm = { .m = u8(w1 & 0xFu), .d = u8((w1 >> 8u) & 7u),
+      .shift = decode_imm_shift(0b10, u8((imm3 << 2u) | imm2)) };
+    return true;
+  }
+
   // 4.6.12 B, T3 encoding (pg 4-38)
   if (((w0 & 0xF800u) == 0xF000u) && ((w1 & 0xD000u) == 0x8000u)) {
     cond_code const cc{cond_code((w0 >> 6u) & 0xFu)};
@@ -1095,6 +1119,18 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
     }
     out_inst.type = inst_type::EXCL_OR_IMM;
     out_inst.i.excl_or_imm = { .n = n, .d = d, .imm = imm };
+    return true;
+  }
+
+  if ((w0 & 0xFFE0) == 0xEA80u) { // 4.6.37 EOR (reg), T2 encoding (pg 4-88)
+    u8 const d{u8((w1 >> 8u) & 0xFu)}, s{u8((w0 >> 4u) & 1u)}, imm3{u8((w1 >> 12u) & 7u)},
+      imm2{u8((w1 >> 6u) & 3u)};
+    if ((d == 15) && (s == 1)) { // "SEE TEQ (register) on page 4-395"
+      return false;
+    }
+    out_inst.type = inst_type::EXCL_OR_REG;
+    out_inst.i.excl_or_reg = { .d = d, .n = u8(w0 & 0xFu), .m = u8(w1 & 0xFu),
+      .shift = decode_imm_shift(u8((w1 >> 4u) & 3u), u8((imm3 << 2u) | imm2)) };
     return true;
   }
 
@@ -1420,6 +1456,14 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
     return true;
   }
 
+  // 4.6.127 SEL, T1 encoding (4-267)
+  if (((w0 & 0xFFF0u) == 0xFAA0u) && ((w1 & 0xF0F0u) == 0xF080u)) {
+    out_inst.type = inst_type::SELECT_BYTES;
+    out_inst.i.select_bytes = { .m = u8(w1 & 0xFu), .n = u8(w0 & 0xFu),
+      .d = u8((w1 >> 8u) & 0xFu) };
+    return true;
+  }
+
   if ((w0 & 0xFFE0u) == 0xEB60) { // 4.6.124 SBC (reg), T2 encoding (pg 4-261)
     u32 const imm2{(w1 >> 6u) & 3u}, imm3{(w1 >> 12u) & 7u};
     out_inst.type = inst_type::SUB_REG_CARRY;
@@ -1560,6 +1604,14 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
     }
     out_inst.type = inst_type::SUB_IMM;
     out_inst.i.sub_imm = { .d = d, .n = n, .imm = imm };
+    return true;
+  }
+
+  // 4.6.195 UADD8, T1 encoding (pg 4-403)
+  if (((w0 & 0xFFF0u) == 0xFA80u) && ((w1 & 0xF0F0u) == 0xF040u)) {
+    out_inst.type = inst_type::ADD_8_UNSIGNED;
+    out_inst.i.add_8_unsigned = { .m = u8(w1 & 0xFu), .n = u8(w0 & 0xFu),
+      .d = u8((w1 >> 8u) & 0xFu) };
     return true;
   }
 

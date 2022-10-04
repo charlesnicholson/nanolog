@@ -46,6 +46,7 @@ struct imm_shift { imm_shift_type t; u8 n; };
   X(ADD_SP_IMM, add_sp_imm) \
   X(ADD_SP_REG, add_sp_reg) \
   X(ADD_REG, add_reg) \
+  X(ADD_8_UNSIGNED, add_8_unsigned) \
   X(ADR, adr) \
   X(AND_REG, and_reg) \
   X(AND_IMM, and_imm) \
@@ -58,6 +59,7 @@ struct imm_shift { imm_shift_type t; u8 n; };
   X(BRANCH_LINK, branch_link) \
   X(BRANCH_LINK_XCHG_REG, branch_link_xchg_reg) \
   X(BRANCH_XCHG, branch_xchg) \
+  X(BREAKPOINT, breakpoint) \
   X(BYTE_REV_PACKED_HALF, byte_rev_packed_half) \
   X(CBNZ, cmp_branch_nz) \
   X(CBZ, cmp_branch_z) \
@@ -110,6 +112,7 @@ struct imm_shift { imm_shift_type t; u8 n; };
   X(RSHIFT_ARITH_IMM, rshift_arith_imm) \
   X(RSHIFT_LOG_IMM, rshift_log_imm) \
   X(RSHIFT_LOG_REG, rshift_log_reg) \
+  X(SELECT_BYTES, select_bytes) \
   X(STORE_BYTE_IMM, store_byte_imm) \
   X(STORE_EXCL, store_excl) \
   X(STORE_HALF_IMM, store_half_imm) \
@@ -147,6 +150,7 @@ struct inst_add_imm { u32 imm; u8 d, n; };
 struct inst_add_sp_imm { u16 imm; u8 d; };
 struct inst_add_sp_reg { imm_shift shift; u8 d, m; };
 struct inst_add_reg { imm_shift shift; u8 d, n, m; };
+struct inst_add_8_unsigned { u8 d, n, m; };
 struct inst_adr { u8 dst_reg, imm; };
 struct inst_and_reg { imm_shift shift; u8 d, n, m; };
 struct inst_and_imm { u32 imm; u8 d, n; };
@@ -159,6 +163,7 @@ struct inst_branch { u32 imm; u32 addr; cond_code cc; };
 struct inst_branch_link { u32 imm, addr; };
 struct inst_branch_link_xchg_reg { u8 reg; };
 struct inst_branch_xchg { u8 m; };
+struct inst_breakpoint { u16 imm; };
 struct inst_byte_rev_packed_half { u8 d, m; };
 struct inst_cmp_branch_nz { u32 addr; u8 n, imm; };
 struct inst_cmp_branch_z { u32 addr; u8 n, imm; };
@@ -210,7 +215,8 @@ struct inst_nop {};
 struct inst_reverse_bits { u8 d, m; };
 struct inst_rshift_log_imm { imm_shift shift; u8 d, m; };
 struct inst_rshift_log_reg { u8 d, n, m; };
-struct inst_rshift_arith_imm { imm_shift shift; u8 dst_reg, src_reg; };
+struct inst_rshift_arith_imm { imm_shift shift; u8 d, m; };
+struct inst_select_bytes { u8 d, n, m; };
 struct inst_store_byte_imm { u16 imm; u8 t, n, add; };
 struct inst_store_excl { u16 imm; u8 d, t, n; };
 struct inst_store_imm { u8 t, n; u16 imm; };

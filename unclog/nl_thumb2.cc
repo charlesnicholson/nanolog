@@ -42,7 +42,7 @@ char const *fmt_str_strat_name(fmt_str_strat s) {
 namespace {
 
 bool address_in_func(u32 addr, func_state const& s) {
-  return (addr >= s.func_start) && (addr <= s.func_end);
+  return !s.f.st_size || ((addr >= s.func_start) && (addr <= s.func_end));
 }
 
 void mark_visited(u32 addr, func_state& s) { s.visited[(addr - s.func_start) / 2] = true; }
