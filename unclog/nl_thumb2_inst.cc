@@ -1191,6 +1191,25 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
     return true;
   }
 
+  // 4.6.55 LDRH (imm), T3 encoding (pg 4-124)
+  if (((w0 & 0xFFF0u) == 0xF830u) && ((w1 & 0x800u) == 0x800u)) {
+    u8 const p{u8((w1 >> 10u) & 1u)}, u{u8((w1 >> 9u) & 1u)}, w{u8((w1 >> 8u) & 1u)},
+      n{u8(w0 & 0xFu)}, t{u8((w1 >> 12u) & 0xFu)};
+    if (n == 15) { // "SEE LDRH (literal) on page 4-126"
+      return false;
+    }
+    if ((t == 15) && (p == 1) && (u == 0) && (w == 0)) { // "SEE Memory hints on page 4-14"
+      return false;
+    }
+    if ((p == 1) && (u == 1) && (w == 0)) { // "SEE LDRHT on page 4-130"
+      return false;
+    }
+    out_inst.type = inst_type::LOAD_HALF_IMM;
+    out_inst.i.load_half_imm = { .n = n, .t = t, .imm = u16(w1 & 0xFFu), .add = u,
+      .index = p };
+    return true;
+  }
+
   if ((w0 & 0xFFF0u) == 0xF990u) { // 4.6.59 LDRSB (imm), T1 encoding (pg 4-132)
     out_inst.type = inst_type::LOAD_SIGNED_BYTE_IMM;
     out_inst.i.load_signed_byte_imm = { .imm = u16(w1 & 0xFFFu), .n = u8(w0 & 0xFu),
