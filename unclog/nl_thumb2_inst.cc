@@ -63,6 +63,11 @@ void print(inst_and_imm const& a) {
   printf("AND_IMM %s, %s, #%d", s_rn[a.d], s_rn[a.n], int(a.imm));
 }
 
+void print(inst_pack_half const& p) {
+  printf("PKH%s %s, %s, %s, %s #%d", p.tbform ? "TB" : "BT", s_rn[p.d], s_rn[p.n],
+    s_rn[p.m], s_sn[int(p.shift.t)], int(p.shift.n));
+}
+
 void print(inst_push const& p) {
   printf("PUSH { ");
   for (int i = 0; i < 16; ++i) { if (p.reg_list & (1 << i)) { printf("%s ", s_rn[i]); } }
@@ -1355,6 +1360,16 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
     }
     out_inst.type = inst_type::OR_REG_REG;
     out_inst.i.or_reg_reg = { .n = n, .m = m, .shift = shift };
+    return true;
+  }
+
+  // 4.6.93 PKH, T1 encoding (pg 4-199)
+  if (((w0 & 0xFFF0u) == 0xEAC0u) && ((w1 & 0x10u) == 0)) {
+    u8 const imm2{u8((w1 >> 6u) & 3u)}, imm3{u8((w1 >> 12u) & 7u)}, tb{u8((w1 >> 5u) & 1u)};
+    out_inst.type = inst_type::PACK_HALF;
+    out_inst.i.pack_half = { .m = u8(w1 & 0xFu), .n = u8(w0 & 0xFu),
+      .tbform = tb, .shift = decode_imm_shift(u8(tb << 1u), u8((imm3 << 2u) | imm2)),
+      .d = u8((w1 >> 8u) & 0xFu) };
     return true;
   }
 

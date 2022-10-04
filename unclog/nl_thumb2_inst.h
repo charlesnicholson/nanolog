@@ -103,6 +103,7 @@ struct imm_shift { imm_shift_type t; u8 n; };
   X(NOP, nop) \
   X(OR_REG_IMM, or_reg_imm) \
   X(OR_REG_REG, or_reg_reg) \
+  X(PACK_HALF, pack_half) \
   X(PUSH, push) \
   X(POP, pop) \
   X(REVERSE_BITS, reverse_bits) \
@@ -202,6 +203,7 @@ struct inst_mul_accum_unsigned_long { u8 dlo, dhi, n, m; };
 struct inst_mul_sub { u8 d, n, m, a; };
 struct inst_or_reg_imm { u32 imm; u8 d, n; };
 struct inst_or_reg_reg { u32 imm; imm_shift shift; u8 d, n, m; };
+struct inst_pack_half { imm_shift shift; u8 d, n, m, tbform; };
 struct inst_push { u16 reg_list; };
 struct inst_pop { u16 reg_list; };
 struct inst_nop {};
