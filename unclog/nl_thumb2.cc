@@ -9,7 +9,7 @@
 struct reg_state {
   u16 known;
   u32 regs[16];
-  u16 reg_node_idxs[16];
+  u16 mut_node_idxs[16];
 };
 
 reg_state reg_state_branch(reg_state const& r, u32 label) {
@@ -126,29 +126,29 @@ void simulate(inst const& i, func_state& fs, reg_state& regs) {
              4);
       mark_reg_known(regs.known, i.i.load_lit.t);
       reg_muts.push_back(reg_mut_node{.i = i});
-      regs.reg_node_idxs[i.i.load_lit.t] = u16(reg_muts.size() - 1u);
+      regs.mut_node_idxs[i.i.load_lit.t] = u16(reg_muts.size() - 1u);
       break;
 
     case inst_type::MOV:
       regs.regs[i.i.mov.d] = regs.regs[i.i.mov.m];
       copy_reg_known(regs.known, i.i.mov.d, i.i.mov.m);
-      reg_muts.push_back(reg_mut_node{.i = i, .par_idxs[0] = regs.reg_node_idxs[i.i.mov.m]});
-      regs.reg_node_idxs[i.i.mov.d] = u16(reg_muts.size() - 1u);
+      reg_muts.push_back(reg_mut_node{.i = i, .par_idxs[0] = regs.mut_node_idxs[i.i.mov.m]});
+      regs.mut_node_idxs[i.i.mov.d] = u16(reg_muts.size() - 1u);
       break;
 
     case inst_type::MOV_IMM:
       regs.regs[i.i.mov_imm.d] = i.i.mov_imm.imm;
       mark_reg_known(regs.known, i.i.mov_imm.d);
       reg_muts.push_back(reg_mut_node{.i = i});
-      regs.reg_node_idxs[i.i.mov_imm.d] = u16(reg_muts.size() - 1u);
+      regs.mut_node_idxs[i.i.mov_imm.d] = u16(reg_muts.size() - 1u);
       break;
 
     case inst_type::ADD_IMM:
       regs.regs[i.i.add_imm.d] = regs.regs[i.i.add_imm.n] + i.i.add_imm.imm;
       copy_reg_known(regs.known, i.i.add_imm.d, i.i.add_imm.n);
       reg_muts.push_back(
-        reg_mut_node{.i = i, .par_idxs[0] = regs.reg_node_idxs[i.i.add_imm.n]});
-      regs.reg_node_idxs[i.i.add_imm.d] = u16(reg_muts.size() - 1u);
+        reg_mut_node{.i = i, .par_idxs[0] = regs.mut_node_idxs[i.i.add_imm.n]});
+      regs.mut_node_idxs[i.i.add_imm.d] = u16(reg_muts.size() - 1u);
       break;
 
     default: break;
@@ -227,13 +227,13 @@ bool thumb2_analyze_func(elf const& e,
         }
 
         printf("  Found log function, format string 0x%08x\n", path.regs[reg::R0]);
-        inst const& r0_i = s.lca.reg_muts[path.reg_node_idxs[reg::R0]].i;
+        inst const& r0_i = s.lca.reg_muts[path.mut_node_idxs[reg::R0]].i;
         switch (r0_i.type) {
           case inst_type::LOAD_LIT:
             out_lca.log_calls.push_back(log_call{
               .fmt_str_addr = path.regs[reg::R0],
               .log_func_call_addr = pc_i.addr,
-              .node_idx = path.reg_node_idxs[reg::R0],
+              .node_idx = path.mut_node_idxs[reg::R0],
               .s = fmt_str_strat::DIRECT_LOAD });
             break;
 
@@ -241,7 +241,7 @@ bool thumb2_analyze_func(elf const& e,
             out_lca.log_calls.push_back(log_call{
               .fmt_str_addr = path.regs[reg::R0],
               .log_func_call_addr = pc_i.addr,
-              .node_idx = path.reg_node_idxs[reg::R0],
+              .node_idx = path.mut_node_idxs[reg::R0],
               .s = fmt_str_strat::MOV_FROM_DIRECT_LOAD });
             break;
 
@@ -249,7 +249,7 @@ bool thumb2_analyze_func(elf const& e,
             out_lca.log_calls.push_back(log_call{
               .fmt_str_addr = path.regs[reg::R0],
               .log_func_call_addr = pc_i.addr,
-              .node_idx = path.reg_node_idxs[reg::R0],
+              .node_idx = path.mut_node_idxs[reg::R0],
               .s = fmt_str_strat::ADD_IMM_FROM_BASE_REG });
             break;
 
