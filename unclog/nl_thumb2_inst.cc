@@ -1573,6 +1573,14 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
     return true;
   }
 
+  // 4.6.224 UXTB, T2 encoding (pg 4-461)
+  if ((w0 == 0xFA5Fu) && ((w1 & 0xF080u) == 0xF080u)) {
+    out_inst.type = inst_type::EXTEND_UNSIGNED_BYTE;
+    out_inst.i.extend_unsigned_byte = { .m = u8(w1 & 0xFu), .d = u8((w1 >> 8u) & 0xFu),
+      .rotation = u8(((w1 >> 4u) & 3u) << 2u) };
+    return true;
+  }
+
   // A7.7.223 VCVT (between FP and int), T1 encoding (pg A7-?)
   if (((w0 & 0xFFB8u) == 0xEEB8u) && ((w1 & 0xF50u) == 0xA40u)) {
     u8 const opc2{u8(w0 & 7u)}, d{u8(((w1 >> 11u) & 0x1Eu) | ((w0 >> 6u) & 1u))},
