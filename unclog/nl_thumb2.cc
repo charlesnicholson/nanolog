@@ -121,17 +121,23 @@ bool inst_is_log_call(inst const& i, std::vector<elf_symbol32 const*> const& log
     != std::end(log_funcs);
 }
 
-u32 table_branch(u32 sz, u32 base, u32 ofs, reg_state& regs, func_state& fs) {
-  (void)sz;
-  (void)fs;
-  if (base != reg::PC) { return true; }
+u32 table_branch(u32 addr, u32 sz, u32 base, u32 ofs, reg_state& regs, func_state& fs) {
+  if (base != reg::PC) { return 4; }
+
   u32 cmp_imm_lit;
   if (!cmp_imm_lit_get(regs, u8(ofs), cmp_imm_lit)) { return 0; }
+  ++cmp_imm_lit;
+
+  unsigned const src_off{fs.func_ofs + (addr - fs.func_start) + 4};
+  unsigned char const *src{reinterpret_cast<unsigned char const *>(&fs.e.bytes[src_off])};
 
   for (auto i = 0u; i < cmp_imm_lit; ++i) {
+    u32 val{*src++};
+    if (sz == 2) { val = u32(val | u32(*src++ << 8u)); }
+    fs.paths.push(reg_state_branch(regs, regs.regs[reg::PC] + 4 + (val << 1u)));
   }
 
-  return 4 + ((cmp_imm_lit + 1) * sz);
+  return 4 + (cmp_imm_lit * sz);
 }
 
 bool simulate(inst const& i, func_state& fs, reg_state& regs) {
@@ -181,11 +187,11 @@ bool simulate(inst const& i, func_state& fs, reg_state& regs) {
       break;
 
     case inst_type::TABLE_BRANCH_HALF:
-      len = table_branch(2, i.i.table_branch_half.n, i.i.table_branch_half.m, regs, fs);
+      len = table_branch(i.addr, 2, i.i.table_branch_half.n, i.i.table_branch_half.m, regs, fs);
       break;
 
     case inst_type::TABLE_BRANCH_BYTE:
-      len = table_branch(1, i.i.table_branch_byte.n, i.i.table_branch_byte.m, regs, fs);
+      len = table_branch(i.addr, 1, i.i.table_branch_byte.n, i.i.table_branch_byte.m, regs, fs);
       break;
 
     default: break;
@@ -300,6 +306,8 @@ bool thumb2_analyze_func(elf const& e,
       }
 
       if (!simulate(pc_i, s, path)) { return false; }
+
+      if (inst_is_table_branch(pc_i)) { break; }
     }
   }
 

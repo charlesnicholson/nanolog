@@ -1759,6 +1759,11 @@ bool inst_is_goto(inst const& i, u32& label) {
   return false;
 }
 
+bool inst_is_table_branch(inst const& i) {
+  return (i.type == inst_type::TABLE_BRANCH_HALF) ||
+    (i.type == inst_type::TABLE_BRANCH_BYTE);
+}
+
 u32 inst_align(u32 val, u32 align) { // Rounding and Aligning, A-16
   // If x and y are integers, Align(x,y) = y * (x DIV y) is an integer.
   return align * (val / align);
