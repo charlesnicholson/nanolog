@@ -1542,6 +1542,18 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
     return true;
   }
 
+  // 4.6.162 STR (imm), T4 encoding (pg 4-337)
+  if (((w0 & 0xFFF0u) == 0xF840) && ((w1 & 0x800u) == 0x800u)) {
+    u8 const t{u8((w1 >> 12u) & 0xFu)}, n{u8(w0 & 0xFu)}, imm8{u8(w1 & 0xFFu)},
+      p{u8((w1 >> 10u) & 1u)}, u{u8((w1 >> 9u) & 1u)}, w{u8((w1 >> 8u) & 1u)};
+    if ((p == 1) && (u == 1) && (w == 0)) { // "SEE STRT on page 4-363"
+      return false;
+    }
+    out_inst.type = inst_type::STORE_IMM;
+    out_inst.i.store_imm = { .t = t, .n = n, .imm = u16(imm8) };
+    return true;
+  }
+
   // 4.6.163 STR (reg), T2 encoding (pg 4-339)
   if (((w0 & 0xFFF0u) == 0xF840u) && ((w1 & 0xFC0u) == 0)) {
     out_inst.type = inst_type::STORE_REG;
