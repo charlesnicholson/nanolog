@@ -1759,7 +1759,7 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
 }
 
 void inst_print(inst const& i) {
-#define X(ENUM, TYPE) case inst_type::ENUM: print(i.i.TYPE); return;
+#define X(ENUM, TYPE, ...) case inst_type::ENUM: print(i.i.TYPE); return;
   switch (i.type) { INST_TYPE_X_LIST() }
 #undef X
 }
