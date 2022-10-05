@@ -140,6 +140,8 @@ void print(inst_byte_rev_packed_half const& b) {
   printf("REV16 %s, %s", s_rn[b.d], s_rn[b.m]);
 }
 
+void print(inst_byte_rev_word const& b) { printf("REV %s, %s", s_rn[b.d], s_rn[b.m]); }
+
 void print(inst_cmp_branch_nz const& c) {
   printf("CBNZ %s, #%d (%x)", s_rn[c.n], unsigned(c.imm), unsigned(c.addr));
 }
@@ -808,6 +810,12 @@ bool decode_16bit_inst(u16 const w0, inst& out_inst) {
   if ((w0 & 0xFE00u) == 0xB400u) { // 4.6.99 PUSH, T1 encoding (pg 4-211)
     out_inst.type = inst_type::PUSH;
     out_inst.i.push = { .reg_list = u16(((w0 & 0x0100u) << 6u) | (w0 & 0xFFu)) };
+    return true;
+  }
+
+  if ((w0 & 0xFFC0u) == 0xBA00u) { // 4.6.111 REV, T1 encoding (pg 4-235)
+    out_inst.type = inst_type::BYTE_REV_WORD;
+    out_inst.i.byte_rev_word = { .d = u8(w0 & 7u), .m = u8((w0 >> 3u) & 7u) };
     return true;
   }
 

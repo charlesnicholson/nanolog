@@ -61,6 +61,7 @@ struct imm_shift { imm_shift_type t; u8 n; };
   X(BRANCH_XCHG, branch_xchg) \
   X(BREAKPOINT, breakpoint) \
   X(BYTE_REV_PACKED_HALF, byte_rev_packed_half) \
+  X(BYTE_REV_WORD, byte_rev_word) \
   X(CBNZ, cmp_branch_nz) \
   X(CBZ, cmp_branch_z) \
   X(CHANGE_PROC_STATE, change_proc_state) \
@@ -167,6 +168,7 @@ struct inst_branch_link_xchg_reg { u8 reg; };
 struct inst_branch_xchg { u8 m; };
 struct inst_breakpoint { u16 imm; };
 struct inst_byte_rev_packed_half { u8 d, m; };
+struct inst_byte_rev_word { u8 d, m; };
 struct inst_cmp_branch_nz { u32 addr; u8 n, imm; };
 struct inst_cmp_branch_z { u32 addr; u8 n, imm; };
 struct inst_change_proc_state { u8 enable, disable, changemode, aff_a, aff_i, aff_f; };
