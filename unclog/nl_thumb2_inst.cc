@@ -151,7 +151,7 @@ void print(inst_cmp_branch_z const& c) {
 }
 
 void print(inst_change_proc_state const& c) {
-  printf("CPS%s %s%s%s", c.enable ? "IE" : (c.disable ? "ID" : ""),
+  printf("CPS%s %s%s%s", c.en ? "IE" : (c.dis ? "ID" : ""),
     c.aff_a ? "A" : "", c.aff_f ? "F" : "", c.aff_i ? "I" : "");
 }
 
@@ -643,9 +643,8 @@ bool decode_16bit_inst(u16 const w0, inst& out_inst) {
   if ((w0 & 0xFFE8u) == 0xB660u) { // 4.6.31 CPS, T1 encoding (pg 4-76)
     u8 const im{u8((w0 >> 4u) & 1u)};
     out_inst.type = inst_type::CHANGE_PROC_STATE;
-    out_inst.i.change_proc_state = { .enable = (im == 0), .disable = (im == 1),
-      .changemode = 0, .aff_a = u8((w0 >> 2u) & 1u), .aff_f = u8(w0 & 1u),
-      .aff_i = u8((w0 >> 1u) & 1u) };
+    out_inst.i.change_proc_state = { .en = (im == 0), .dis = (im == 1), .cm = 0,
+      .aff_a = u8((w0 >> 2u) & 1u), .aff_f = u8(w0 & 1u), .aff_i = u8((w0 >> 1u) & 1u) };
     return true;
   }
 

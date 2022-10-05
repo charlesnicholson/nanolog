@@ -64,7 +64,7 @@ struct imm_shift { imm_shift_type t; u8 n; };
   X(BYTE_REV_WORD, byte_rev_word, { u8 d, m; }) \
   X(CBNZ, cmp_branch_nz, { u32 addr; u8 n, imm; }) \
   X(CBZ, cmp_branch_z, { u32 addr; u8 n, imm; }) \
-  X(CHANGE_PROC_STATE, change_proc_state, { u8 enable, disable, changemode, aff_a, aff_i, aff_f; }) \
+  X(CHANGE_PROC_STATE, change_proc_state, { u8 en, dis, cm, aff_a, aff_i, aff_f; }) \
   X(CMP_IMM, cmp_imm, { u32 imm; u8 n; }) \
   X(CMP_NEG_IMM, cmp_neg_imm, { u32 imm; u8 n; }) \
   X(CMP_REG, cmp_reg, { imm_shift shift; u8 n, m; }) \
