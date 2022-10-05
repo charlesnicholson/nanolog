@@ -311,11 +311,16 @@ void print(inst_mul_sub const& m) {
   printf("MLS %s, %s, %s, %s", s_rn[m.d], s_rn[m.n], s_rn[m.m], s_rn[m.a]);
 }
 
-void print(inst_or_reg_imm const& o) {
+void print(inst_or_not_reg const& o) {
+  printf("ORN_REG %s, %s, %s, %s #%d", s_rn[o.d], s_rn[o.n], s_rn[o.m],
+    s_sn[int(o.shift.t)], int(o.shift.n));
+}
+
+void print(inst_or_imm const& o) {
   printf("ORR_IMM %s, %s, #%d", s_rn[o.d], s_rn[o.n], int(o.imm));
 }
 
-void print(inst_or_reg_reg const& o) {
+void print(inst_or_reg const& o) {
   printf("ORR_REG %s, %s, %s <%s #%d>", s_rn[o.d], s_rn[o.n], s_rn[o.m],
     s_sn[int(o.shift.t)], int(o.shift.n));
 }
@@ -783,7 +788,7 @@ bool decode_16bit_inst(u16 const w0, inst& out_inst) {
   }
 
   if ((w0 & 0xFFC0u) == 0x43C0u) { // 4.6.86 MVN (reg), T1 encoding (pg 4-185)
-    out_inst.type = inst_type::MOV_NEV_REG;
+    out_inst.type = inst_type::MOV_NEG_REG;
     out_inst.i.mov_neg_reg = { .d = u8(w0 & 7u), .m = u8((w0 >> 3u) & 7u),
       .shift = decode_imm_shift(0b00, 0) };
     return true;
@@ -795,8 +800,8 @@ bool decode_16bit_inst(u16 const w0, inst& out_inst) {
   }
 
   if ((w0 & 0xFFC0) == 0x4300) { // 4.6.92 ORR (reg), T1 encoding (pg 4-197)
-    out_inst.type = inst_type::OR_REG_REG;
-    out_inst.i.or_reg_reg = { .d = u8(w0 & 7u), .n = u8(w0 & 7u), .m = u8((w0 >> 3u) & 7u),
+    out_inst.type = inst_type::OR_REG;
+    out_inst.i.or_reg = { .d = u8(w0 & 7u), .n = u8(w0 & 7u), .m = u8((w0 >> 3u) & 7u),
       .shift = decode_imm_shift(0b00, 0) };
     return true;
   }
@@ -1388,7 +1393,7 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
     return true;
   }
 
-  // 4.6.85 MVN (imm), T1 encoding (pg 4-183)
+  // 4.6.85 MVN (imm), T2 encoding (pg 4-183)
   if (((w0 & 0xFBEFu) == 0xF06Fu) && ((w1 & 0x8000u) == 0)) {
     u32 const imm8{w1 & 0xFFu}, imm3{(w1 >> 12u) & 7u}, i{(w0 >> 10u) & 1u};
     out_inst.type = inst_type::MOV_NEG_IMM;
@@ -1404,6 +1409,20 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
     return true;
   }
 
+  if ((w0 & 0xFFE0u) == 0xEA60u) { // 4.6.90 ORN, T1 encoding (pg 4-193)
+    u8 const d{u8((w1 >> 8u) & 0xFu)}, m{u8(w1 & 0xFu)}, n{u8(w0 & 0xFu)},
+      imm2{u8((w1 >> 6u) & 3u)}, imm3{u8((w1 >> 12u) & 7u)};
+    imm_shift const shift{decode_imm_shift(u8((w1 >> 4u) & 3u), u8((imm3 << 2u) | imm2))};
+    if (n == 15) { // 4.6.86 MVN (reg), T2 encoding (pg 4-185)
+      out_inst.type = inst_type::MOV_NEG_REG;
+      out_inst.i.mov_neg_reg = { .d = d, .m = m, .shift = shift };
+      return true;
+    }
+    out_inst.type = inst_type::OR_NOT_REG;
+    out_inst.i.or_not_reg = { .d = d, .m = m, .n = n, .shift = shift };
+    return true;
+  }
+
   // 4.6.91 ORR (imm), T1 encoding (pg 4-195)
   if (((w0 & 0xFB40u) == 0xF040u) && ((w1 & 0x8000u) == 0)) {
     u32 const imm8{w1 & 0xFFu}, imm3{(w1 >> 12u) & 7u}, i{(w0 >> 10u) & 1u},
@@ -1414,8 +1433,8 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
       out_inst.i.mov_imm = { .d = d, .imm = imm };
       return true;
     }
-    out_inst.type = inst_type::OR_REG_IMM;
-    out_inst.i.or_reg_imm = { .d = d, .n = n, .imm = imm };
+    out_inst.type = inst_type::OR_IMM;
+    out_inst.i.or_imm = { .d = d, .n = n, .imm = imm };
     return true;
   }
 
@@ -1426,8 +1445,8 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
     if (n == 15) { // "SEE MOV (register) on page 4-168"
       return false;
     }
-    out_inst.type = inst_type::OR_REG_REG;
-    out_inst.i.or_reg_reg = { .n = n, .m = m, .shift = shift };
+    out_inst.type = inst_type::OR_REG;
+    out_inst.i.or_reg = { .n = n, .m = m, .shift = shift };
     return true;
   }
 

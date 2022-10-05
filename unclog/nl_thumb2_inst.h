@@ -97,15 +97,16 @@ struct imm_shift { imm_shift_type t; u8 n; };
   X(MOV, mov) \
   X(MOV_IMM, mov_imm) \
   X(MOV_NEG_IMM, mov_neg_imm) \
-  X(MOV_NEV_REG, mov_neg_reg) \
+  X(MOV_NEG_REG, mov_neg_reg) \
   X(MUL, mul) \
   X(MUL_ACCUM, mul_accum) \
   X(MUL_ACCUM_SIGNED_LONG, mul_accum_signed_long) \
   X(MUL_ACCUM_UNSIGNED_LONG, mul_accum_unsigned_long) \
   X(MUL_SUB, mul_sub) \
   X(NOP, nop) \
-  X(OR_REG_IMM, or_reg_imm) \
-  X(OR_REG_REG, or_reg_reg) \
+  X(OR_NOT_REG, or_not_reg) \
+  X(OR_IMM, or_imm) \
+  X(OR_REG, or_reg) \
   X(PACK_HALF, pack_half) \
   X(PUSH, push) \
   X(POP, pop) \
@@ -210,8 +211,9 @@ struct inst_mul_accum { u8 d, n, m, a; };
 struct inst_mul_accum_signed_long { u8 dlo, dhi, n, m; };
 struct inst_mul_accum_unsigned_long { u8 dlo, dhi, n, m; };
 struct inst_mul_sub { u8 d, n, m, a; };
-struct inst_or_reg_imm { u32 imm; u8 d, n; };
-struct inst_or_reg_reg { u32 imm; imm_shift shift; u8 d, n, m; };
+struct inst_or_not_reg { imm_shift shift; u8 d, n, m; };
+struct inst_or_imm { u32 imm; u8 d, n; };
+struct inst_or_reg { u32 imm; imm_shift shift; u8 d, n, m; };
 struct inst_pack_half { imm_shift shift; u8 d, n, m, tbform; };
 struct inst_push { u16 reg_list; };
 struct inst_pop { u16 reg_list; };
