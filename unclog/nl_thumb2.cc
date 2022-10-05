@@ -129,7 +129,7 @@ u32 table_branch(u32 addr, u32 sz, u32 base, u32 ofs, reg_state& regs, func_stat
   ++cmp_imm_lit;
 
   unsigned const src_off{fs.func_ofs + (addr - fs.func_start) + 4};
-  unsigned char const *src{reinterpret_cast<unsigned char const *>(&fs.e.bytes[src_off])};
+  auto const *src{reinterpret_cast<unsigned char const *>(&fs.e.bytes[src_off])};
 
   for (auto i = 0u; i < cmp_imm_lit; ++i) {
     u32 val{*src++};
@@ -137,7 +137,8 @@ u32 table_branch(u32 addr, u32 sz, u32 base, u32 ofs, reg_state& regs, func_stat
     fs.paths.push(reg_state_branch(regs, regs.regs[reg::PC] + 4 + (val << 1u)));
   }
 
-  return 4 + (cmp_imm_lit * sz);
+  u32 const table_size_pad{((cmp_imm_lit * sz) + 1u) & 1u};
+  return 4 + table_size_pad;
 }
 
 bool simulate(inst const& i, func_state& fs, reg_state& regs) {
