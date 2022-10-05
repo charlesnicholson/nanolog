@@ -7,9 +7,11 @@
 #include <vector>
 
 struct reg_state {
-  u16 known;
   u32 regs[16];
+  u32 cmp_imm_lits[16];
   u16 mut_node_idxs[16];
+  u16 known = 0;
+  u16 cmp_imm_present = 0;
 };
 
 reg_state reg_state_branch(reg_state const& r, u32 label) {
@@ -57,11 +59,20 @@ bool test_visited(u32 addr, func_state const& s) {
   return s.visited[(addr - s.func_start) / 2];
 }
 
-inline bool test_reg_known(u16 regs, u8 index) { return (regs >> index) & 1u; }
-inline void mark_reg_known(u16& regs, u8 index) { regs |= (1u << index); }
-
-inline void copy_reg_known(u16& regs, u8 dst_index, u8 src_index) {
+bool test_reg_known(u16 regs, u8 index) { return (regs >> index) & 1u; }
+void mark_reg_known(u16& regs, u8 index) { regs |= (1u << index); }
+void copy_reg_known(u16& regs, u8 dst_index, u8 src_index) {
   regs = u16(regs & ~(1u << dst_index)) | u16(((regs >> src_index) & 1u) << dst_index);
+}
+
+bool cmp_imm_lit_get(reg_state const& rs, u8 index, u32& out_lit) {
+  out_lit = rs.cmp_imm_lits[index];
+  return bool(rs.cmp_imm_present & (1 << index));
+}
+
+void cmp_imm_lit_set(reg_state& rs, u8 index, u32 lit) {
+  rs.cmp_imm_lits[index] = lit;
+  rs.cmp_imm_present |= (1 << index);
 }
 
 bool inst_terminates_path(inst const& i, func_state& s) {
@@ -110,14 +121,28 @@ bool inst_is_log_call(inst const& i, std::vector<elf_symbol32 const*> const& log
     != std::end(log_funcs);
 }
 
-void simulate(inst const& i, func_state& fs, reg_state& regs) {
+u32 table_branch(u32 sz, u32 base, u32 ofs, reg_state& regs, func_state& fs) {
+  (void)sz;
+  (void)fs;
+  if (base != reg::PC) { return true; }
+  u32 cmp_imm_lit;
+  if (!cmp_imm_lit_get(regs, u8(ofs), cmp_imm_lit)) { return 0; }
+
+  for (auto i = 0u; i < cmp_imm_lit; ++i) {
+  }
+
+  return 4 + ((cmp_imm_lit + 1) * sz);
+}
+
+bool simulate(inst const& i, func_state& fs, reg_state& regs) {
   u32 branch_label;
   if (inst_is_goto(i, branch_label) && address_in_func(branch_label, fs)) {
     regs.regs[reg::PC] = branch_label;
-    return;
+    return true;
   }
 
-  std::vector<reg_mut_node>& reg_muts = fs.lca.reg_muts;
+  std::vector<reg_mut_node>& reg_muts{fs.lca.reg_muts};
+  u32 len{i.len};
 
   switch (i.type) {
     case inst_type::LOAD_LIT:
@@ -151,14 +176,27 @@ void simulate(inst const& i, func_state& fs, reg_state& regs) {
       regs.mut_node_idxs[i.i.add_imm.d] = u16(reg_muts.size() - 1u);
       break;
 
+    case inst_type::CMP_IMM:
+      cmp_imm_lit_set(regs, i.i.cmp_imm.n, i.i.cmp_imm.imm);
+      break;
+
+    case inst_type::TABLE_BRANCH_HALF:
+      len = table_branch(2, i.i.table_branch_half.n, i.i.table_branch_half.m, regs, fs);
+      break;
+
+    case inst_type::TABLE_BRANCH_BYTE:
+      len = table_branch(1, i.i.table_branch_byte.n, i.i.table_branch_byte.m, regs, fs);
+      break;
+
     default: break;
   }
 
-  regs.regs[reg::PC] += i.len;
+  regs.regs[reg::PC] += len;
+  return bool(len);
 }
 
 void print(reg_state const& r) {
-  for (auto i = 0u; i < 16; ++i) {
+  for (auto i{0u}; i < 16; ++i) {
     printf("  R%d: 0x%08x known: %d\n", int(i), r.regs[i], (r.known >> i) & 1);
   }
 }
@@ -174,7 +212,7 @@ bool thumb2_analyze_func(elf const& e,
   printf("\nScanning %s: addr %x, len %x, range %x-%x, offset %x:\n", &e.strtab[func.st_name],
     func.st_value, func.st_size, s.func_start, s.func_end, s.func_ofs);
 
-  s.paths.push(reg_state{.regs[reg::PC] = s.func_start, .known = 0u});
+  s.paths.push(reg_state{.regs[reg::PC] = s.func_start});
 
   while (!s.paths.empty()) {
     reg_state path{s.paths.top()};
@@ -261,7 +299,7 @@ bool thumb2_analyze_func(elf const& e,
         }
       }
 
-      simulate(pc_i, s, path);
+      if (!simulate(pc_i, s, path)) { return false; }
     }
   }
 

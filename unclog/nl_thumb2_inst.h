@@ -134,6 +134,7 @@ struct imm_shift { imm_shift_type t; u8 n; };
   X(SUB_SP_IMM, sub_sp_imm) \
   X(SVC, svc) \
   X(TABLE_BRANCH_BYTE, table_branch_byte) \
+  X(TABLE_BRANCH_HALF, table_branch_half) \
   X(TEST_EQUIV, test_equiv) \
   X(TEST_REG, test_reg) \
   X(VCONVERT_FP_INT, vconvert_fp_int) \
@@ -239,6 +240,7 @@ struct inst_sub_rev_reg { imm_shift shift; u8 d, n, m; };
 struct inst_sub_sp_imm { u32 imm; u8 d; };
 struct inst_svc { u32 imm; };
 struct inst_table_branch_byte { u8 n, m; };
+struct inst_table_branch_half { u8 n, m; };
 struct inst_test_equiv { u32 imm; u8 n; };
 struct inst_test_reg { imm_shift shift; u8 n, m; };
 struct inst_vconvert_fp_int { u8 d, m, to_int, int_unsigned, round_zero; };

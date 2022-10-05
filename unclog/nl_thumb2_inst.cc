@@ -414,6 +414,10 @@ void print(inst_table_branch_byte const& t) {
   printf("TBB [%s, %s]", s_rn[t.n], s_rn[t.m]);
 }
 
+void print(inst_table_branch_half const& t) {
+  printf("TBH [%s, %s]", s_rn[t.n], s_rn[t.m]);
+}
+
 void print(inst_test_equiv const& t) { printf("TEQ %s, #%d", s_rn[t.n], int(t.imm)); }
 
 void print(inst_test_reg const& t) {
@@ -1229,10 +1233,18 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
         out_inst.i.load_excl = { .imm = u16((w1 & 0xFFu) << 2u), .n = u8(w0 & 0xFu),
           .t = u8((w1 >> 12u) & 0xFu) };
         return true;
-      } else { // 4.6.188 TBB, T1 encoding (4-389)
-        out_inst.type = inst_type::TABLE_BRANCH_BYTE;
-        out_inst.i.table_branch_byte = { .n = u8(w0 & 0xFu), .m = u8(w1 & 0xFu) };
-        return true;
+      } else {
+        if ((w1 & 0xF0u) == 0x10) { // 4.6.189 TBH, T1 encoding (pg 4-391)
+          out_inst.type = inst_type::TABLE_BRANCH_HALF;
+          out_inst.i.table_branch_half = { .n = u8(w0 & 0xFu), .m = u8(w1 & 0xFu) };
+          return true;
+        }
+        if ((w1 & 0xF0u) == 0) { // 4.6.188 TBB, T1 encoding (pg 4-389)
+          out_inst.type = inst_type::TABLE_BRANCH_BYTE;
+          out_inst.i.table_branch_byte = { .n = u8(w0 & 0xFu), .m = u8(w1 & 0xFu) };
+          return true;
+        }
+        return false;
       }
     }
     out_inst.type = inst_type::LOAD_DBL_REG;
