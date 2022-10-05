@@ -1358,6 +1358,14 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
     return true;
   }
 
+  // 4.6.71 LSR (reg), T2 encoding (pg 4-156)
+  if (((w0 & 0xFFE0u) == 0xFA20u) && ((w1 & 0xF0F0u) == 0xF000u)) {
+    out_inst.type = inst_type::LSHIFT_LOG_REG;
+    out_inst.i.lshift_log_reg = { .m = u8(w1 & 0xFu), .n = u8(w0 & 0xFu),
+      .d = u8((w1 >> 8u) & 0xFu) };
+    return true;
+  }
+
   // 4.6.74 MLA, T1 encoding (pg 4-162)
   if (((w0 & 0xFFF0u) == 0xFB00u) && ((w1 & 0xF0u) == 0)) {
     out_inst.type = inst_type::MUL_ACCUM;

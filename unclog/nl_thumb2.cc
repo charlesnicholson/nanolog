@@ -137,7 +137,7 @@ u32 table_branch(u32 addr, u32 sz, u32 base, u32 ofs, reg_state& regs, func_stat
     fs.paths.push(reg_state_branch(regs, regs.regs[reg::PC] + 4 + (val << 1u)));
   }
 
-  u32 const table_size_pad{((cmp_imm_lit * sz) + 1u) & 1u};
+  u32 const table_size_pad{((cmp_imm_lit * sz) + 1u) & ~1u};
   return 4 + table_size_pad;
 }
 
