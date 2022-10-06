@@ -59,10 +59,15 @@ bool test_visited(u32 addr, func_state const& s) {
   return s.visited[(addr - s.func_start) / 2];
 }
 
-bool test_reg_known(u16 regs, u8 index) { return (regs >> index) & 1u; }
-void mark_reg_known(u16& regs, u8 index) { regs |= (1u << index); }
-void copy_reg_known(u16& regs, u8 dst_index, u8 src_index) {
-  regs = u16(regs & ~(1u << dst_index)) | u16(((regs >> src_index) & 1u) << dst_index);
+bool test_reg_known(u16 regs, u8 idx) { return (regs >> idx) & 1u; }
+void mark_reg_known(u16& regs, u8 dst) { regs |= (1u << dst); }
+void copy_reg_known(u16& regs, u8 dst, u8 src) {
+  regs = u16(regs & ~(1u << dst)) | u16(((regs >> src) & 1u) << dst);
+}
+
+void union_reg_known(u16& regs, u8 dst, u8 src1, u8 src2) {
+  u16 const u{u16(u16(regs >> src1) & u16(regs >> src2) & 1u)};
+  regs = u16(regs & ~(1u << dst)) | u16(u << dst);
 }
 
 bool cmp_imm_lit_get(reg_state const& rs, u8 index, u32& out_lit) {
@@ -161,12 +166,13 @@ bool simulate(inst const& i, func_state& fs, reg_state& regs) {
       regs.mut_node_idxs[i.i.load_lit.t] = u16(reg_muts.size() - 1u);
       break;
 
-    case inst_type::MOV:
-      regs.regs[i.i.mov.d] = regs.regs[i.i.mov.m];
-      copy_reg_known(regs.known, i.i.mov.d, i.i.mov.m);
-      reg_muts.push_back(reg_mut_node{.i = i, .par_idxs[0] = regs.mut_node_idxs[i.i.mov.m]});
-      regs.mut_node_idxs[i.i.mov.d] = u16(reg_muts.size() - 1u);
-      break;
+    case inst_type::MOV_REG: {
+      auto const& mov = i.i.mov_reg;
+      regs.regs[mov.d] = regs.regs[mov.m];
+      copy_reg_known(regs.known, mov.d, mov.m);
+      reg_muts.push_back(reg_mut_node{.i = i, .par_idxs[0] = regs.mut_node_idxs[mov.m]});
+      regs.mut_node_idxs[mov.d] = u16(reg_muts.size() - 1u);
+    } break;
 
     case inst_type::MOV_IMM:
       regs.regs[i.i.mov_imm.d] = i.i.mov_imm.imm;
@@ -175,13 +181,24 @@ bool simulate(inst const& i, func_state& fs, reg_state& regs) {
       regs.mut_node_idxs[i.i.mov_imm.d] = u16(reg_muts.size() - 1u);
       break;
 
-    case inst_type::ADD_IMM:
-      regs.regs[i.i.add_imm.d] = regs.regs[i.i.add_imm.n] + i.i.add_imm.imm;
-      copy_reg_known(regs.known, i.i.add_imm.d, i.i.add_imm.n);
+    case inst_type::ADD_IMM: {
+      auto const& add = i.i.add_imm;
+      regs.regs[add.d] = regs.regs[add.n] + add.imm;
+      copy_reg_known(regs.known, add.d, add.n);
       reg_muts.push_back(
-        reg_mut_node{.i = i, .par_idxs[0] = regs.mut_node_idxs[i.i.add_imm.n]});
-      regs.mut_node_idxs[i.i.add_imm.d] = u16(reg_muts.size() - 1u);
-      break;
+        reg_mut_node{.i = i, .par_idxs[0] = regs.mut_node_idxs[add.n]});
+      regs.mut_node_idxs[add.d] = u16(reg_muts.size() - 1u);
+    } break;
+
+    case inst_type::ADD_REG: {
+      auto const& add = i.i.add_reg;
+      regs.regs[add.d] = regs.regs[add.n] + regs.regs[add.m];
+      union_reg_known(regs.known, add.d, add.m, add.n);
+      reg_muts.push_back(
+        reg_mut_node{.i = i, .par_idxs[0] = regs.mut_node_idxs[add.n],
+          .par_idxs[1] = regs.mut_node_idxs[add.m]});
+      regs.mut_node_idxs[add.d] = u16(reg_muts.size() - 1u);
+    } break;
 
     case inst_type::CMP_IMM:
       cmp_imm_lit_set(regs, i.i.cmp_imm.n, i.i.cmp_imm.imm);
@@ -284,7 +301,7 @@ bool thumb2_analyze_func(elf const& e,
               .s = fmt_str_strat::DIRECT_LOAD });
             break;
 
-          case inst_type::MOV:
+          case inst_type::MOV_REG:
             out_lca.log_calls.push_back(log_call{
               .fmt_str_addr = path.regs[reg::R0],
               .log_func_call_addr = pc_i.addr,

@@ -211,7 +211,7 @@ int main(int argc, char const *argv[]) {
 
         case fmt_str_strat::MOV_FROM_DIRECT_LOAD:
           printf("from r%u at %x, literal at %x: ",
-            r0_mut.i.i.mov.m,
+            r0_mut.i.i.mov_reg.m,
             lca.reg_muts[r0_mut.par_idxs[0]].i.addr,
             lca.reg_muts[r0_mut.par_idxs[0]].i.i.load_lit.addr);
           break;

@@ -97,7 +97,7 @@ struct imm_shift { imm_shift_type t; u8 n; };
   X(LOAD_REG, load_reg, { imm_shift shift; u8 t, n, m; }) \
   X(LSHIFT_LOG_IMM, lshift_log_imm, { imm_shift shift; u8 d, m; }) \
   X(LSHIFT_LOG_REG, lshift_log_reg, { imm_shift shift; u8 d, n, m; }) \
-  X(MOV, mov, { u8 d, m; }) \
+  X(MOV_REG, mov_reg, { u8 d, m; }) \
   X(MOV_IMM, mov_imm, { u32 imm; u8 d; }) \
   X(MOV_NEG_IMM, mov_neg_imm, { u32 imm; u8 d; }) \
   X(MOV_NEG_REG, mov_neg_reg, { imm_shift shift; u8 d, m; }) \
