@@ -4,21 +4,21 @@
 #include <cstdlib>
 
 namespace {
-  bytes_ptr_t load_file(char const *fn) {
-  FILE *f = fopen(fn, "rb");
+bytes_ptr_t load_file(char const *fn) {
+  FILE *f{fopen(fn, "rb")};
   if (!f) { return bytes_ptr_t(); }
   fseek(f, 0, SEEK_END);
-  size_t const len = (size_t)ftell(f);
+  size_t const len{size_t(ftell(f))};
   rewind(f);
   bytes_ptr_t contents{new (std::align_val_t{16}) char[len]};
-  size_t const r = fread(&contents[0], 1, len, f);
+  size_t const r{fread(&contents[0], 1, len, f)};
   fclose(f);
   assert(r == (size_t)len);
   return contents;
 }
 
 elf_section_hdr32 const *find_symtab_hdr(elf_section_hdr32 const *sec_hdrs, int sec_n) {
-  for (int i = 0; i < sec_n; ++i) {
+  for (auto i{0}; i < sec_n; ++i) {
     if (sec_hdrs[i].sh_type == ELF_SEC_TYPE_SYMTAB) { return &sec_hdrs[i]; }
   }
   return nullptr;
@@ -27,10 +27,9 @@ elf_section_hdr32 const *find_symtab_hdr(elf_section_hdr32 const *sec_hdrs, int 
 elf_section_hdr32 const *find_strtab_hdr(elf_section_hdr32 const *sec_hdrs,
                                          char const *sec_names,
                                          int sec_n) {
-  for (int i = 0; i < sec_n; ++i) {
-    elf_section_hdr32 const& sh = sec_hdrs[i];
-    if ((sh.sh_type == ELF_SEC_TYPE_STRTAB) &&
-        !strcmp(".strtab", &sec_names[sh.sh_name])) {
+  for (auto i{0}; i < sec_n; ++i) {
+    elf_section_hdr32 const& sh{sec_hdrs[i]};
+    if ((sh.sh_type == ELF_SEC_TYPE_STRTAB) && !strcmp(".strtab", &sec_names[sh.sh_name])) {
       return &sec_hdrs[i];
     }
   }
@@ -56,8 +55,7 @@ bool nl_elf_load(elf& e, char const* filename) {
   e.symtab = (elf_symbol32 const*)&e.bytes[e.symtab_hdr->sh_offset];
 
   // string table
-  elf_section_hdr32 const *strtab_hdr =
-    find_strtab_hdr(e.sec_hdrs, e.sec_names, (int)e.elf_hdr->e_shnum);
+  auto const *strtab_hdr{find_strtab_hdr(e.sec_hdrs, e.sec_names, (int)e.elf_hdr->e_shnum)};
   assert(strtab_hdr);
   e.strtab = &e.bytes[strtab_hdr->sh_offset];
 
@@ -65,21 +63,15 @@ bool nl_elf_load(elf& e, char const* filename) {
 }
 
 #define X(NAME, VAL) case VAL: printf("%s", #NAME); break;
-void nl_elf_print(elf_osabi eo) {
-  switch (eo) { ELF_OSABI_X_LIST() default: break; }
-}
+void nl_elf_print(elf_osabi eo) { switch (eo) { ELF_OSABI_X_LIST() default: break; } }
 #undef X
 
 #define X(NAME, VAL) case VAL: printf("%s", #NAME); break;
-void nl_elf_print(elf_type et) {
-  switch (et) { ELF_TYPE_X_LIST() default: break; }
-}
+void nl_elf_print(elf_type et) { switch (et) { ELF_TYPE_X_LIST() default: break; } }
 #undef X
 
 #define X(NAME, VAL) case VAL: printf("%s", #NAME); break;
-void nl_elf_print(elf_sec_type est) {
-  switch (est) { ELF_SEC_TYPE_X_LIST() default: break; }
-}
+void nl_elf_print(elf_sec_type est) { switch (est) { ELF_SEC_TYPE_X_LIST() default: break; } }
 #undef X
 
 #define X(NAME, VAL) if (esf & VAL) { printf("%s ", #NAME); }
@@ -87,15 +79,11 @@ void nl_elf_print(elf_sec_flags esf) { ELF_SEC_FLAGS_X_LIST() }
 #undef X
 
 #define X(NAME, VAL) case VAL: printf("%s", #NAME); break;
-void nl_elf_print(elf_sym_bind esb) {
-  switch (esb) { ELF_SYM_BIND_X_LIST() default: break; }
-}
+void nl_elf_print(elf_sym_bind esb) { switch (esb) { ELF_SYM_BIND_X_LIST() default: break; } }
 #undef X
 
 #define X(NAME, VAL) case VAL: printf("%s", #NAME); break;
-void nl_elf_print(elf_sym_type est) {
-  switch (est) { ELF_SYM_TYPE_X_LIST() default: break; }
-}
+void nl_elf_print(elf_sym_type est) { switch (est) { ELF_SYM_TYPE_X_LIST() default: break; } }
 #undef X
 
 void nl_elf_print(const elf_hdr32& h) {
