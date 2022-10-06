@@ -204,6 +204,10 @@ void print(inst_extend_signed_byte const& u) {
   printf("SXTB %s, %s, <%d>", s_rn[u.d], s_rn[u.m], int(u.rotation));
 }
 
+void print(inst_extend_signed_half const& e) {
+  printf("SXTH %s, %s, <%d>", s_rn[e.d], s_rn[e.m], int(e.rotation));
+}
+
 void print(inst_load_byte_imm const& l) {
   printf("LDRB_IMM %s, [%s, #%d]", s_rn[l.t], s_rn[l.n], int(l.imm));
 }
@@ -937,6 +941,13 @@ bool decode_16bit_inst(u16 const w0, inst& out_inst) {
   if ((w0 & 0xFFC0u) == 0xB240u) { // 4.6.185 SXTB, T1 encoding (pg 4-383)
     out_inst.type = inst_type::EXTEND_SIGNED_BYTE;
     out_inst.i.extend_signed_byte = { .d = u8(w0 & 7u), .m = u8((w0 >> 3u) & 7u),
+      .rotation = 0 };
+    return true;
+  }
+
+  if ((w0 & 0xFFC0u) == 0xB200u) {
+    out_inst.type = inst_type::EXTEND_SIGNED_HALF;
+    out_inst.i.extend_signed_half = { .d = u8(w0 & 7u), .m = u8((w0 >> 3u) & 7u),
       .rotation = 0 };
     return true;
   }
