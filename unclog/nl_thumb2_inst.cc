@@ -196,6 +196,10 @@ void print(inst_extend_unsigned_half const& u) {
   printf("UXTH %s, %s, <%d>", s_rn[u.d], s_rn[u.m], int(u.rotation));
 }
 
+void print(inst_extend_add_signed_byte const &e) {
+  printf("SXTAB %s, %s, %s, <%d>", s_rn[e.d], s_rn[e.n], s_rn[e.m], int(e.rotation));
+}
+
 void print(inst_extend_signed_byte const& u) {
   printf("SXTB %s, %s, <%d>", s_rn[u.d], s_rn[u.m], int(u.rotation));
 }
@@ -1471,11 +1475,12 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
     u8 const imm3{u8((w1 >> 12u) & 7u)}, imm2{u8((w1 >> 6u) & 3u)},
        n{u8(w0 & 0xFu)}, m{u8(w1 & 0xFu)};
     imm_shift const shift{decode_imm_shift(u8((w1 >> 4u) & 3u), u8((imm3 << 2u) | imm2))};
-    if (n == 15) { // "SEE MOV (register) on page 4-168"
+    if (n == 15) {
+      printf("SEE MOV (register) on page 4-168\n");
       return false;
     }
     out_inst.type = inst_type::OR_REG;
-    out_inst.i.or_reg = { .n = n, .m = m, .shift = shift };
+    out_inst.i.or_reg = { .d = u8((w1 >> 8u) & 0xFu), .n = n, .m = m, .shift = shift };
     return true;
   }
 
@@ -1707,6 +1712,20 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
     }
     out_inst.type = inst_type::SUB_IMM;
     out_inst.i.sub_imm = { .d = d, .n = n, .imm = imm };
+    return true;
+  }
+
+  // 4.6.182 SXTAB, T1 encoding (pg 4-377)
+  if (((w0 & 0xFFF0u) == 0xFA40u) && ((w1 & 0xF080u) == 0xF080u)) {
+    u8 const d{u8((w1 >> 8u) & 0xFu)}, m{u8(w1 & 0xFu)}, n{u8(w0 & 0xFu)},
+      rotation{u8(((w1 >> 4u) & 3u) << 3u)};
+    if (n == 15) { // 4.6.185 SXTB, T2 encoding (pg 4-383)
+      out_inst.type = inst_type::EXTEND_SIGNED_BYTE;
+      out_inst.i.extend_signed_byte = { .rotation = rotation, .d = d, .m = m };
+      return true;
+    }
+    out_inst.type = inst_type::EXTEND_ADD_SIGNED_BYTE;
+    out_inst.i.extend_add_signed_byte = { .d = d, .m = m, .n = n, .rotation = rotation };
     return true;
   }
 
