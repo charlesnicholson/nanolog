@@ -6,6 +6,8 @@
 #include <stack>
 #include <vector>
 
+namespace {
+
 struct reg_state {
   u32 regs[16];
   u32 cmp_imm_lits[16];
@@ -14,11 +16,7 @@ struct reg_state {
   u16 cmp_imm_present = 0;
 };
 
-reg_state reg_state_branch(reg_state const& r, u32 label) {
-  reg_state b{r};
-  b.regs[reg::PC] = label;
-  return b;
-}
+using reg_state_vec = std::vector<reg_state>;
 
 struct func_state {
   func_state(elf_symbol32 const& f_,
@@ -28,7 +26,7 @@ struct func_state {
     : f(f_)
     , e(e_)
     , lca(lca_)
-    , visited(s.sh_size / 2)
+    //, visited(s.sh_size / 2)
     , func_start{f_.st_value & ~1u}
     , func_end{func_start + f.st_size}
     , func_ofs{s.sh_offset + func_start - s.sh_addr} {}
@@ -36,28 +34,44 @@ struct func_state {
   elf_symbol32 const& f;
   elf const& e;
   log_call_analysis& lca;
-  std::vector<bool> visited; // i know i know
-  std::stack<reg_state, std::vector<reg_state>> paths;
+  //std::vector<bool> visited; // i know i know
+  std::stack<reg_state, reg_state_vec> paths;
+  std::unordered_map<u32, reg_state_vec> branch_target_reg_states;
   unsigned const func_start, func_end, func_ofs;
 };
 
-char const *fmt_str_strat_name(fmt_str_strat s) {
-#define X(NAME) case fmt_str_strat::NAME: return #NAME;
-  switch (s) { FMT_STR_STRAT_LIST() default: return "unknown"; }
-#undef X
+reg_state reg_state_branch(reg_state const& r, u32 label) {
+  reg_state b{r};
+  b.regs[reg::PC] = label;
+  return b;
 }
 
-namespace {
+bool reg_states_equal(reg_state const& r1, reg_state const& r2) {
+  if (r1.known != r2.known) { return false; }
+  for (auto i{0}; i < 16; ++i) {
+    if (((r1.known >> i) & 1) && (r1.regs[i] != r2.regs[i])) { return false; }
+  }
+  return true;
+}
 
 bool address_in_func(u32 addr, func_state const& s) {
   return !s.f.st_size || ((addr >= s.func_start) && (addr <= s.func_end));
 }
 
-void mark_visited(u32 addr, func_state& s) { s.visited[(addr - s.func_start) / 2] = true; }
-
-bool test_visited(u32 addr, func_state const& s) {
-  return s.visited[(addr - s.func_start) / 2];
+bool process_branch(u32 label, func_state& s, reg_state const& r) {
+  auto [iter, inserted] = s.branch_target_reg_states.insert({label, {}});
+  reg_state_vec& rsv{iter->second};
+  if (inserted) { rsv.push_back(r); return true; }
+  for (auto const& rs: rsv) { if (reg_states_equal(r, rs)) { return false; } }
+  rsv.push_back(r);
+  return true;
 }
+
+//void mark_visited(u32 addr, func_state& s) { s.visited[(addr - s.func_start) / 2] = true; }
+//
+//bool test_visited(u32 addr, func_state const& s) {
+//  return s.visited[(addr - s.func_start) / 2];
+//}
 
 bool test_reg_known(u16 regs, u8 idx) { return (regs >> idx) & 1u; }
 void mark_reg_known(u16& regs, u8 dst) { regs |= (1u << dst); }
@@ -85,6 +99,7 @@ bool inst_terminates_path(inst const& i, func_state& s) {
     case inst_type::BRANCH:
       if (cond_code_is_always(i.i.branch.cc)) {
         if (!address_in_func(i.i.branch.addr, s)) { return true; }
+
         return test_visited(i.i.branch.addr, s);
       }
       break;
@@ -181,6 +196,14 @@ bool simulate(inst const& i, func_state& fs, reg_state& regs) {
       regs.mut_node_idxs[i.i.mov_imm.d] = u16(reg_muts.size() - 1u);
       break;
 
+    case inst_type::MOV_NEG_IMM: {
+      auto const& mvn = i.i.mov_neg_imm;
+      regs.regs[mvn.d] = ~u32(mvn.imm);
+      mark_reg_known(regs.known, mvn.d);
+      reg_muts.push_back(reg_mut_node{.i = i});
+      regs.mut_node_idxs[mvn.d] = u16(reg_muts.size() - 1u);
+    } break;
+
     case inst_type::ADD_IMM: {
       auto const& add = i.i.add_imm;
       regs.regs[add.d] = regs.regs[add.n] + add.imm;
@@ -244,8 +267,6 @@ bool thumb2_analyze_func(elf const& e,
     reg_state path{s.paths.top()};
     s.paths.pop();
 
-    if (test_visited(path.regs[reg::PC], s)) { continue; }
-
     printf("  Starting path\n");
     //print(path);
 
@@ -268,8 +289,6 @@ bool thumb2_analyze_func(elf const& e,
         printf("  Stopping path: Unknown instruction!\n");
         break;
       }
-
-      mark_visited(path.regs[reg::PC], s);
 
       if (inst_terminates_path(pc_i, s)) {
         printf("  Stopping path: terminal pattern\n");
@@ -333,3 +352,10 @@ bool thumb2_analyze_func(elf const& e,
 
   return true;
 }
+
+char const *fmt_str_strat_name(fmt_str_strat s) {
+#define X(NAME) case fmt_str_strat::NAME: return #NAME;
+  switch (s) { FMT_STR_STRAT_LIST() default: return "unknown"; }
+#undef X
+}
+

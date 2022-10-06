@@ -1466,7 +1466,7 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
   if (((w0 & 0xFBEFu) == 0xF06Fu) && ((w1 & 0x8000u) == 0)) {
     u32 const imm8{w1 & 0xFFu}, imm3{(w1 >> 12u) & 7u}, i{(w0 >> 10u) & 1u};
     out_inst.type = inst_type::MOV_NEG_IMM;
-    out_inst.i.mov_neg_imm = { .d = u8((w0 >> 8u) & 0xFu),
+    out_inst.i.mov_neg_imm = { .d = u8((w1 >> 8u) & 0xFu),
       .imm = decode_imm12((i << 11u) | (imm3 << 8u) | imm8) };
     return true;
   }
