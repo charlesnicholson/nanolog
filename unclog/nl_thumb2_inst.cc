@@ -249,6 +249,12 @@ void print(inst_load_lit const& l) {
     unsigned(l.addr));
 }
 
+void print(inst_load_mult_dec_before const& l) {
+  printf("LDMDB %s%s, { ", s_rn[l.n], l.wback ? "!" : "");
+  for (int i = 0; i < 16; ++i) { if (l.regs & (1 << i)) { printf("%s ", s_rn[i]); } }
+  printf("}");
+}
+
 void print(inst_load_mult_inc_after const& l) {
   printf("LDMIA %s%s, { ", s_rn[l.n], l.wback ? "!" : "");
   for (int i = 0; i < 16; ++i) { if (l.regs & (1 << i)) { printf("%s ", s_rn[i]); } }
@@ -1128,7 +1134,7 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
     return true;
   }
 
-  if ((w0 & 0xFF70u) == 0xEA20u) { // 4.6.16 BIC, T2 encoding (pg 4-46)
+  if ((w0 & 0xFFE0u) == 0xEA20u) { // 4.6.16 BIC, T2 encoding (pg 4-46)
     out_inst.type = inst_type::BIT_CLEAR_REG;
     out_inst.i.bit_clear_reg = { .d = u8((w1 >> 8u) & 0xFu), .n = u8(w0 & 0xFu),
       .m = u8(w1 & 0xFu), .shift =
@@ -1179,6 +1185,13 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
     out_inst.type = inst_type::EXCL_OR_REG;
     out_inst.i.excl_or_reg = { .d = d, .n = u8(w0 & 0xFu), .m = u8(w1 & 0xFu),
       .shift = decode_imm_shift(u8((w1 >> 4u) & 3u), u8((imm3 << 2u) | imm2)) };
+    return true;
+  }
+
+  if ((w0 & 0xFFD0u) == 0xE910u) {
+    out_inst.type = inst_type::LOAD_MULT_DEC_BEFORE;
+    out_inst.i.load_mult_dec_before = { .n = u8(w0 & 0xFu), .wback = u8((w0 >> 5u) & 1u),
+      .regs = u16(w1 & 0xDFFu) };
     return true;
   }
 
