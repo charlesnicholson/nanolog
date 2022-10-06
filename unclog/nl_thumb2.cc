@@ -187,13 +187,15 @@ bool simulate(inst const& i, func_state& fs, reg_state& regs) {
       cmp_imm_lit_set(regs, i.i.cmp_imm.n, i.i.cmp_imm.imm);
       break;
 
-    case inst_type::TABLE_BRANCH_HALF:
-      len = table_branch(i.addr, 2, i.i.table_branch_half.n, i.i.table_branch_half.m, regs, fs);
-      break;
+    case inst_type::TABLE_BRANCH_HALF: {
+      auto const& tbh = i.i.table_branch_half;
+      len = table_branch(i.addr, 2, tbh.n, tbh.m, regs, fs);
+    } break;
 
-    case inst_type::TABLE_BRANCH_BYTE:
-      len = table_branch(i.addr, 1, i.i.table_branch_byte.n, i.i.table_branch_byte.m, regs, fs);
-      break;
+    case inst_type::TABLE_BRANCH_BYTE: {
+      auto const& tbb = i.i.table_branch_byte;
+      len = table_branch(i.addr, 1, tbb.n, tbb.m, regs, fs);
+    } break;
 
     default: break;
   }
