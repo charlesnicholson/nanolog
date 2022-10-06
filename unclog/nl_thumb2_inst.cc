@@ -501,19 +501,6 @@ bool is_16bit_inst(u16 w0) {
 bool decode_16bit_inst(u16 const w0, inst& out_inst) {
   out_inst.len = 2;
 
-  if ((w0 & 0xF800u) == 0xA800u) { // 4.5.5 ADD (SP + imm), T1 encoding (pg 4-24)
-    out_inst.type = inst_type::ADD_SP_IMM;
-    out_inst.i.add_sp_imm = { .d = u8((w0 >> 8u) & 7u), .imm = u16((w0 & 0xFFu) << 2u) };
-    return true;
-  }
-
-  if ((w0 & 0xFE00u) == 0x1800u) { // 4.6.4 ADD (reg), T1 encoding (pg 4-22)
-    out_inst.type = inst_type::ADD_REG;
-    out_inst.i.add_reg = { .d = u8(w0 & 7u), .n = u8((w0 >> 3u) & 7u),
-      .m = u8((w0 >> 6u) & 7u), .shift = decode_imm_shift(0b00, 0) };
-    return true;
-  }
-
   if ((w0 & 0xFFC0u) == 0x4140u) { // 4.6.2 ADC (reg), T1 encoding (pg 4-18)
     out_inst.type = inst_type::ADD_CARRY_REG;
     out_inst.i.add_carry_reg = { .d = u8(w0 & 7u), .n = u8(w0 & 7u),
@@ -545,6 +532,19 @@ bool decode_16bit_inst(u16 const w0, inst& out_inst) {
       out_inst.type = inst_type::ADD_REG;
       out_inst.i.add_reg = { .shift = decode_imm_shift(0b00, 0), .d = d, .n = d, .m = m };
     }
+    return true;
+  }
+
+  if ((w0 & 0xFE00u) == 0x1800u) { // 4.6.4 ADD (reg), T1 encoding (pg 4-22)
+    out_inst.type = inst_type::ADD_REG;
+    out_inst.i.add_reg = { .d = u8(w0 & 7u), .n = u8((w0 >> 3u) & 7u),
+      .m = u8((w0 >> 6u) & 7u), .shift = decode_imm_shift(0b00, 0) };
+    return true;
+  }
+
+  if ((w0 & 0xF800u) == 0xA800u) { // 4.5.5 ADD (SP + imm), T1 encoding (pg 4-24)
+    out_inst.type = inst_type::ADD_SP_IMM;
+    out_inst.i.add_sp_imm = { .d = u8((w0 >> 8u) & 7u), .imm = u16((w0 & 0xFFu) << 2u) };
     return true;
   }
 
@@ -591,6 +591,14 @@ bool decode_16bit_inst(u16 const w0, inst& out_inst) {
     out_inst.type = inst_type::BRANCH;
     out_inst.i.branch = { .cc = cond_code::AL2, .imm = imm32,
       .addr = u32(out_inst.addr + 4u + imm32)  };
+    return true;
+  }
+
+  if ((w0 & 0xFFC0u) == 0x4380u) { // 4.6.16 BIC (reg), T1 encoding (pg 4-46)
+    u8 const dn{u8(w0 & 7u)};
+    out_inst.type = inst_type::BIT_CLEAR_REG;
+    out_inst.i.bit_clear_reg = { .d = dn, .n = dn, .m = u8((w0 >> 3u) & 7u),
+      .shift = decode_imm_shift(0b00, 0) };
     return true;
   }
 
