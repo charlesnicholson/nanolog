@@ -459,6 +459,10 @@ void print(inst_vmov_single const& v) {
   }
 }
 
+void print(inst_vpush const& v) {
+  printf("VPUSH { %x }", v.regs); // TODO: print the list, don't care right now
+}
+
 u32 decode_imm12(u32 imm12) { // 4.2.2 Operation (pg 4-9)
   if ((imm12 & 0xC00u) == 0) {
     u32 const imm8{imm12 & 0xFFu};
@@ -1802,6 +1806,16 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
     return true;
   }
 
+  // A7.7.245 VPUSH, T2 encoding (pg A7-601)
+  if (((w0 & 0xFFBFu) == 0xED2Du) && ((w1 & 0xF00u) == 0xB00u)) {
+    u8 const vd{u8((w1 >> 12u) & 0xFu)}, D{u8((w0 >> 6u) & 1u)};
+    u16 const imm8{u16(w1 & 0xFFu)};
+    out_inst.type = inst_type::VPUSH;
+    out_inst.i.vpush = { .single_regs = 0, .regs = u8(imm8 / 2), .imm = u16(imm8 << 2u),
+      .d = u8((D << 4u) | vd) };
+    return true;
+  }
+
   return false;
 }
 }
@@ -1828,6 +1842,7 @@ bool inst_is_unconditional_branch(inst const& i, u32& label) {
   switch (i.type) {
     case inst_type::BRANCH:
       label = i.i.branch.addr; return cond_code_is_always(i.i.branch.cc);
+    case inst_type::BRANCH_XCHG: label = 0; return true;
     case inst_type::BRANCH_LINK: label = i.i.branch_link.addr; return true;
     case inst_type::BRANCH_LINK_XCHG_REG: label = 0; return true; // TODO: register state
     default: break;

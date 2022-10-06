@@ -84,9 +84,8 @@ bool inst_terminates_path(inst const& i, func_state& s) {
       }
       break;
 
-    case inst_type::BRANCH_XCHG: // BX LR
-      if (i.i.branch_xchg.m == reg::LR) { return true; }
-      break;
+    case inst_type::BRANCH_XCHG: // BX ... (All BX are tail calls?)
+      return true;
 
     case inst_type::POP: // POP { ..., PC }
       if (i.i.pop.reg_list & (1u << reg::PC)) { return true; }
@@ -134,7 +133,8 @@ u32 table_branch(u32 addr, u32 sz, u32 base, u32 ofs, reg_state& regs, func_stat
   for (auto i = 0u; i < cmp_imm_lit; ++i) {
     u32 val{*src++};
     if (sz == 2) { val = u32(val | u32(*src++ << 8u)); }
-    fs.paths.push(reg_state_branch(regs, regs.regs[reg::PC] + 4 + (val << 1u)));
+    u32 const label{regs.regs[reg::PC] + 4 + (val << 1u)};
+    fs.paths.push(reg_state_branch(regs, label));
   }
 
   u32 const table_size_pad{((cmp_imm_lit * sz) + 1u) & ~1u};
