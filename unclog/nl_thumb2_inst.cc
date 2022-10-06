@@ -1312,6 +1312,28 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
     return true;
   }
 
+  // 4.6.63 LDRSB (imm), T2 encoding (pg 4-132)
+  if (((w0 & 0xFFF0u) == 0xF910u) && ((w1 & 0x800u) == 0x800u)) {
+    u8 const n{u8(w0 & 0xFu)}, t{u8((w1 >> 12u) & 0xFu)}, p{u8((w1 >> 10u) & 1u)},
+      u{u8((w1 >> 9u) & 1u)}, w{u8((w1 >> 8u) & 1u)};
+    u16 const imm{u16(w1 & 0xFFu)};
+    if (n == 15) {
+      printf("SEE LDRSB (literal) on page 4-134;\n");
+      return false;
+    }
+    if ((t == 15) && (p == 1) && (u == 0) && (w == 0)) {
+      printf("SEE PLI (immediate) on page 4-205;\n");
+      return false;
+    }
+    if ((p == 1) && (u == 1) && (w == 0)) {
+      printf("SEE LDRSBT on page 4-138;\n");
+      return false;
+    }
+    out_inst.type = inst_type::LOAD_SIGNED_BYTE_IMM;
+    out_inst.i.load_signed_byte_imm = { .index = p, .add = u, .t = t, .n = n, .imm = imm };
+    return true;
+  }
+
   // 4.6.65 LDRSH (reg), T2 encoding (pg 4-144)
   if (((w0 & 0xFFF0u) == 0xF930u) && ((w1 & 0xFC0u) == 0)) {
     u8 const t{u8((w1 >> 12u) & 0xFu)}, n{u8(w0 & 0xFu)};
