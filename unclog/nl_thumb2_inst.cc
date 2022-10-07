@@ -1867,7 +1867,6 @@ bool inst_is_conditional_branch(inst const& i, u32& target) {
     case inst_type::CBNZ: target = i.i.cmp_branch_nz.addr; return true;
     default: break;
   }
-
   return false;
 }
 
@@ -1880,7 +1879,6 @@ bool inst_is_unconditional_branch(inst const& i, u32& label) {
     case inst_type::BRANCH_LINK_XCHG_REG: label = 0; return true; // TODO: register state
     default: break;
   }
-
   return false;
 }
 
@@ -1890,7 +1888,6 @@ bool inst_is_goto(inst const& i, u32& label) {
       label = i.i.branch.addr; return cond_code_is_always(i.i.branch.cc);
     default: break;
   }
-
   return false;
 }
 

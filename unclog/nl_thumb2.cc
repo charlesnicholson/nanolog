@@ -12,11 +12,12 @@ struct reg_state {
   u32 regs[16];
   u32 cmp_imm_lits[16];
   u16 mut_node_idxs[16];
-  u16 known = 0;
+  u16 known = u16(1u << reg::PC);
   u16 cmp_imm_present = 0;
 };
 
 using reg_state_vec = std::vector<reg_state>;
+using reg_state_stack = std::stack<reg_state, reg_state_vec>;
 
 struct func_state {
   func_state(elf_symbol32 const& f_,
@@ -26,7 +27,7 @@ struct func_state {
     : f(f_)
     , e(e_)
     , lca(lca_)
-    //, visited(s.sh_size / 2)
+    , path_reg_states(s.sh_size ? (s.sh_size / 2) : 1024)
     , func_start{f_.st_value & ~1u}
     , func_end{func_start + f.st_size}
     , func_ofs{s.sh_offset + func_start - s.sh_addr} {}
@@ -34,9 +35,8 @@ struct func_state {
   elf_symbol32 const& f;
   elf const& e;
   log_call_analysis& lca;
-  //std::vector<bool> visited; // i know i know
-  std::stack<reg_state, reg_state_vec> paths;
-  std::unordered_map<u32, reg_state_vec> branch_target_reg_states;
+  reg_state_stack paths;
+  std::vector<reg_state_vec> path_reg_states;
   unsigned const func_start, func_end, func_ofs;
 };
 
@@ -48,30 +48,34 @@ reg_state reg_state_branch(reg_state const& r, u32 label) {
 
 bool reg_states_equal(reg_state const& r1, reg_state const& r2) {
   if (r1.known != r2.known) { return false; }
-  for (auto i{0}; i < 16; ++i) {
-    if (((r1.known >> i) & 1) && (r1.regs[i] != r2.regs[i])) { return false; }
+  for (auto i{0}; i < 15; ++i) {
+    if ((r1.known & (1u << i)) && (r1.regs[i] != r2.regs[i])) { return false; }
   }
   return true;
+}
+
+void print(reg_state const& r) {
+  for (auto i{0u}; i < 16; ++i) {
+    if (r.known & (1u << i)) { printf("  R%d: %x ", int(i), r.regs[i]); }
+  }
+  printf("\n");
 }
 
 bool address_in_func(u32 addr, func_state const& s) {
   return !s.f.st_size || ((addr >= s.func_start) && (addr <= s.func_end));
 }
 
-bool process_branch(u32 label, func_state& s, reg_state const& r) {
-  auto [iter, inserted] = s.branch_target_reg_states.insert({label, {}});
-  reg_state_vec& rsv{iter->second};
-  if (inserted) { rsv.push_back(r); return true; }
-  for (auto const& rs: rsv) { if (reg_states_equal(r, rs)) { return false; } }
-  rsv.push_back(r);
+bool visit_addr(u32 addr, func_state& s, reg_state const& r) {
+  auto& reg_states = s.path_reg_states[(addr - s.func_start) / 2];
+  auto const b{reg_states.begin()}, e{reg_states.end()};
+  if (std::find_if(b, e, [&](auto const& rs) { return reg_states_equal(r, rs); }) != e) {
+    return false;
+  }
+  printf("%x: new reg_state\n", unsigned(addr));
+  print(r);
+  reg_states.push_back(r);
   return true;
 }
-
-//void mark_visited(u32 addr, func_state& s) { s.visited[(addr - s.func_start) / 2] = true; }
-//
-//bool test_visited(u32 addr, func_state const& s) {
-//  return s.visited[(addr - s.func_start) / 2];
-//}
 
 bool test_reg_known(u16 regs, u8 idx) { return (regs >> idx) & 1u; }
 void mark_reg_known(u16& regs, u8 dst) { regs |= (1u << dst); }
@@ -99,8 +103,6 @@ bool inst_terminates_path(inst const& i, func_state& s) {
     case inst_type::BRANCH:
       if (cond_code_is_always(i.i.branch.cc)) {
         if (!address_in_func(i.i.branch.addr, s)) { return true; }
-
-        return test_visited(i.i.branch.addr, s);
       }
       break;
 
@@ -244,11 +246,6 @@ bool simulate(inst const& i, func_state& fs, reg_state& regs) {
   return bool(len);
 }
 
-void print(reg_state const& r) {
-  for (auto i{0u}; i < 16; ++i) {
-    printf("  R%d: 0x%08x known: %d\n", int(i), r.regs[i], (r.known >> i) & 1);
-  }
-}
 }
 
 bool thumb2_analyze_func(elf const& e,
@@ -290,15 +287,18 @@ bool thumb2_analyze_func(elf const& e,
         break;
       }
 
+      if (!visit_addr(pc_i.addr, s, path)) {
+        printf("  Stopping path: already visited\n");
+        break;
+      }
+
       if (inst_terminates_path(pc_i, s)) {
         printf("  Stopping path: terminal pattern\n");
         break;
       }
 
       u32 label;
-      if (inst_is_conditional_branch(pc_i, label) &&
-          address_in_func(label, s) &&
-          !test_visited(label, s)) {
+      if (inst_is_conditional_branch(pc_i, label) && address_in_func(label, s)) {
         printf("  Internal branch, pushing state\n");
         s.paths.push(reg_state_branch(path, label));
       }
