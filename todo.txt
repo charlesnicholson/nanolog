@@ -4,3 +4,6 @@
 * runtime api for "is this binary or ascii"
 * runtime api for "serialize call to a binary buffer"
 * TBB/TBH logic is janky; looking at the last cmp_imm of the offset reg is gross
+* Detect + analyze loops; "bail after hitting an address 20x" is terrible
+  * Could simulate flags + only push both paths when the cc is on unknown flag?
+    * That still requires running statically-known loops.

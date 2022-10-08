@@ -198,7 +198,8 @@ int main(int argc, char const *argv[]) {
   printf("\nLog calls:\n");
   for (auto const& lca: log_calls) {
     printf("  %s\n", &e.strtab[lca.func.st_name]);
-    for (auto const& call: lca.log_calls) {
+    for (auto const& call_it: lca.log_calls) {
+      auto const& call{call_it.second};
       reg_mut_node const& r0_mut = lca.reg_muts[call.node_idx];
 
       printf("    %x: %s r0 at %x: ", call.log_func_call_addr, fmt_str_strat_name(call.s),

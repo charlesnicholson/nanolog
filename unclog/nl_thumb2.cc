@@ -19,6 +19,11 @@ struct reg_state {
 using reg_state_vec = std::vector<reg_state>;
 using reg_state_stack = std::stack<reg_state, reg_state_vec>;
 
+struct visited_addr {
+  reg_state_vec reg_states;
+  u16 cnt = 0;
+};
+
 struct func_state {
   func_state(elf_symbol32 const& f_,
              elf const& e_,
@@ -27,7 +32,7 @@ struct func_state {
     : f(f_)
     , e(e_)
     , lca(lca_)
-    , path_reg_states(s.sh_size ? (s.sh_size / 2) : 1024)
+    , addr_states(s.sh_size ? (s.sh_size / 2) : 1024)
     , func_start{f_.st_value & ~1u}
     , func_end{func_start + f.st_size}
     , func_ofs{s.sh_offset + func_start - s.sh_addr} {}
@@ -36,7 +41,7 @@ struct func_state {
   elf const& e;
   log_call_analysis& lca;
   reg_state_stack paths;
-  std::vector<reg_state_vec> path_reg_states;
+  std::vector<visited_addr> addr_states;
   unsigned const func_start, func_end, func_ofs;
 };
 
@@ -66,14 +71,14 @@ bool address_in_func(u32 addr, func_state const& s) {
 }
 
 bool visit_addr(u32 addr, func_state& s, reg_state const& r) {
-  auto& reg_states = s.path_reg_states[(addr - s.func_start) / 2];
-  auto const b{reg_states.begin()}, e{reg_states.end()};
+  auto& as = s.addr_states[(addr - s.func_start) / 2];
+  if (as.cnt > 20) { return false; }
+  auto const b{as.reg_states.begin()}, e{as.reg_states.end()};
   if (std::find_if(b, e, [&](auto const& rs) { return reg_states_equal(r, rs); }) != e) {
     return false;
   }
-  printf("%x: new reg_state\n", unsigned(addr));
-  print(r);
-  reg_states.push_back(r);
+  ++as.cnt;
+  as.reg_states.push_back(r);
   return true;
 }
 
@@ -309,31 +314,28 @@ bool thumb2_analyze_func(elf const& e,
           break;
         }
 
+        auto [it, inserted] = out_lca.log_calls.insert({path.regs[reg::R0],
+          log_call{ .fmt_str_addr = path.regs[reg::R0], .log_func_call_addr = pc_i.addr,
+            .node_idx = path.mut_node_idxs[reg::R0] }});
+
+        if (!inserted) {
+          printf("  Found log function, already discovered\n");
+          break;
+        }
+
         printf("  Found log function, format string 0x%08x\n", path.regs[reg::R0]);
         inst const& r0_i = s.lca.reg_muts[path.mut_node_idxs[reg::R0]].i;
         switch (r0_i.type) {
           case inst_type::LOAD_LIT:
-            out_lca.log_calls.push_back(log_call{
-              .fmt_str_addr = path.regs[reg::R0],
-              .log_func_call_addr = pc_i.addr,
-              .node_idx = path.mut_node_idxs[reg::R0],
-              .s = fmt_str_strat::DIRECT_LOAD });
+            it->second.s = fmt_str_strat::DIRECT_LOAD;
             break;
 
           case inst_type::MOV_REG:
-            out_lca.log_calls.push_back(log_call{
-              .fmt_str_addr = path.regs[reg::R0],
-              .log_func_call_addr = pc_i.addr,
-              .node_idx = path.mut_node_idxs[reg::R0],
-              .s = fmt_str_strat::MOV_FROM_DIRECT_LOAD });
+            it->second.s = fmt_str_strat::MOV_FROM_DIRECT_LOAD;
             break;
 
           case inst_type::ADD_IMM:
-            out_lca.log_calls.push_back(log_call{
-              .fmt_str_addr = path.regs[reg::R0],
-              .log_func_call_addr = pc_i.addr,
-              .node_idx = path.mut_node_idxs[reg::R0],
-              .s = fmt_str_strat::ADD_IMM_FROM_BASE_REG });
+            it->second.s = fmt_str_strat::ADD_IMM_FROM_BASE_REG;
             break;
 
           default:
