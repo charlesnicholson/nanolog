@@ -1,6 +1,7 @@
 #pragma once
 
 #include "nl_thumb2_inst.h"
+#include <unordered_map>
 #include <vector>
 
 struct elf;
@@ -33,7 +34,7 @@ struct log_call_analysis {
   explicit log_call_analysis(elf_symbol32 const& func_) : func(func_) {}
   elf_symbol32 const& func;
   std::vector<reg_mut_node> reg_muts;
-  std::vector<log_call> log_calls;
+  std::unordered_map<u32, log_call> log_calls; // fmt str addr -> log_call
 };
 
 bool thumb2_analyze_func(elf const& e,

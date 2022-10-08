@@ -1466,7 +1466,7 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
   if (((w0 & 0xFBEFu) == 0xF06Fu) && ((w1 & 0x8000u) == 0)) {
     u32 const imm8{w1 & 0xFFu}, imm3{(w1 >> 12u) & 7u}, i{(w0 >> 10u) & 1u};
     out_inst.type = inst_type::MOV_NEG_IMM;
-    out_inst.i.mov_neg_imm = { .d = u8((w0 >> 8u) & 0xFu),
+    out_inst.i.mov_neg_imm = { .d = u8((w1 >> 8u) & 0xFu),
       .imm = decode_imm12((i << 11u) | (imm3 << 8u) | imm8) };
     return true;
   }
@@ -1867,7 +1867,6 @@ bool inst_is_conditional_branch(inst const& i, u32& target) {
     case inst_type::CBNZ: target = i.i.cmp_branch_nz.addr; return true;
     default: break;
   }
-
   return false;
 }
 
@@ -1880,7 +1879,6 @@ bool inst_is_unconditional_branch(inst const& i, u32& label) {
     case inst_type::BRANCH_LINK_XCHG_REG: label = 0; return true; // TODO: register state
     default: break;
   }
-
   return false;
 }
 
@@ -1890,7 +1888,6 @@ bool inst_is_goto(inst const& i, u32& label) {
       label = i.i.branch.addr; return cond_code_is_always(i.i.branch.cc);
     default: break;
   }
-
   return false;
 }
 
