@@ -483,6 +483,10 @@ void print(inst_vmov_special const& v) {
   NL_LOG_DBG("VMRS %s, FPSCR", v.t == 0b1111 ? "APSR_nzcv" : s_rn[v.t]);
 }
 
+void print(inst_vmul const& v) {
+  NL_LOG_DBG("VMUL.F32 S%d, S%d, S%d", int(v.d), int(v.n), int(v.m));
+}
+
 void print(inst_vpop const& v) {
   NL_LOG_DBG("VPOP { %x }", v.regs); // TODO: print the list, don't care right now
 }
@@ -1895,6 +1899,16 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
     out_inst.type = inst_type::VMOV_SINGLE;
     out_inst.i.vmov_single = { .to_arm_reg = u8((w0 >> 4u) & 1u),
       .t = u8((w1 >> 12u) & 0xFu), .n = u8(((w0 & 0xFu) << 1u) | ((w1 >> 7u) & 1u)) };
+    return true;
+  }
+
+  // A7.7.241 VMUL, T1 encoding (pg A7-594)
+  if (((w0 & 0xFFB0) == 0xEE20u) && ((w1 & 0xF50u) == 0xA00u)) {
+    u8 const D{u8((w0 >> 6u) & 1u)}, N{u8((w1 >> 7u) & 1u)}, M{u8((w1 >> 5u) & 1u)},
+      vd{u8((w1 >> 12u) & 0xFu)}, vm{u8(w1 & 0xFu)}, vn{u8(w0 & 0xFu)};
+    out_inst.type = inst_type::VMUL;
+    out_inst.i.vmul = { .n = u8((vn << 1u) | N), .m = u8((vm << 1u) | M),
+      .d = u8((vd << 1u) | D) };
     return true;
   }
 
