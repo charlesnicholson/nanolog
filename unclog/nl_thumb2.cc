@@ -112,6 +112,7 @@ bool branch(u32 addr, path_state& p, func_state& s) {
 
   p.taken_branches.insert(addr);
   auto [vi, inserted] = s.taken_branches_reg_states.insert({addr, {}});
+  vi->second.reserve(32);
   vi->second.push_back(p.rs);
   return true;
 }
