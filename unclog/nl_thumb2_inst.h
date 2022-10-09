@@ -142,6 +142,7 @@ struct imm_shift { imm_shift_type t; u8 n; };
   X(TABLE_BRANCH_HALF, table_branch_half, { u8 n, m; }) \
   X(TEST_EQUIV, test_equiv, { u32 imm; u8 n; }) \
   X(TEST_REG, test_reg, { imm_shift shift; u8 n, m; }) \
+  X(VCOMPARE, vcompare, { u8 quiet_nan_exc, with_zero, d, m; }) \
   X(VCONVERT_FP_INT, vconvert_fp_int, { u8 d, m, to_int, int_unsigned, round_zero; }) \
   X(VLOAD, vload, { u16 imm; u8 single_reg, add, n, d; }) \
   X(VMOV_DOUBLE, vmov_double, { u8 t, t2, m, to_arm_regs; }) \

@@ -446,6 +446,11 @@ void print(inst_test_reg const& t) {
     int(t.shift.n));
 }
 
+void print(inst_vcompare const& v) {
+  printf("VCMP%s.F32 S%d, ", v.quiet_nan_exc ? "E" : "", int(v.d));
+  if (v.with_zero) { printf("#0.0"); } else { printf("S%d", int(v.m)); }
+}
+
 void print(inst_vconvert_fp_int const& v) {
   printf("VCVT.");
   printf("%c32.", v.to_int ? (v.int_unsigned ? 'U' : 'S') : 'F');
@@ -1821,7 +1826,16 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
     return true;
   }
 
-  // A7.7.223 VCVT (between FP and int), T1 encoding (pg A7-?)
+  // A7.7.222 VCMP, T2 encoding (pg A7-567)
+  if (((w0 & 0xFFBFu) == 0xEEB5u) && ((w1 & 0xF50u) == 0xA40u)) {
+    u8 const D{u8((w0 >> 6u) & 1u)}, vd{u8((w1 >> 12u) & 0xFu)};
+    out_inst.type = inst_type::VCOMPARE;
+    out_inst.i.vcompare = { .quiet_nan_exc = u8((w1 >> 7u) & 1u), .with_zero = 1u,
+      .d = u8((vd << 1u) | D) };
+    return true;
+  }
+
+  // A7.7.223 VCVT (between FP and int), T1 encoding (pg A7-569)
   if (((w0 & 0xFFB8u) == 0xEEB8u) && ((w1 & 0xF50u) == 0xA40u)) {
     u8 const opc2{u8(w0 & 7u)}, d{u8(((w1 >> 11u) & 0x1Eu) | ((w0 >> 6u) & 1u))},
       op{u8((w1 >> 7u) & 1u)}, m{u8(((w1 & 0xFu) << 1u) | ((w1 >> 5u) & 1u))},
@@ -1834,6 +1848,15 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
       out_inst.i.vconvert_fp_int = { .m = m, .d = d, .int_unsigned = (op == 0),
         .round_zero = 0, .to_int = to_int };
     }
+    return true;
+  }
+
+  // A7.7.230 VLDR, T2 encoding (pg A7-581)
+  if (((w0 & 0xFF30u) == 0xED10u) && ((w1 & 0xF00u) == 0xA00u)) {
+    u8 const D{u8((w1 >> 6u) & 1u)}, vd{u8((w1 >> 12u) & 0xFu)}, imm8{u8(w1 & 0xFFu)};
+    out_inst.type = inst_type::VLOAD;
+    out_inst.i.vload = { .single_reg = 1u, .add = u8((w0 >> 7u) & 1u), .n = u8(w0 & 0xFu),
+      .d = u8((vd << 1) | D), .imm = u16(imm8 << 2u) };
     return true;
   }
 
@@ -1850,15 +1873,6 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
     out_inst.type = inst_type::VMOV_DOUBLE;
     out_inst.i.vmov_double = { .m = u8((w1 & 0xFu) | ((w1 >> 1u) & 0x10u)),
       .t2 = u8(w0 & 0xFu), .t = u8((w1 >> 12u) & 0xFu), .to_arm_regs = u8((w0 >> 4u) & 1u) };
-    return true;
-  }
-
-  // A7.7.230 VLDR, T2 encoding (pg A7-581)
-  if (((w0 & 0xFF30u) == 0xED10u) && ((w1 & 0xF00u) == 0xA00u)) {
-    u8 const D{u8((w1 >> 6u) & 1u)}, vd{u8((w1 >> 12u) & 0xFu)}, imm8{u8(w1 & 0xFFu)};
-    out_inst.type = inst_type::VLOAD;
-    out_inst.i.vload = { .single_reg = 1u, .add = u8((w0 >> 7u) & 1u), .n = u8(w0 & 0xFu),
-      .d = u8((vd << 1) | D), .imm = u16(imm8 << 2u) };
     return true;
   }
 
