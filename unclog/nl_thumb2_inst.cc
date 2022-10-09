@@ -453,6 +453,10 @@ void print(inst_vconvert_fp_int const& v) {
   printf("S%d, S%d", int(v.d), int(v.m));
 }
 
+void print(inst_vload const& v) {
+  printf("VLDR S%d, [%s, #%d]", int(v.d), s_rn[v.n], int(v.imm));
+}
+
 void print(inst_vmov_double const& v) {
   if (v.to_arm_regs) {
     printf("VMOV %s, %s, D%u", s_rn[v.t], s_rn[v.t2], unsigned(v.m));
@@ -475,6 +479,10 @@ void print(inst_vpop const& v) {
 
 void print(inst_vpush const& v) {
   printf("VPUSH { %x }", v.regs); // TODO: print the list, don't care right now
+}
+
+void print(inst_vstore const& v) {
+  printf("VSTR %c%d, [%s, #%d]", v.single_reg ? 'S' : 'D', int(v.d), s_rn[v.n], int(v.imm));
 }
 
 u32 decode_imm12(u32 imm12) { // 4.2.2 Operation (pg 4-9)
@@ -1843,6 +1851,15 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
     return true;
   }
 
+  // A7.7.230 VLDR, T2 encoding (pg A7-581)
+  if (((w0 & 0xFF30u) == 0xED10u) && ((w1 & 0xF00u) == 0xA00u)) {
+    u8 const D{u8((w1 >> 6u) & 1u)}, vd{u8((w1 >> 12u) & 0xFu)}, imm8{u8(w1 & 0xFFu)};
+    out_inst.type = inst_type::VLOAD;
+    out_inst.i.vload = { .single_reg = 1u, .add = u8((w0 >> 7u) & 1u), .n = u8(w0 & 0xFu),
+      .d = u8((vd << 1) | D), .imm = u16(imm8 << 2u) };
+    return true;
+  }
+
   // A7.7.244 VPOP, T1 encoding (pg A7-599)
   if (((w0 & 0xFFBFu) == 0xECBDu) && ((w1 & 0xF00u) == 0xB00u)) {
     u8 const vd{u8((w1 >> 12u) & 0xFu)}, D{u8((w0 >> 6u) & 1u)};
@@ -1860,6 +1877,16 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
     out_inst.type = inst_type::VPUSH;
     out_inst.i.vpush = { .single_regs = 0, .regs = u8(imm8 / 2), .imm = u16(imm8 << 2u),
       .d = u8((D << 4u) | vd) };
+    return true;
+  }
+
+  // A7.7.248 VSTR, T2 encoding (pg A7-607)
+  if (((w0 & 0xFF30u) == 0xED00u) && ((w1 & 0xF00u) == 0xA00u)) {
+    u8 const D{u8((w0 >> 6u) & 1u)}, vd{u8((w1 >> 12u) & 0xFu)};
+    u16 const imm8{u16(w1 & 0xFFu)};
+    out_inst.type = inst_type::VSTORE;
+    out_inst.i.vstore = { .single_reg = 1u, .add = u8((w0 >> 7u) & 1u), .n = u8(w0 & 0xFu),
+      .d = u8((vd << 1u) | D), .imm = u16(imm8 << 2u) };
     return true;
   }
 
