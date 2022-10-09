@@ -4,6 +4,7 @@
 
 #include <cassert>
 #include <stack>
+#include <unordered_set>
 #include <vector>
 
 namespace {
@@ -16,13 +17,13 @@ struct reg_state {
   u16 cmp_imm_present = 0;
 };
 
-using reg_state_vec = std::vector<reg_state>;
-using reg_state_stack = std::stack<reg_state, reg_state_vec>;
-
-struct visited_addr {
-  reg_state_vec reg_states;
-  u16 cnt = 0;
+struct path_state {
+  reg_state rs;
+  std::unordered_set<u32> taken_branches;
 };
+
+using path_state_vec = std::vector<path_state>;
+using path_state_stack = std::stack<path_state, path_state_vec>;
 
 struct func_state {
   func_state(elf_symbol32 const& f_,
@@ -32,7 +33,6 @@ struct func_state {
     : f(f_)
     , e(e_)
     , lca(lca_)
-    , addr_states(s.sh_size ? (s.sh_size / 2) : 1024)
     , func_start{f_.st_value & ~1u}
     , func_end{func_start + f.st_size}
     , func_ofs{s.sh_offset + func_start - s.sh_addr} {}
@@ -40,21 +40,21 @@ struct func_state {
   elf_symbol32 const& f;
   elf const& e;
   log_call_analysis& lca;
-  reg_state_stack paths;
-  std::vector<visited_addr> addr_states;
+  path_state_stack paths;
+  std::unordered_map<u32, std::vector<reg_state>> taken_branches_reg_states;
   unsigned const func_start, func_end, func_ofs;
 };
 
-reg_state reg_state_branch(reg_state const& r, u32 label) {
-  reg_state b{r};
-  b.regs[reg::PC] = label;
+path_state path_state_branch(path_state const& p, u32 label) {
+  path_state b{p};
+  b.rs.regs[reg::PC] = label;
   return b;
 }
 
 bool reg_states_equal(reg_state const& r1, reg_state const& r2) {
   if (r1.known != r2.known) { return false; }
-  for (auto i{0}; i < 15; ++i) {
-    if ((r1.known & (1u << i)) && (r1.regs[i] != r2.regs[i])) { return false; }
+  for (auto i{0u}; i < 16; ++i) {
+    if ((r1.known & (1 << i)) && (r1.regs[i] != r2.regs[i])) { return false; }
   }
   return true;
 }
@@ -66,20 +66,14 @@ void print(reg_state const& r) {
   printf("\n");
 }
 
-bool address_in_func(u32 addr, func_state const& s) {
-  return !s.f.st_size || ((addr >= s.func_start) && (addr <= s.func_end));
+void print(std::unordered_set<u32> const& b) {
+  printf("taken_branches: ");
+  for (auto const i: b) { printf("%x ", i); }
+  printf("\n");
 }
 
-bool visit_addr(u32 addr, func_state& s, reg_state const& r) {
-  auto& as = s.addr_states[(addr - s.func_start) / 2];
-  if (as.cnt > 20) { return false; }
-  auto const b{as.reg_states.begin()}, e{as.reg_states.end()};
-  if (std::find_if(b, e, [&](auto const& rs) { return reg_states_equal(r, rs); }) != e) {
-    return false;
-  }
-  ++as.cnt;
-  as.reg_states.push_back(r);
-  return true;
+bool address_in_func(u32 addr, func_state const& s) {
+  return !s.f.st_size || ((addr >= s.func_start) && (addr <= s.func_end));
 }
 
 bool test_reg_known(u16 regs, u8 idx) { return (regs >> idx) & 1u; }
@@ -101,6 +95,25 @@ bool cmp_imm_lit_get(reg_state const& rs, u8 index, u32& out_lit) {
 void cmp_imm_lit_set(reg_state& rs, u8 index, u32 lit) {
   rs.cmp_imm_lits[index] = lit;
   rs.cmp_imm_present |= (1 << index);
+}
+
+bool branch(u32 addr, path_state& p, func_state& s) {
+  if (p.taken_branches.contains(addr)) { return false; }
+  auto const it = s.taken_branches_reg_states.find(addr);
+  if (it != s.taken_branches_reg_states.end()) {
+    auto const& reg_states{it->second};
+    auto const b{reg_states.begin()}, e{reg_states.end()};
+    if (std::find_if(b,
+                     e,
+                     [&](auto const& rs) { return reg_states_equal(p.rs, rs); }) != e) {
+      return false;
+    }
+  }
+
+  p.taken_branches.insert(addr);
+  auto [vi, inserted] = s.taken_branches_reg_states.insert({addr, {}});
+  vi->second.push_back(p.rs);
+  return true;
 }
 
 bool inst_terminates_path(inst const& i, func_state& s) {
@@ -147,107 +160,105 @@ bool inst_is_log_call(inst const& i, std::vector<elf_symbol32 const*> const& log
     != std::end(log_funcs);
 }
 
-u32 table_branch(u32 addr, u32 sz, u32 base, u32 ofs, reg_state& regs, func_state& fs) {
+u32 table_branch(u32 addr, u32 sz, u32 base, u32 ofs, path_state& path, func_state& fs) {
   if (base != reg::PC) { return 4; }
 
+  bool const will_take{branch(addr, path, fs)};
+
   u32 cmp_imm_lit;
-  if (!cmp_imm_lit_get(regs, u8(ofs), cmp_imm_lit)) { return 0; }
+  if (!cmp_imm_lit_get(path.rs, u8(ofs), cmp_imm_lit)) { return 0; }
   ++cmp_imm_lit;
 
-  unsigned const src_off{fs.func_ofs + (addr - fs.func_start) + 4};
-  auto const *src{reinterpret_cast<unsigned char const *>(&fs.e.bytes[src_off])};
+  if (will_take) {
+    unsigned const src_off{fs.func_ofs + (addr - fs.func_start) + 4};
+    auto const *src{reinterpret_cast<unsigned char const *>(&fs.e.bytes[src_off])};
 
-  for (auto i = 0u; i < cmp_imm_lit; ++i) {
-    u32 val{*src++};
-    if (sz == 2) { val = u32(val | u32(*src++ << 8u)); }
-    u32 const label{regs.regs[reg::PC] + 4 + (val << 1u)};
-    fs.paths.push(reg_state_branch(regs, label));
+    for (auto i = 0u; i < cmp_imm_lit; ++i) {
+      u32 val{*src++};
+      if (sz == 2) { val = u32(val | u32(*src++ << 8u)); }
+      u32 const label{path.rs.regs[reg::PC] + 4 + (val << 1u)};
+      fs.paths.push(path_state_branch(path, label));
+    }
   }
 
   u32 const table_size_pad{((cmp_imm_lit * sz) + 1u) & ~1u};
   return 4 + table_size_pad;
 }
 
-bool simulate(inst const& i, func_state& fs, reg_state& regs) {
-  u32 branch_label;
-  if (inst_is_goto(i, branch_label) && address_in_func(branch_label, fs)) {
-    regs.regs[reg::PC] = branch_label;
-    return true;
-  }
-
+bool simulate(inst const& i, func_state& fs, path_state& path) {
   std::vector<reg_mut_node>& reg_muts{fs.lca.reg_muts};
   u32 len{i.len};
 
   switch (i.type) {
     case inst_type::LOAD_LIT:
-      memcpy(&regs.regs[i.i.load_lit.t],
+      memcpy(&path.rs.regs[i.i.load_lit.t],
              &fs.e.bytes[fs.func_ofs + (i.i.load_lit.addr - fs.func_start)],
              4);
-      mark_reg_known(regs.known, i.i.load_lit.t);
+      mark_reg_known(path.rs.known, i.i.load_lit.t);
       reg_muts.push_back(reg_mut_node{.i = i});
-      regs.mut_node_idxs[i.i.load_lit.t] = u16(reg_muts.size() - 1u);
+      path.rs.mut_node_idxs[i.i.load_lit.t] = u16(reg_muts.size() - 1u);
       break;
 
     case inst_type::MOV_REG: {
       auto const& mov = i.i.mov_reg;
-      regs.regs[mov.d] = regs.regs[mov.m];
-      copy_reg_known(regs.known, mov.d, mov.m);
-      reg_muts.push_back(reg_mut_node{.i = i, .par_idxs[0] = regs.mut_node_idxs[mov.m]});
-      regs.mut_node_idxs[mov.d] = u16(reg_muts.size() - 1u);
+      path.rs.regs[mov.d] = path.rs.regs[mov.m];
+      copy_reg_known(path.rs.known, mov.d, mov.m);
+      reg_muts.push_back(reg_mut_node{.i = i, .par_idxs[0] = path.rs.mut_node_idxs[mov.m]});
+      path.rs.mut_node_idxs[mov.d] = u16(reg_muts.size() - 1u);
     } break;
 
     case inst_type::MOV_IMM:
-      regs.regs[i.i.mov_imm.d] = i.i.mov_imm.imm;
-      mark_reg_known(regs.known, i.i.mov_imm.d);
+      path.rs.regs[i.i.mov_imm.d] = i.i.mov_imm.imm;
+      mark_reg_known(path.rs.known, i.i.mov_imm.d);
       reg_muts.push_back(reg_mut_node{.i = i});
-      regs.mut_node_idxs[i.i.mov_imm.d] = u16(reg_muts.size() - 1u);
+      path.rs.mut_node_idxs[i.i.mov_imm.d] = u16(reg_muts.size() - 1u);
       break;
 
     case inst_type::MOV_NEG_IMM: {
       auto const& mvn = i.i.mov_neg_imm;
-      regs.regs[mvn.d] = ~u32(mvn.imm);
-      mark_reg_known(regs.known, mvn.d);
+      path.rs.regs[mvn.d] = ~u32(mvn.imm);
+      mark_reg_known(path.rs.known, mvn.d);
       reg_muts.push_back(reg_mut_node{.i = i});
-      regs.mut_node_idxs[mvn.d] = u16(reg_muts.size() - 1u);
+      path.rs.mut_node_idxs[mvn.d] = u16(reg_muts.size() - 1u);
     } break;
 
     case inst_type::ADD_IMM: {
       auto const& add = i.i.add_imm;
-      regs.regs[add.d] = regs.regs[add.n] + add.imm;
-      copy_reg_known(regs.known, add.d, add.n);
+      path.rs.regs[add.d] = path.rs.regs[add.n] + add.imm;
+      copy_reg_known(path.rs.known, add.d, add.n);
       reg_muts.push_back(
-        reg_mut_node{.i = i, .par_idxs[0] = regs.mut_node_idxs[add.n]});
-      regs.mut_node_idxs[add.d] = u16(reg_muts.size() - 1u);
+        reg_mut_node{.i = i, .par_idxs[0] = path.rs.mut_node_idxs[add.n]});
+      path.rs.mut_node_idxs[add.d] = u16(reg_muts.size() - 1u);
     } break;
 
     case inst_type::ADD_REG: {
       auto const& add = i.i.add_reg;
-      regs.regs[add.d] = regs.regs[add.n] + regs.regs[add.m];
-      union_reg_known(regs.known, add.d, add.m, add.n);
+      path.rs.regs[add.d] = path.rs.regs[add.n] + path.rs.regs[add.m];
+      union_reg_known(path.rs.known, add.d, add.m, add.n);
       reg_muts.push_back(
-        reg_mut_node{.i = i, .par_idxs[0] = regs.mut_node_idxs[add.n],
-          .par_idxs[1] = regs.mut_node_idxs[add.m]});
-      regs.mut_node_idxs[add.d] = u16(reg_muts.size() - 1u);
+        reg_mut_node{.i = i, .par_idxs[0] = path.rs.mut_node_idxs[add.n],
+          .par_idxs[1] = path.rs.mut_node_idxs[add.m]});
+      path.rs.mut_node_idxs[add.d] = u16(reg_muts.size() - 1u);
     } break;
 
     case inst_type::CMP_IMM:
-      cmp_imm_lit_set(regs, i.i.cmp_imm.n, i.i.cmp_imm.imm);
+      cmp_imm_lit_set(path.rs, i.i.cmp_imm.n, i.i.cmp_imm.imm);
       break;
 
     case inst_type::TABLE_BRANCH_HALF: {
       auto const& tbh = i.i.table_branch_half;
-      len = table_branch(i.addr, 2, tbh.n, tbh.m, regs, fs);
+      len = table_branch(i.addr, 2, tbh.n, tbh.m, path, fs);
     } break;
 
     case inst_type::TABLE_BRANCH_BYTE: {
       auto const& tbb = i.i.table_branch_byte;
-      len = table_branch(i.addr, 1, tbb.n, tbb.m, regs, fs);
+      len = table_branch(i.addr, 1, tbb.n, tbb.m, path, fs);
     } break;
 
     default: break;
   }
 
-  regs.regs[reg::PC] += len;
+  path.rs.regs[reg::PC] += len;
   return bool(len);
 }
 
@@ -263,37 +274,32 @@ bool thumb2_analyze_func(elf const& e,
   printf("\nScanning %s: addr %x, len %x, range %x-%x, offset %x:\n", &e.strtab[func.st_name],
     func.st_value, func.st_size, s.func_start, s.func_end, s.func_ofs);
 
-  s.paths.push(reg_state{.regs[reg::PC] = s.func_start});
+  s.paths.push(path_state{.rs{.regs[reg::PC] = s.func_start}});
 
   while (!s.paths.empty()) {
-    reg_state path{s.paths.top()};
+    path_state path{s.paths.top()};
     s.paths.pop();
 
     printf("  Starting path\n");
     //print(path);
 
     for (;;) {
-      if (func.st_size && (path.regs[reg::PC] >= s.func_end)) {
+      if (func.st_size && (path.rs.regs[reg::PC] >= s.func_end)) {
         printf("  Stopping path: Ran off the end!\n");
         break;
       }
 
       inst pc_i;
       bool const decode_ok = inst_decode(&e.bytes[s.func_ofs], s.func_start,
-        path.regs[reg::PC] - s.func_start, pc_i);
+        path.rs.regs[reg::PC] - s.func_start, pc_i);
 
-      printf("    %x: %04x ", path.regs[reg::PC], pc_i.w0);
+      printf("    %x: %04x ", path.rs.regs[reg::PC], pc_i.w0);
       if (pc_i.len == 2) { printf("       "); } else { printf("%04x   ", pc_i.w1); }
       inst_print(pc_i);
       printf("\n");
 
       if (!decode_ok) {
         printf("  Stopping path: Unknown instruction!\n");
-        break;
-      }
-
-      if (!visit_addr(pc_i.addr, s, path)) {
-        printf("  Stopping path: already visited\n");
         break;
       }
 
@@ -304,27 +310,38 @@ bool thumb2_analyze_func(elf const& e,
 
       u32 label;
       if (inst_is_conditional_branch(pc_i, label) && address_in_func(label, s)) {
-        printf("  Internal branch, pushing state\n");
-        s.paths.push(reg_state_branch(path, label));
+        if (branch(pc_i.addr, path, s)) {
+          printf("  Internal branch, pushing state\n");
+          s.paths.push(path_state_branch(path, label));
+        }
+      }
+
+      if (inst_is_goto(pc_i, label) && address_in_func(label, s)) {
+        if (branch(pc_i.addr, path, s)) {
+          path.rs.regs[reg::PC] = label;
+          continue;
+        }
+        printf("  Stopping path: revisiting unconditional branch\n");
+        break;
       }
 
       if (inst_is_log_call(pc_i, log_funcs)) {
-        if (!test_reg_known(path.known, reg::R0)) {
+        if (!test_reg_known(path.rs.known, reg::R0)) {
           printf("  Found log function, R0 is unknown\n");
           break;
         }
 
-        auto [it, inserted] = out_lca.log_calls.insert({path.regs[reg::R0],
-          log_call{ .fmt_str_addr = path.regs[reg::R0], .log_func_call_addr = pc_i.addr,
-            .node_idx = path.mut_node_idxs[reg::R0] }});
+        auto [it, inserted] = out_lca.log_calls.insert({path.rs.regs[reg::R0],
+          log_call{ .fmt_str_addr = path.rs.regs[reg::R0], .log_func_call_addr = pc_i.addr,
+            .node_idx = path.rs.mut_node_idxs[reg::R0] }});
 
         if (!inserted) {
           printf("  Found log function, already discovered\n");
           break;
         }
 
-        printf("  Found log function, format string 0x%08x\n", path.regs[reg::R0]);
-        inst const& r0_i = s.lca.reg_muts[path.mut_node_idxs[reg::R0]].i;
+        printf("  Found log function, format string 0x%08x\n", path.rs.regs[reg::R0]);
+        inst const& r0_i = s.lca.reg_muts[path.rs.mut_node_idxs[reg::R0]].i;
         switch (r0_i.type) {
           case inst_type::LOAD_LIT:
             it->second.s = fmt_str_strat::DIRECT_LOAD;
