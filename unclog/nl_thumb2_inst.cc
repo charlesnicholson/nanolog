@@ -345,7 +345,8 @@ void print(inst_select_bytes const& s) {
 }
 
 void print(inst_store_byte_imm const& s) {
-  NL_LOG_DBG("STRB_IMM %s, [%s, #%d]", s_rn[s.t], s_rn[s.n], int(s.imm));
+  NL_LOG_DBG("STRB_IMM %s, [%s, #%c%d]", s_rn[s.t], s_rn[s.n], s.add ? '+' : '-',
+    int(s.imm));
 }
 
 void print(inst_store_excl const& s) {
@@ -353,7 +354,7 @@ void print(inst_store_excl const& s) {
 }
 
 void print(inst_store_half_imm const& s) {
-  NL_LOG_DBG("STRH %s, [%s, #%d]", s_rn[s.t], s_rn[s.n], int(s.imm));
+  NL_LOG_DBG("STRH %s, [%s, #%c%d]", s_rn[s.t], s_rn[s.n], s.add ? '+' : '-', int(s.imm));
 }
 
 void print(inst_store_imm const& s) {
@@ -377,25 +378,21 @@ void print(inst_store_reg const& s) {
     s_sn[int(s.shift.t)], int(s.shift.n));
 }
 
-void print(inst_store_reg_byte_imm const& s) {
-  NL_LOG_DBG("STR_REG_B_IMM %s, [%s, #%d]", s_rn[s.t], s_rn[s.n], int(s.imm));
-}
-
-void print(inst_store_reg_byte_reg const& s) {
-  NL_LOG_DBG("STR_REG_B_REG %s, [%s, %s, %s #%d]", s_rn[s.t], s_rn[s.n], s_rn[s.m],
+void print(inst_store_byte_reg const& s) {
+  NL_LOG_DBG("STRB_REG %s, [%s, %s, %s #%d]", s_rn[s.t], s_rn[s.n], s_rn[s.m],
     s_sn[int(s.shift.t)], int(s.shift.n));
 }
 
-void print(inst_store_reg_byte_unpriv const& s) {
+void print(inst_store_byte_unpriv const& s) {
   NL_LOG_DBG("STRBT %s, [%s, #%d]", s_rn[s.t], s_rn[s.n], int(s.imm));
 }
 
-void print(inst_store_reg_half_reg const& s) {
+void print(inst_store_half_reg const& s) {
   NL_LOG_DBG("STRH %s, [%s, %s, %s #%d]", s_rn[s.t], s_rn[s.n], s_rn[s.m], s_sn[int(s.shift.t)],
     int(s.shift.n));
 }
 
-void print(inst_store_reg_double_imm const &s) {
+void print(inst_store_double_imm const &s) {
   NL_LOG_DBG("STRD %s, %s, [%s], #%d", s_rn[s.t], s_rn[s.t2], s_rn[s.n], int(s.imm));
 }
 
@@ -923,8 +920,8 @@ bool decode_16bit_inst(u16 const w0, inst& out_inst) {
   }
 
   if ((w0 & 0xFE00u) == 0x5400u) {  // 4.6.165 STRB (reg), T1 encoding (pg 4-343)
-    out_inst.type = inst_type::STORE_REG_BYTE_REG;
-    out_inst.i.store_reg_byte_reg = { .t = u8(w0 & 7u), .n = u8((w0 >> 3u) & 7u),
+    out_inst.type = inst_type::STORE_BYTE_REG;
+    out_inst.i.store_byte_reg = { .t = u8(w0 & 7u), .n = u8((w0 >> 3u) & 7u),
       .m = u8((w0 >> 6u) & 7u), .shift = decode_imm_shift(0b00, 0) };
     return true;
   }
@@ -937,8 +934,8 @@ bool decode_16bit_inst(u16 const w0, inst& out_inst) {
   }
 
   if ((w0 & 0xFE00u) == 0x5200u) { // 4.6.173 STRG (reg), T1 encoding (pg 4-359)
-    out_inst.type = inst_type::STORE_REG_HALF_REG;
-    out_inst.i.store_reg_half_reg = { .t = u8(w0 & 7u), .n = u8((w0 >> 3u) & 7u),
+    out_inst.type = inst_type::STORE_HALF_REG;
+    out_inst.i.store_half_reg = { .t = u8(w0 & 7u), .n = u8((w0 >> 3u) & 7u),
       .m = u8((w0 >> 6u) & 3u), .shift = decode_imm_shift(0b00, 0) };
     return true;
   }
@@ -1700,8 +1697,8 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
   }
 
   if ((w0 & 0xFFF0u) == 0xF880u) { // 4.6.164 STRB (imm), T2 encoding (pg 4.341)
-    out_inst.type = inst_type::STORE_REG_BYTE_IMM;
-    out_inst.i.store_reg_byte_imm = { .imm = u16(w1 & 0xFFFu), .t = u8((w1 >> 12u) & 0xFu),
+    out_inst.type = inst_type::STORE_BYTE_IMM;
+    out_inst.i.store_byte_imm = { .imm = u16(w1 & 0xFFFu), .t = u8((w1 >> 12u) & 0xFu),
       .n = u8(w0 & 0xFu), .add = 1u, .index = 1u };
     return true;
   }
@@ -1710,8 +1707,8 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
   if (((w0 & 0xFFF0u) == 0xF800u) && ((w1 & 0x800u) == 0x800u)) {
     u8 const puw{u8((w1 >> 8u) & 7u)};
     if (puw == 0b110) {
-      out_inst.type = inst_type::STORE_REG_BYTE_UNPRIV;
-      out_inst.i.store_reg_byte_unpriv = {
+      out_inst.type = inst_type::STORE_BYTE_UNPRIV;
+      out_inst.i.store_byte_unpriv = {
         .t = u8((w1 >> 12u) & 0xFu), .n = u8(w0 & 0xFu) };
     } else {
       out_inst.type = inst_type::STORE_BYTE_IMM;
@@ -1729,8 +1726,8 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
         .t = u8((w1 >> 12u) & 0xFu), .d = u8((w1 >> 8u) & 0xFu) };
       return true;
     }
-    out_inst.type = inst_type::STORE_REG_DOUBLE_IMM;
-    out_inst.i.store_reg_double_imm = { .imm = u16((w1 & 0xFFu) << 2u), .n = u8(w0 & 0xFu),
+    out_inst.type = inst_type::STORE_DOUBLE_IMM;
+    out_inst.i.store_double_imm = { .imm = u16((w1 & 0xFFu) << 2u), .n = u8(w0 & 0xFu),
       .t = u8((w1 >> 12u) & 0xFu), .t2 = u8((w1 >> 8u) & 0xFu), .add = u8((w0 >> 7u) & 1u),
       .index = p };
     return true;
@@ -1757,6 +1754,19 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
     out_inst.type = inst_type::STORE_HALF_IMM;
     out_inst.i.store_half_imm = { .n = u8(w0 & 0xFu), .imm = u16(w1 & 0xFFFu), .add = 1u,
       .t = u8((w1 >> 12u) & 0xFu), .index = 1u };
+    return true;
+  }
+
+  // 4.6.172 STRH (imm), T3 encoding (pg 4-357)
+  if (((w0 & 0xFFF0u) == 0xF820u) && ((w1 & 0x800u) == 0x800u)) {
+    u8 const n{u8(w0 & 0xFu)}, t{u8((w1 >> 12u) & 0xFu)}, imm{u8(w1 & 0xFu)},
+      p{u8((w1 >> 10u) & 1u)}, u{u8((w1 >> 9u) & 1u)}, w{u8((w1 >> 8u) & 1u)};
+    if ((p == 1) && (u == 1) && (w == 0)) {
+      NL_LOG_DBG("SEE STRHT on page 4-361\n");
+      return false;
+    }
+    out_inst.type = inst_type::STORE_HALF_IMM;
+    out_inst.i.store_half_imm = { .index = p, .add = u, .t = t, .n = n, .imm = imm };
     return true;
   }
 

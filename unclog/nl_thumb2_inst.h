@@ -118,18 +118,17 @@ struct imm_shift { imm_shift_type t; u8 n; };
   X(RSHIFT_LOG_IMM, rshift_log_imm, { imm_shift shift; u8 d, m; }) \
   X(RSHIFT_LOG_REG, rshift_log_reg, { u8 d, n, m; }) \
   X(SELECT_BYTES, select_bytes, { u8 d, n, m; }) \
-  X(STORE_BYTE_IMM, store_byte_imm, { u16 imm; u8 t, n, add; }) \
+  X(STORE_BYTE_IMM, store_byte_imm, { u16 imm; u8 n, t, index, add; }) \
+  X(STORE_BYTE_REG, store_byte_reg, { imm_shift shift; u8 t, m, n; }) \
+  X(STORE_BYTE_UNPRIV, store_byte_unpriv, { u16 imm; u8 t, n; }) \
+  X(STORE_DOUBLE_IMM, store_double_imm, { u16 imm; u8 t, t2, n, add, index; }) \
   X(STORE_EXCL, store_excl, { u16 imm; u8 d, t, n; }) \
   X(STORE_HALF_IMM, store_half_imm, { u16 imm; u8 t, n, index, add; }) \
+  X(STORE_HALF_REG, store_half_reg, { imm_shift shift; u8 t, n, m; }) \
   X(STORE_IMM, store_imm, { u8 t, n; u16 imm; }) \
   X(STORE_MULT_DEC_BEF, store_mult_dec_bef, { u16 regs; u8 n; }) \
   X(STORE_MULT_INC_AFTER, store_mult_inc_after, { u16 regs; u8 n, wback; }) \
   X(STORE_REG, store_reg, { imm_shift shift; u8 t, n, m; }) \
-  X(STORE_REG_BYTE_IMM, store_reg_byte_imm, { u16 imm; u8 n, t, index, add; }) \
-  X(STORE_REG_BYTE_REG, store_reg_byte_reg, { imm_shift shift; u8 t, m, n; }) \
-  X(STORE_REG_BYTE_UNPRIV, store_reg_byte_unpriv, { u16 imm; u8 t, n; }) \
-  X(STORE_REG_HALF_REG, store_reg_half_reg, { imm_shift shift; u8 t, n, m; }) \
-  X(STORE_REG_DOUBLE_IMM, store_reg_double_imm, { u16 imm; u8 t, t2, n, add, index; }) \
   X(SUB_IMM, sub_imm, { u32 imm; u8 d, n; }) \
   X(SUB_IMM_CARRY, sub_imm_carry, { u32 imm; u8 d, n; }) \
   X(SUB_REG, sub_reg, { imm_shift shift; u8 d, n, m; }) \
