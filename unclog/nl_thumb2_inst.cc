@@ -444,6 +444,10 @@ void print(inst_test_reg const& t) {
     int(t.shift.n));
 }
 
+void print(inst_vadd const& v) {
+  NL_LOG_DBG("VADD.F32 S%d, S%d, S%d", int(v.d), int(v.n), int(v.m));
+}
+
 void print(inst_vcompare const& v) {
   NL_LOG_DBG("VCMP%s.F32 S%d, ", v.quiet_nan_exc ? "E" : "", int(v.d));
   if (v.with_zero) { NL_LOG_DBG("#0.0"); } else { NL_LOG_DBG("S%d", int(v.m)); }
@@ -1869,6 +1873,25 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
     out_inst.type = inst_type::EXTEND_UNSIGNED_BYTE;
     out_inst.i.extend_unsigned_byte = { .m = u8(w1 & 0xFu), .d = u8((w1 >> 8u) & 0xFu),
       .rotation = u8(((w1 >> 4u) & 3u) << 2u) };
+    return true;
+  }
+
+  // A7.7.221 VADD, T1 encoding (pg A7-566)
+  if (((w0 & 0xFFB0u) == 0xEE30u) && ((w1 & 0xF50u) == 0xA00u)) {
+    u8 const D{u8((w0 >> 6u) & 1u)}, N{u8((w1 >> 7u) & 1u)}, M{u8((w1 >> 5u) & 1u)},
+      vn{u8(w0 & 0xFu)}, vm{u8(w1 & 0xFu)}, vd{u8((w1 >> 12u) & 0xFu)};
+    out_inst.type = inst_type::VADD;
+    out_inst.i.vadd = { .d = u8((vd << 1u) | D), .n = u8((vn << 1u) | N),
+      .m = u8((vm << 1u) | M) };
+    return true;
+  }
+
+  // A7.7.222 VCMP, T1 encoding (pg A7-567)
+  if (((w0 & 0xFFBFu) == 0xEEB4u) && ((w1 & 0xF50u) == 0xA40u)) {
+    u8 const D{u8((w0 >> 6u) & 1u)}, vd{u8((w1 >> 12u) & 0xFu)};
+    out_inst.type = inst_type::VCOMPARE;
+    out_inst.i.vcompare = { .with_zero = 0u, .quiet_nan_exc = u8((w1 >> 7u) & 1u),
+      .d = u8((vd << 1u) | D) };
     return true;
   }
 
