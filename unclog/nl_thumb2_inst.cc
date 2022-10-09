@@ -469,6 +469,10 @@ void print(inst_vmov_single const& v) {
   }
 }
 
+void print(inst_vpop const& v) {
+  printf("VPOP { %x }", v.regs); // TODO: print the list, don't care right now
+}
+
 void print(inst_vpush const& v) {
   printf("VPUSH { %x }", v.regs); // TODO: print the list, don't care right now
 }
@@ -1836,6 +1840,16 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
     out_inst.type = inst_type::VMOV_DOUBLE;
     out_inst.i.vmov_double = { .m = u8((w1 & 0xFu) | ((w1 >> 1u) & 0x10u)),
       .t2 = u8(w0 & 0xFu), .t = u8((w1 >> 12u) & 0xFu), .to_arm_regs = u8((w0 >> 4u) & 1u) };
+    return true;
+  }
+
+  // A7.7.244 VPOP, T1 encoding (pg A7-599)
+  if (((w0 & 0xFFBFu) == 0xECBDu) && ((w1 & 0xF00u) == 0xB00u)) {
+    u8 const vd{u8((w1 >> 12u) & 0xFu)}, D{u8((w0 >> 6u) & 1u)};
+    u16 const imm8{u16(w1 & 0xFFu)};
+    out_inst.type = inst_type::VPOP;
+    out_inst.i.vpop = { .single_regs = 0, .regs = u8(imm8 / 2), .imm = u16(imm8 << 2u),
+      .d = u8((D << 4u) | vd) };
     return true;
   }
 
