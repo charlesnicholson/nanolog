@@ -1718,6 +1718,15 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
     return true;
   }
 
+  // 4.6.165 STRB (reg), T2 encoding (pg 4-343)
+  if (((w0 & 0xFFF0u) == 0xF800u) && ((w1 & 0xFC0u) == 0)) {
+    out_inst.type = inst_type::STORE_BYTE_REG;
+    out_inst.i.store_byte_reg = { .n = u8(w0 & 0xFu), .m = u8(w1 & 0xFu),
+      .t = u8((w1 >> 12u) & 0xFu),
+      .shift = decode_imm_shift(u8(imm_shift_type::LSL), u8((w1 >> 4u) & 3u))};
+    return true;
+  }
+
   if ((w0 & 0xFE50u) == 0xE840u) { // 4.6.167 STRD (imm), T1 encoding (pg 4-347)
     u8 const p{u8((w0 >> 8u) & 1u)}, w{u8((w0 >> 5u) & 1u)};
     if ((p == 0) && (w == 0)) {  // 4.6.168 STREX, T1 encoding (pg 4-349)
