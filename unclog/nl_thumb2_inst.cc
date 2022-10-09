@@ -1107,32 +1107,28 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
 
   // 4.6.12 B, T3 encoding (pg 4-38)
   if (((w0 & 0xF800u) == 0xF000u) && ((w1 & 0xD000u) == 0x8000u)) {
+    u32 const imm11{w1 & 0x7FFu}, imm6{w0 & 0x3Fu}, j1{(w1 >> 13u) & 1u},
+      j2{(w1 >> 11u) & 1u}, s{(w0 >> 10u) & 1u},
+      imm{sext((s << 20u) | (j2 << 19u) | (j1 << 18u) | (imm6 << 12u) | (imm11 << 1u), 20)},
+      addr{out_inst.addr + 4u + imm};
     cond_code const cc{cond_code((w0 >> 6u) & 0xFu)};
-    if ((cc == cond_code::AL1) || (cc == cond_code::AL2)) { // cond<3:1> '111' is nop
+    if ((unsigned(cc) & 0xEu) == 0xEu) { // 4.6.88 NOP, T2 encoding (pg 4-189)
       out_inst.type = inst_type::NOP; out_inst.i.nop = {};
-    } else {
-      u32 const imm11{w1 & 0x7FFu}, imm6{w0 & 0x3Fu};
-      u32 const j1{(w1 >> 13u) & 1u}, j2{(w1 >> 11u) & 1u};
-      u32 const s{(w0 >> 10u) & 1u};
-      u32 const imm32{
-        sext((imm11 << 1u) | (imm6 << 11u) | (j1 << 17u) | (j2 << 18u) | (s << 19u), 19)};
-      out_inst.type = inst_type::BRANCH;
-      out_inst.i.branch = { .cc = cc, .imm = imm32};
+      return true;
     }
+    out_inst.type = inst_type::BRANCH;
+    out_inst.i.branch = { .cc = cc, .imm = imm, .addr = addr };
     return true;
   }
 
   // 4.6.12 B, T4 encoding (pg 4-38)
   if (((w0 & 0xF800u) == 0xF000u) && ((w1 & 0xD000u) == 0x9000u)) {
-    u32 const imm10{w0 & 0x3FFu}, imm11{w1 & 0x7FFu};
-    u32 const s{(w0 >> 10u) & 1u};
-    u32 const j1{(w1 >> 13u) & 1u}, j2{(w1 >> 11u) & 1u};
-    u32 const i1{~(j1 ^ s) & 1u}, i2{~(j2 ^ s) & 1u};
-    u32 const imm32{
-      sext((s << 24u) | (i1 << 23u) | (i2 << 22u) | (imm10 << 12u) | (imm11 << 1u), 24)};
+    u32 const imm10{w0 & 0x3FFu}, imm11{w1 & 0x7FFu}, s{(w0 >> 10u) & 1u},
+      j1{(w1 >> 13u) & 1u}, j2{(w1 >> 11u) & 1u}, i1{~(j1 ^ s) & 1u}, i2{~(j2 ^ s) & 1u},
+      imm{sext((s << 24u) | (i1 << 23u) | (i2 << 22u) | (imm10 << 12u) | (imm11 << 1u), 24)},
+      addr{out_inst.addr + 4u + imm};
     out_inst.type = inst_type::BRANCH;
-    out_inst.i.branch = { .cc = cond_code::AL2, .imm = imm32,
-      .addr = u32(out_inst.addr + 4u + imm32) };
+    out_inst.i.branch = { .cc = cond_code::AL2, .imm = imm, .addr = addr };
     return true;
   }
 
