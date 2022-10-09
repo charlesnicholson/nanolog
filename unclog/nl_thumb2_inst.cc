@@ -547,13 +547,13 @@ bool decode_16bit_inst(u16 const w0, inst& out_inst) {
   if ((w0 & 0xFF00u) == 0x4400u) { // 4.6.4 ADD (reg), T2 encoding (pg 4-22)
     u8 const dn{u8((w0 >> 7u) & 1u)}, rdn{u8(w0 & 7u)}, d{u8((dn << 3) | rdn)},
       m{u8((w0 >> 3u) & 7u)};
-    if ((d == reg::SP) || (m == reg::SP)) {
+    if ((d == 13) || (m == 13)) { // 4.6.6 ADD (SP plus reg), T2 encoding (pg 4-26)
       out_inst.type = inst_type::ADD_SP_IMM;
       out_inst.i.add_sp_imm = { .d = d, .imm = d };
-    } else {
-      out_inst.type = inst_type::ADD_REG;
-      out_inst.i.add_reg = { .shift = decode_imm_shift(0b00, 0), .d = d, .n = d, .m = m };
+      return true;
     }
+    out_inst.type = inst_type::ADD_REG;
+    out_inst.i.add_reg = { .shift = decode_imm_shift(0b00, 0), .d = d, .n = d, .m = m };
     return true;
   }
 
@@ -1033,17 +1033,19 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
 
   // 4.6.3 ADD (imm), T4 encoding (pg 4-20)
   if (((w0 & 0xFBF0u) == 0xF200u) && ((w1 & 0x8000u) == 0)) {
-    u8 const n{u8(w0 & 0xFu)};
-    u32 const i{(w0 >> 10u) & 1u}, imm3{(w1 >> 12u) & 7u}, imm8{w1 & 0xFFu};
+    u8 const n{u8(w0 & 0xFu)}, d{u8((w1 >> 8u) & 0xFu)};
+    u32 const i{(w0 >> 10u) & 1u}, imm3{(w1 >> 12u) & 7u}, imm8{w1 & 0xFFu},
+      imm{(i << 11u) | (imm3 << 8u) | imm8};
     if (n == 15) { // "SEE ADR on page 4-28"
       return false;
     }
-    if (n == 13) { // "SEE ADD (SP plus immediate) on page 4-24"
-      return false;
+    if (n == 13) { // 4.6.5 ADD (SP plus imm), T4 encoding (pg 4-24)
+      out_inst.type = inst_type::ADD_SP_IMM;
+      out_inst.i.add_sp_imm = { .d = d, .imm = u16(imm) };
+      return true;
     }
     out_inst.type = inst_type::ADD_IMM;
-    out_inst.i.add_imm = { .n = n, .d = u8((w1 >> 8u) & 0xFu),
-      .imm = u16((i << 11u) | (imm3 << 8u) | imm8) };
+    out_inst.i.add_imm = { .n = n, .d = d, .imm = u16(imm) };
     return true;
   }
 
