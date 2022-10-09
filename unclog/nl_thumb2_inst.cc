@@ -21,477 +21,478 @@ char const *s_rn[] = { REGISTER_X_LIST() };
 char const *s_sn[] = { SHIFT_X_LIST() };
 #undef X
 
-void print(inst_unknown const&) { printf("??"); }
+void print(inst_unknown const&) { NL_LOG_DBG("??"); }
 
 void print(inst_add_carry_imm const& a) {
-  printf("ADC_IMM %s, %s, #%d", s_rn[a.d], s_rn[a.n], int(a.imm));
+  NL_LOG_DBG("ADC_IMM %s, %s, #%d", s_rn[a.d], s_rn[a.n], int(a.imm));
 }
 
 void print(inst_add_carry_reg const& a) {
-  printf("ADC_REG %s, %s, %s <%s #%d>", s_rn[a.d], s_rn[a.n], s_rn[a.m],
+  NL_LOG_DBG("ADC_REG %s, %s, %s <%s #%d>", s_rn[a.d], s_rn[a.n], s_rn[a.m],
     s_sn[int(a.shift.t)], int(a.shift.n));
 }
 
 void print(inst_add_imm const& a) {
-  printf("ADD_IMM %s, %s, #%d", s_rn[a.d], s_rn[a.n], int(a.imm));
+  NL_LOG_DBG("ADD_IMM %s, %s, #%d", s_rn[a.d], s_rn[a.n], int(a.imm));
 }
 
 void print(inst_add_sp_imm const& a) {
-  printf("ADD %s, [%s, #%d]", s_rn[a.d], s_rn[reg::SP], (int)a.imm);
+  NL_LOG_DBG("ADD %s, [%s, #%d]", s_rn[a.d], s_rn[reg::SP], (int)a.imm);
 }
 
 void print(inst_add_sp_reg const& a) {
-  printf("ADD %s, %s, %s <%s, #%d>", s_rn[a.d], s_rn[reg::SP], s_rn[a.m],
+  NL_LOG_DBG("ADD %s, %s, %s <%s, #%d>", s_rn[a.d], s_rn[reg::SP], s_rn[a.m],
     s_sn[int(a.shift.t)], int(a.shift.n));
 }
 
 void print(inst_add_reg const& a) {
-  printf("ADD_REG %s, %s, %s <%s #%d>", s_rn[a.d], s_rn[a.n], s_rn[a.m],
+  NL_LOG_DBG("ADD_REG %s, %s, %s <%s #%d>", s_rn[a.d], s_rn[a.n], s_rn[a.m],
     s_sn[int(a.shift.t)], int(a.shift.n));
 }
 
 void print(inst_add_8_unsigned const& a) {
-  printf("UADD8 %s, %s, %s", s_rn[a.d], s_rn[a.n], s_rn[a.m]);
+  NL_LOG_DBG("UADD8 %s, %s, %s", s_rn[a.d], s_rn[a.n], s_rn[a.m]);
 }
 
 void print(inst_adr const& a) {
-  printf("ADR %s, PC, #%d", s_rn[a.dst_reg], (int)a.imm);
+  NL_LOG_DBG("ADR %s, PC, #%d", s_rn[a.dst_reg], (int)a.imm);
 }
 
 void print(inst_and_reg const& a) {
-  printf("AND_REG %s, %s, %s <%s #%d>", s_rn[a.d], s_rn[a.n], s_rn[a.m],
+  NL_LOG_DBG("AND_REG %s, %s, %s <%s #%d>", s_rn[a.d], s_rn[a.n], s_rn[a.m],
     s_sn[int(a.shift.t)], int(a.shift.n));
 }
 
 void print(inst_and_imm const& a) {
-  printf("AND_IMM %s, %s, #%d", s_rn[a.d], s_rn[a.n], int(a.imm));
+  NL_LOG_DBG("AND_IMM %s, %s, #%d", s_rn[a.d], s_rn[a.n], int(a.imm));
 }
 
 void print(inst_pack_half const& p) {
-  printf("PKH%s %s, %s, %s, %s #%d", p.tbform ? "TB" : "BT", s_rn[p.d], s_rn[p.n],
+  NL_LOG_DBG("PKH%s %s, %s, %s, %s #%d", p.tbform ? "TB" : "BT", s_rn[p.d], s_rn[p.n],
     s_rn[p.m], s_sn[int(p.shift.t)], int(p.shift.n));
 }
 
 void print(inst_push const& p) {
-  printf("PUSH { ");
-  for (int i = 0; i < 16; ++i) { if (p.reg_list & (1 << i)) { printf("%s ", s_rn[i]); } }
-  printf("}");
+  NL_LOG_DBG("PUSH { ");
+  for (int i = 0; i < 16; ++i) { if (p.reg_list & (1 << i)) { NL_LOG_DBG("%s ", s_rn[i]); } }
+  NL_LOG_DBG("}");
 }
 
 void print(inst_pop const& p) {
-  printf("POP { ");
-  for (int i = 0; i < 16; ++i) { if (p.reg_list & (1 << i)) { printf("%s ", s_rn[i]); } }
-  printf("}");
+  NL_LOG_DBG("POP { ");
+  for (int i = 0; i < 16; ++i) { if (p.reg_list & (1 << i)) { NL_LOG_DBG("%s ", s_rn[i]); } }
+  NL_LOG_DBG("}");
 }
 
-void print(inst_nop const&) { printf("NOP"); }
-void print(inst_reverse_bits const& r) { printf("RBIT %s, %s", s_rn[r.d], s_rn[r.m]); }
+void print(inst_nop const&) { NL_LOG_DBG("NOP"); }
+void print(inst_reverse_bits const& r) { NL_LOG_DBG("RBIT %s, %s", s_rn[r.d], s_rn[r.m]); }
 
 void print(inst_rshift_log_imm const& r) {
-  printf("LSR_IMM %s, %s, #%d", s_rn[r.d], s_rn[r.m], int(r.shift.n));
+  NL_LOG_DBG("LSR_IMM %s, %s, #%d", s_rn[r.d], s_rn[r.m], int(r.shift.n));
 }
 
 void print(inst_rshift_log_reg const& r) {
-  printf("LSR_REG %s, %s, %s", s_rn[r.d], s_rn[r.m], s_rn[r.n]);
+  NL_LOG_DBG("LSR_REG %s, %s, %s", s_rn[r.d], s_rn[r.m], s_rn[r.n]);
 }
 
 void print(inst_rshift_arith_imm const& r) {
-  printf("ASR %s, %s, #%d", s_rn[r.d], s_rn[r.m], int(r.shift.n));
+  NL_LOG_DBG("ASR %s, %s, #%d", s_rn[r.d], s_rn[r.m], int(r.shift.n));
 }
 
 void print(inst_bit_clear_imm const& b) {
-  printf("BIC_IMM %s, %s, #%d", s_rn[b.d], s_rn[b.n], int(b.imm));
+  NL_LOG_DBG("BIC_IMM %s, %s, #%d", s_rn[b.d], s_rn[b.n], int(b.imm));
 }
 
 void print(inst_bit_clear_reg const& b) {
-  printf("BIC_REG %s, %s, %s, <%s #%d>", s_rn[b.d], s_rn[b.n], s_rn[b.m],
+  NL_LOG_DBG("BIC_REG %s, %s, %s, <%s #%d>", s_rn[b.d], s_rn[b.n], s_rn[b.m],
     s_sn[int(b.shift.t)], int(b.shift.n));
 }
 
 void print(inst_bitfield_extract_signed const& b) {
-  printf("SBFX %s, %s, #%d, #%d", s_rn[b.d], s_rn[b.n], int(b.lsbit),
+  NL_LOG_DBG("SBFX %s, %s, #%d, #%d", s_rn[b.d], s_rn[b.n], int(b.lsbit),
     int(b.widthminus1 + 1));
 }
 
 void print(inst_bitfield_extract_unsigned const& b) {
-  printf("UBFX %s, %s, #%d, #%d", s_rn[b.d], s_rn[b.n], int(b.lsbit),
+  NL_LOG_DBG("UBFX %s, %s, #%d, #%d", s_rn[b.d], s_rn[b.n], int(b.lsbit),
     int(b.widthminus1 + 1));
 }
 
 void print(inst_bitfield_insert const& b) {
-  printf("BFI %s, %s, #%d, #%d", s_rn[b.d], s_rn[b.n], int(b.lsbit),
+  NL_LOG_DBG("BFI %s, %s, #%d, #%d", s_rn[b.d], s_rn[b.n], int(b.lsbit),
     int(b.msbit - b.lsbit));
 }
 
 void print(inst_branch const& i) {
-  printf("B%s #%d (%x)", i.cc >= cond_code::AL1 ? "" : cond_code_name(i.cc),
+  NL_LOG_DBG("B%s #%d (%x)", i.cc >= cond_code::AL1 ? "" : cond_code_name(i.cc),
     int(i32(i.imm)), unsigned(i.addr));
 }
 
 void print(inst_branch_link const& i) {
-  printf("BL #%d (%x)", unsigned(i.imm), unsigned(i.addr));
+  NL_LOG_DBG("BL #%d (%x)", unsigned(i.imm), unsigned(i.addr));
 }
 
-void print(inst_branch_link_xchg_reg const& b) { printf("BLX %s", s_rn[b.reg]); }
-void print(inst_branch_xchg const& i) { printf("BX %s", s_rn[int(i.m)]); }
-void print(inst_breakpoint const& b) { printf("BKPT 0x%04hx", b.imm); }
+void print(inst_branch_link_xchg_reg const& b) { NL_LOG_DBG("BLX %s", s_rn[b.reg]); }
+void print(inst_branch_xchg const& i) { NL_LOG_DBG("BX %s", s_rn[int(i.m)]); }
+void print(inst_breakpoint const& b) { NL_LOG_DBG("BKPT 0x%04hx", b.imm); }
 
 void print(inst_byte_rev_packed_half const& b) {
-  printf("REV16 %s, %s", s_rn[b.d], s_rn[b.m]);
+  NL_LOG_DBG("REV16 %s, %s", s_rn[b.d], s_rn[b.m]);
 }
 
-void print(inst_byte_rev_word const& b) { printf("REV %s, %s", s_rn[b.d], s_rn[b.m]); }
+void print(inst_byte_rev_word const& b) { NL_LOG_DBG("REV %s, %s", s_rn[b.d], s_rn[b.m]); }
 
 void print(inst_cmp_branch_nz const& c) {
-  printf("CBNZ %s, #%d (%x)", s_rn[c.n], unsigned(c.imm), unsigned(c.addr));
+  NL_LOG_DBG("CBNZ %s, #%d (%x)", s_rn[c.n], unsigned(c.imm), unsigned(c.addr));
 }
 
 void print(inst_cmp_branch_z const& c) {
-  printf("CBZ %s, #%d (%x)", s_rn[c.n], unsigned(c.imm), unsigned(c.addr));
+  NL_LOG_DBG("CBZ %s, #%d (%x)", s_rn[c.n], unsigned(c.imm), unsigned(c.addr));
 }
 
 void print(inst_change_proc_state const& c) {
-  printf("CPS%s %s%s%s", c.en ? "IE" : (c.dis ? "ID" : ""),
+  NL_LOG_DBG("CPS%s %s%s%s", c.en ? "IE" : (c.dis ? "ID" : ""),
     c.aff_a ? "A" : "", c.aff_f ? "F" : "", c.aff_i ? "I" : "");
 }
 
-void print(inst_cmp_imm const& c) { printf("CMP_IMM %s, #%d", s_rn[c.n], int(c.imm)); }
-void print(inst_cmp_neg_imm const& c) { printf("CMN_IMM %s, #%d", s_rn[c.n], int(c.imm)); }
+void print(inst_cmp_imm const& c) { NL_LOG_DBG("CMP_IMM %s, #%d", s_rn[c.n], int(c.imm)); }
+void print(inst_cmp_neg_imm const& c) { NL_LOG_DBG("CMN_IMM %s, #%d", s_rn[c.n], int(c.imm)); }
 
 void print(inst_cmp_reg const& c) {
-  printf("CMP_REG %s, %s <%s #%d>", s_rn[c.n], s_rn[c.m], s_sn[int(c.shift.t)],
+  NL_LOG_DBG("CMP_REG %s, %s <%s #%d>", s_rn[c.n], s_rn[c.m], s_sn[int(c.shift.t)],
     int(c.shift.n));
 }
 
 void print(inst_if_then const& i) {
-  printf("IT %x, %x", unsigned(i.firstcond), unsigned(i.mask));
+  NL_LOG_DBG("IT %x, %x", unsigned(i.firstcond), unsigned(i.mask));
 }
 
 void print(inst_count_leading_zeros const& c) {
-  printf("CLZ %s, %s", s_rn[c.d], s_rn[c.m]);
+  NL_LOG_DBG("CLZ %s, %s", s_rn[c.d], s_rn[c.m]);
 }
 
 void print(inst_div_signed const& d) {
-  printf("SDIV %s, %s, %s", s_rn[d.d], s_rn[d.n], s_rn[d.m]);
+  NL_LOG_DBG("SDIV %s, %s, %s", s_rn[d.d], s_rn[d.n], s_rn[d.m]);
 }
 
 void print(inst_div_unsigned const& d) {
-  printf("UDIV %s, %s, %s", s_rn[d.d], s_rn[d.n], s_rn[d.m]);
+  NL_LOG_DBG("UDIV %s, %s, %s", s_rn[d.d], s_rn[d.n], s_rn[d.m]);
 }
 
 void print(inst_excl_or_imm const& e) {
-  printf("EOR_IMM %s, %s, #%d", s_rn[e.d], s_rn[e.n], int(e.imm));
+  NL_LOG_DBG("EOR_IMM %s, %s, #%d", s_rn[e.d], s_rn[e.n], int(e.imm));
 }
 
 void print(inst_excl_or_reg const& e) {
-  printf("EOR_REG %s, %s, %s, <%s #%d>", s_rn[e.d], s_rn[e.n], s_rn[e.m],
+  NL_LOG_DBG("EOR_REG %s, %s, %s, <%s #%d>", s_rn[e.d], s_rn[e.n], s_rn[e.m],
     s_sn[int(e.shift.t)], int(e.shift.n));
 }
 
 void print(inst_extend_unsigned_byte const& u) {
-  printf("UXTB %s, %s, <%d>", s_rn[u.d], s_rn[u.m], int(u.rotation));
+  NL_LOG_DBG("UXTB %s, %s, <%d>", s_rn[u.d], s_rn[u.m], int(u.rotation));
 }
 
 void print(inst_extend_unsigned_half const& u) {
-  printf("UXTH %s, %s, <%d>", s_rn[u.d], s_rn[u.m], int(u.rotation));
+  NL_LOG_DBG("UXTH %s, %s, <%d>", s_rn[u.d], s_rn[u.m], int(u.rotation));
 }
 
 void print(inst_extend_add_signed_byte const &e) {
-  printf("SXTAB %s, %s, %s, <%d>", s_rn[e.d], s_rn[e.n], s_rn[e.m], int(e.rotation));
+  NL_LOG_DBG("SXTAB %s, %s, %s, <%d>", s_rn[e.d], s_rn[e.n], s_rn[e.m], int(e.rotation));
 }
 
 void print(inst_extend_signed_byte const& u) {
-  printf("SXTB %s, %s, <%d>", s_rn[u.d], s_rn[u.m], int(u.rotation));
+  NL_LOG_DBG("SXTB %s, %s, <%d>", s_rn[u.d], s_rn[u.m], int(u.rotation));
 }
 
 void print(inst_extend_signed_half const& e) {
-  printf("SXTH %s, %s, <%d>", s_rn[e.d], s_rn[e.m], int(e.rotation));
+  NL_LOG_DBG("SXTH %s, %s, <%d>", s_rn[e.d], s_rn[e.m], int(e.rotation));
 }
 
 void print(inst_load_byte_imm const& l) {
-  printf("LDRB_IMM %s, [%s, #%d]", s_rn[l.t], s_rn[l.n], int(l.imm));
+  NL_LOG_DBG("LDRB_IMM %s, [%s, #%d]", s_rn[l.t], s_rn[l.n], int(l.imm));
 }
 
 void print(inst_load_byte_lit const& l) {
-  printf("LDRB_LIT %s, [%s, #%c%d]", s_rn[l.t], s_rn[reg::PC], l.add ? '+' : '-',
+  NL_LOG_DBG("LDRB_LIT %s, [%s, #%c%d]", s_rn[l.t], s_rn[reg::PC], l.add ? '+' : '-',
     int(l.imm));
 }
 
 void print(inst_load_byte_reg const& l) {
-  printf("LDRB_REG %s, [%s, %s, %s #%d]", s_rn[l.t], s_rn[l.n], s_rn[l.m],
+  NL_LOG_DBG("LDRB_REG %s, [%s, %s, %s #%d]", s_rn[l.t], s_rn[l.n], s_rn[l.m],
     s_sn[int(l.shift.t)], int(l.shift.n));
 }
 
 void print(inst_load_dbl_reg const& l) {
-  printf("LDRD_REG %s, %s, [%s, #%s%d]", s_rn[l.t], s_rn[l.t2], s_rn[l.n],
+  NL_LOG_DBG("LDRD_REG %s, %s, [%s, #%s%d]", s_rn[l.t], s_rn[l.t2], s_rn[l.n],
     l.add ? "" : "-", int(l.imm));
 }
 
 void print(inst_load_excl const& l) {
-  printf("LDREX %s, [%s, #%d]", s_rn[l.t], s_rn[l.n], int(l.imm));
+  NL_LOG_DBG("LDREX %s, [%s, #%d]", s_rn[l.t], s_rn[l.n], int(l.imm));
 }
 
 void print(inst_load_imm const& l) {
-  printf("LDR_IMM %s, [%s, #%d]", s_rn[l.t], s_rn[l.n], int(l.imm));
+  NL_LOG_DBG("LDR_IMM %s, [%s, #%d]", s_rn[l.t], s_rn[l.n], int(l.imm));
 }
 
 void print(inst_load_half_imm const& l) {
-  printf("LDRH_IMM %s, [%s, #%d]", s_rn[l.t], s_rn[l.n], int(l.imm));
+  NL_LOG_DBG("LDRH_IMM %s, [%s, #%d]", s_rn[l.t], s_rn[l.n], int(l.imm));
 }
 
 void print(inst_load_half_reg const& l) {
-  printf("LDRH_REG %s, [%s, %s, %s #%d]", s_rn[l.t], s_rn[l.n], s_rn[l.m],
+  NL_LOG_DBG("LDRH_REG %s, [%s, %s, %s #%d]", s_rn[l.t], s_rn[l.n], s_rn[l.m],
     s_sn[int(l.shift.t)], int(l.shift.n));
 }
 
 void print(inst_load_lit const& l) {
-  printf("LDR_LIT %s, [PC, #%s%d] (%x)", s_rn[l.t], l.add ? "" : "-", int(l.imm),
+  NL_LOG_DBG("LDR_LIT %s, [PC, #%s%d] (%x)", s_rn[l.t], l.add ? "" : "-", int(l.imm),
     unsigned(l.addr));
 }
 
 void print(inst_load_mult_dec_before const& l) {
-  printf("LDMDB %s%s, { ", s_rn[l.n], l.wback ? "!" : "");
-  for (int i = 0; i < 16; ++i) { if (l.regs & (1 << i)) { printf("%s ", s_rn[i]); } }
-  printf("}");
+  NL_LOG_DBG("LDMDB %s%s, { ", s_rn[l.n], l.wback ? "!" : "");
+  for (int i = 0; i < 16; ++i) { if (l.regs & (1 << i)) { NL_LOG_DBG("%s ", s_rn[i]); } }
+  NL_LOG_DBG("}");
 }
 
 void print(inst_load_mult_inc_after const& l) {
-  printf("LDMIA %s%s, { ", s_rn[l.n], l.wback ? "!" : "");
-  for (int i = 0; i < 16; ++i) { if (l.regs & (1 << i)) { printf("%s ", s_rn[i]); } }
-  printf("}");
+  NL_LOG_DBG("LDMIA %s%s, { ", s_rn[l.n], l.wback ? "!" : "");
+  for (int i = 0; i < 16; ++i) { if (l.regs & (1 << i)) { NL_LOG_DBG("%s ", s_rn[i]); } }
+  NL_LOG_DBG("}");
 }
 
 void print(inst_load_reg const& l) {
-  printf("LDR_REG %s, [%s, %s <%s #%d>]", s_rn[l.t], s_rn[l.n], s_rn[l.m],
+  NL_LOG_DBG("LDR_REG %s, [%s, %s <%s #%d>]", s_rn[l.t], s_rn[l.n], s_rn[l.m],
     s_sn[int(l.shift.t)], int(l.shift.n));
 }
 
 void print(inst_load_signed_byte_imm const& l) {
-  printf("LDRSB_IMM %s, [%s, #%d]", s_rn[l.t], s_rn[l.n], int(l.imm));
+  NL_LOG_DBG("LDRSB_IMM %s, [%s, #%d]", s_rn[l.t], s_rn[l.n], int(l.imm));
 }
 
 void print(inst_load_signed_byte_reg const& l) {
-  printf("LDRSB_REG %s, [%s, %s, %s #%d]", s_rn[l.t], s_rn[l.n], s_rn[l.m],
+  NL_LOG_DBG("LDRSB_REG %s, [%s, %s, %s #%d]", s_rn[l.t], s_rn[l.n], s_rn[l.m],
     s_sn[int(l.shift.t)], int(l.shift.n));
 }
 
 void print(inst_load_signed_half_imm const& l) {
-  printf("LDRSH_IMM %s, [%s, #%d]", s_rn[l.t], s_rn[l.n], int(l.imm));
+  NL_LOG_DBG("LDRSH_IMM %s, [%s, #%c%d]", s_rn[l.t], s_rn[l.n], l.add ? '+' : '-',
+    int(l.imm));
 }
 
 void print(inst_load_signed_half_reg const& l) {
-  printf("LDRSH_REG %s, [%s, %s, %s #%d]", s_rn[l.t], s_rn[l.n], s_rn[l.m],
+  NL_LOG_DBG("LDRSH_REG %s, [%s, %s, %s #%d]", s_rn[l.t], s_rn[l.n], s_rn[l.m],
     s_sn[int(l.shift.t)], int(l.shift.n));
 }
 
 void print(inst_lshift_log_imm const& l) {
-  printf("LSL_IMM %s, %s, #%d", s_rn[l.d], s_rn[l.m], int(l.shift.n));
+  NL_LOG_DBG("LSL_IMM %s, %s, #%d", s_rn[l.d], s_rn[l.m], int(l.shift.n));
 }
 
 void print(inst_lshift_log_reg const& l) {
-  printf("LSL_REG %s, %s, %s", s_rn[l.d], s_rn[l.n], s_rn[l.m]);
+  NL_LOG_DBG("LSL_REG %s, %s, %s", s_rn[l.d], s_rn[l.n], s_rn[l.m]);
 }
 
-void print(inst_mov_reg const& m) { printf("MOV %s, %s", s_rn[m.d], s_rn[m.m]); }
+void print(inst_mov_reg const& m) { NL_LOG_DBG("MOV %s, %s", s_rn[m.d], s_rn[m.m]); }
 
 void print(inst_mov_imm const& m) {
-  printf("MOV_IMM %s, #%d (%#x)", s_rn[m.d], int(m.imm), unsigned(m.imm));
+  NL_LOG_DBG("MOV_IMM %s, #%d (%#x)", s_rn[m.d], int(m.imm), unsigned(m.imm));
 }
 
 void print(inst_mov_neg_imm const& m) {
-  printf("MOV_NEG_IMM %s, #%d (%#x)", s_rn[m.d], unsigned(m.imm), unsigned(m.imm));
+  NL_LOG_DBG("MOV_NEG_IMM %s, #%d (%#x)", s_rn[m.d], unsigned(m.imm), unsigned(m.imm));
 }
 
 void print(inst_mov_neg_reg const& m) {
-  printf("MOV_NEG_REG %s, %s, %s #%d", s_rn[m.d], s_rn[m.m], s_sn[int(m.shift.t)],
+  NL_LOG_DBG("MOV_NEG_REG %s, %s, %s #%d", s_rn[m.d], s_rn[m.m], s_sn[int(m.shift.t)],
     int(m.shift.n));
 }
 
-void print(inst_mul const& m) { printf("MUL %s, %s, %s", s_rn[m.d], s_rn[m.n], s_rn[m.m]); }
+void print(inst_mul const& m) { NL_LOG_DBG("MUL %s, %s, %s", s_rn[m.d], s_rn[m.n], s_rn[m.m]); }
 
 void print(inst_mul_accum const& m) {
-  printf("MLA %s, %s, %s, %s", s_rn[m.d], s_rn[m.n], s_rn[m.m], s_rn[m.a]);
+  NL_LOG_DBG("MLA %s, %s, %s, %s", s_rn[m.d], s_rn[m.n], s_rn[m.m], s_rn[m.a]);
 }
 
 void print(inst_mul_accum_signed_long const& m) {
-  printf("SMLAL %s, %s, %s, %s", s_rn[m.dlo], s_rn[m.dhi], s_rn[m.n], s_rn[m.m]);
+  NL_LOG_DBG("SMLAL %s, %s, %s, %s", s_rn[m.dlo], s_rn[m.dhi], s_rn[m.n], s_rn[m.m]);
 }
 
 void print(inst_mul_accum_unsigned_long const& m) {
-  printf("UMLAL %s, %s, %s, %s", s_rn[m.dlo], s_rn[m.dhi], s_rn[m.n], s_rn[m.m]);
+  NL_LOG_DBG("UMLAL %s, %s, %s, %s", s_rn[m.dlo], s_rn[m.dhi], s_rn[m.n], s_rn[m.m]);
 }
 
 void print(inst_mul_sub const& m) {
-  printf("MLS %s, %s, %s, %s", s_rn[m.d], s_rn[m.n], s_rn[m.m], s_rn[m.a]);
+  NL_LOG_DBG("MLS %s, %s, %s, %s", s_rn[m.d], s_rn[m.n], s_rn[m.m], s_rn[m.a]);
 }
 
 void print(inst_or_not_reg const& o) {
-  printf("ORN_REG %s, %s, %s, %s #%d", s_rn[o.d], s_rn[o.n], s_rn[o.m],
+  NL_LOG_DBG("ORN_REG %s, %s, %s, %s #%d", s_rn[o.d], s_rn[o.n], s_rn[o.m],
     s_sn[int(o.shift.t)], int(o.shift.n));
 }
 
 void print(inst_or_imm const& o) {
-  printf("ORR_IMM %s, %s, #%d", s_rn[o.d], s_rn[o.n], int(o.imm));
+  NL_LOG_DBG("ORR_IMM %s, %s, #%d", s_rn[o.d], s_rn[o.n], int(o.imm));
 }
 
 void print(inst_or_reg const& o) {
-  printf("ORR_REG %s, %s, %s <%s #%d>", s_rn[o.d], s_rn[o.n], s_rn[o.m],
+  NL_LOG_DBG("ORR_REG %s, %s, %s <%s #%d>", s_rn[o.d], s_rn[o.n], s_rn[o.m],
     s_sn[int(o.shift.t)], int(o.shift.n));
 }
 
 void print(inst_select_bytes const& s) {
-  printf("SEL %s, %s, %s", s_rn[s.d], s_rn[s.n], s_rn[s.m]);
+  NL_LOG_DBG("SEL %s, %s, %s", s_rn[s.d], s_rn[s.n], s_rn[s.m]);
 }
 
 void print(inst_store_byte_imm const& s) {
-  printf("STRB_IMM %s, [%s, #%d]", s_rn[s.t], s_rn[s.n], int(s.imm));
+  NL_LOG_DBG("STRB_IMM %s, [%s, #%d]", s_rn[s.t], s_rn[s.n], int(s.imm));
 }
 
 void print(inst_store_excl const& s) {
-  printf("STREX %s, %s, [%s, #%d]", s_rn[s.d], s_rn[s.t], s_rn[s.n], int(s.imm));
+  NL_LOG_DBG("STREX %s, %s, [%s, #%d]", s_rn[s.d], s_rn[s.t], s_rn[s.n], int(s.imm));
 }
 
 void print(inst_store_half_imm const& s) {
-  printf("STRH %s, [%s, #%d]", s_rn[s.t], s_rn[s.n], int(s.imm));
+  NL_LOG_DBG("STRH %s, [%s, #%d]", s_rn[s.t], s_rn[s.n], int(s.imm));
 }
 
 void print(inst_store_imm const& s) {
-  printf("STR_IMM %s, [%s, #%d]", s_rn[s.t], s_rn[s.n], int(s.imm));
+  NL_LOG_DBG("STR_IMM %s, [%s, #%d]", s_rn[s.t], s_rn[s.n], int(s.imm));
 }
 
 void print(inst_store_mult_dec_bef const& s) {
-  printf("STMDB %s!, { ", s_rn[s.n]);
-  for (int i = 0; i < 16; ++i) { if (s.regs & (1 << i)) { printf("%s ", s_rn[i]); } }
-  printf("}");
+  NL_LOG_DBG("STMDB %s!, { ", s_rn[s.n]);
+  for (int i = 0; i < 16; ++i) { if (s.regs & (1 << i)) { NL_LOG_DBG("%s ", s_rn[i]); } }
+  NL_LOG_DBG("}");
 }
 
 void print(inst_store_mult_inc_after const& s) {
-  printf("STMIA %s%s, { ", s_rn[s.n], s.wback ? "!" : "");
-  for (int i = 0; i < 16; ++i) { if (s.regs & (1 << i)) { printf("%s ", s_rn[i]); } }
-  printf("}");
+  NL_LOG_DBG("STMIA %s%s, { ", s_rn[s.n], s.wback ? "!" : "");
+  for (int i = 0; i < 16; ++i) { if (s.regs & (1 << i)) { NL_LOG_DBG("%s ", s_rn[i]); } }
+  NL_LOG_DBG("}");
 }
 
 void print(inst_store_reg const& s) {
-  printf("STR_REG %s, [%s, %s <%s #%d>", s_rn[s.t], s_rn[s.n], s_rn[s.m],
+  NL_LOG_DBG("STR_REG %s, [%s, %s <%s #%d>", s_rn[s.t], s_rn[s.n], s_rn[s.m],
     s_sn[int(s.shift.t)], int(s.shift.n));
 }
 
 void print(inst_store_reg_byte_imm const& s) {
-  printf("STR_REG_B_IMM %s, [%s, #%d]", s_rn[s.t], s_rn[s.n], int(s.imm));
+  NL_LOG_DBG("STR_REG_B_IMM %s, [%s, #%d]", s_rn[s.t], s_rn[s.n], int(s.imm));
 }
 
 void print(inst_store_reg_byte_reg const& s) {
-  printf("STR_REG_B_REG %s, [%s, %s, %s #%d]", s_rn[s.t], s_rn[s.n], s_rn[s.m],
+  NL_LOG_DBG("STR_REG_B_REG %s, [%s, %s, %s #%d]", s_rn[s.t], s_rn[s.n], s_rn[s.m],
     s_sn[int(s.shift.t)], int(s.shift.n));
 }
 
 void print(inst_store_reg_byte_unpriv const& s) {
-  printf("STRBT %s, [%s, #%d]", s_rn[s.t], s_rn[s.n], int(s.imm));
+  NL_LOG_DBG("STRBT %s, [%s, #%d]", s_rn[s.t], s_rn[s.n], int(s.imm));
 }
 
 void print(inst_store_reg_half_reg const& s) {
-  printf("STRH %s, [%s, %s, %s #%d]", s_rn[s.t], s_rn[s.n], s_rn[s.m], s_sn[int(s.shift.t)],
+  NL_LOG_DBG("STRH %s, [%s, %s, %s #%d]", s_rn[s.t], s_rn[s.n], s_rn[s.m], s_sn[int(s.shift.t)],
     int(s.shift.n));
 }
 
 void print(inst_store_reg_double_imm const &s) {
-  printf("STRD %s, %s, [%s], #%d", s_rn[s.t], s_rn[s.t2], s_rn[s.n], int(s.imm));
+  NL_LOG_DBG("STRD %s, %s, [%s], #%d", s_rn[s.t], s_rn[s.t2], s_rn[s.n], int(s.imm));
 }
 
 void print(inst_sub_imm const& s) {
-  printf("SUB_IMM %s, %s, #%d", s_rn[s.d], s_rn[s.n], int(s.imm));
+  NL_LOG_DBG("SUB_IMM %s, %s, #%d", s_rn[s.d], s_rn[s.n], int(s.imm));
 }
 
 void print(inst_sub_sp_imm const& s) {
-  printf("SUB_IMM %s, %s, #%d", s_rn[s.d], s_rn[reg::SP], int(s.imm));
+  NL_LOG_DBG("SUB_IMM %s, %s, #%d", s_rn[s.d], s_rn[reg::SP], int(s.imm));
 }
 
 void print(inst_sub_imm_carry const &s) {
-  printf("SUB_IMM_CARRY %s, %s, #%d", s_rn[s.d], s_rn[s.n], int(s.imm));
+  NL_LOG_DBG("SUB_IMM_CARRY %s, %s, #%d", s_rn[s.d], s_rn[s.n], int(s.imm));
 }
 
 void print(inst_sub_reg const& s) {
-  printf("SUB_REG %s, %s, %s <%s #%u>", s_rn[s.d], s_rn[s.n], s_rn[s.m],
+  NL_LOG_DBG("SUB_REG %s, %s, %s <%s #%u>", s_rn[s.d], s_rn[s.n], s_rn[s.m],
     s_sn[int(s.shift.t)], unsigned(s.shift.n));
 }
 
 void print(inst_sub_reg_carry const& s) {
-  printf("SUB_REG_CARRY %s, %s, %s <%s #%u>", s_rn[s.d], s_rn[s.n],
+  NL_LOG_DBG("SUB_REG_CARRY %s, %s, %s <%s #%u>", s_rn[s.d], s_rn[s.n],
     s_rn[s.m], s_sn[int(s.shift.t)], unsigned(s.shift.n));
 }
 
 void print(inst_sub_rev_imm const& s) {
-  printf("RSB_IMM %s, %s, #%d", s_rn[s.d], s_rn[s.n], int(s.imm));
+  NL_LOG_DBG("RSB_IMM %s, %s, #%d", s_rn[s.d], s_rn[s.n], int(s.imm));
 }
 
 void print(inst_sub_rev_reg const& s) {
-  printf("RSB_REG %s, %s, %s, %s #%d", s_rn[s.d], s_rn[s.n], s_rn[s.m],
+  NL_LOG_DBG("RSB_REG %s, %s, %s, %s #%d", s_rn[s.d], s_rn[s.n], s_rn[s.m],
     s_sn[int(s.shift.t)], int(s.shift.n));
 }
 
-void print(inst_svc const& s) { printf("SVC %x", unsigned(s.imm)); }
+void print(inst_svc const& s) { NL_LOG_DBG("SVC %x", unsigned(s.imm)); }
 
 void print(inst_table_branch_byte const& t) {
-  printf("TBB [%s, %s]", s_rn[t.n], s_rn[t.m]);
+  NL_LOG_DBG("TBB [%s, %s]", s_rn[t.n], s_rn[t.m]);
 }
 
 void print(inst_table_branch_half const& t) {
-  printf("TBH [%s, %s]", s_rn[t.n], s_rn[t.m]);
+  NL_LOG_DBG("TBH [%s, %s]", s_rn[t.n], s_rn[t.m]);
 }
 
-void print(inst_test_equiv const& t) { printf("TEQ %s, #%d", s_rn[t.n], int(t.imm)); }
+void print(inst_test_equiv const& t) { NL_LOG_DBG("TEQ %s, #%d", s_rn[t.n], int(t.imm)); }
 
 void print(inst_test_reg const& t) {
-  printf("TST %s, %s, %s #%d", s_rn[t.n], s_rn[t.m], s_sn[int(t.shift.t)],
+  NL_LOG_DBG("TST %s, %s, %s #%d", s_rn[t.n], s_rn[t.m], s_sn[int(t.shift.t)],
     int(t.shift.n));
 }
 
 void print(inst_vcompare const& v) {
-  printf("VCMP%s.F32 S%d, ", v.quiet_nan_exc ? "E" : "", int(v.d));
-  if (v.with_zero) { printf("#0.0"); } else { printf("S%d", int(v.m)); }
+  NL_LOG_DBG("VCMP%s.F32 S%d, ", v.quiet_nan_exc ? "E" : "", int(v.d));
+  if (v.with_zero) { NL_LOG_DBG("#0.0"); } else { NL_LOG_DBG("S%d", int(v.m)); }
 }
 
 void print(inst_vconvert_fp_int const& v) {
-  printf("VCVT.");
-  printf("%c32.", v.to_int ? (v.int_unsigned ? 'U' : 'S') : 'F');
-  printf("%c32 ", v.to_int ? 'F' : (v.int_unsigned ? 'U' : 'S'));
-  printf("S%d, S%d", int(v.d), int(v.m));
+  NL_LOG_DBG("VCVT.");
+  NL_LOG_DBG("%c32.", v.to_int ? (v.int_unsigned ? 'U' : 'S') : 'F');
+  NL_LOG_DBG("%c32 ", v.to_int ? 'F' : (v.int_unsigned ? 'U' : 'S'));
+  NL_LOG_DBG("S%d, S%d", int(v.d), int(v.m));
 }
 
 void print(inst_vload const& v) {
-  printf("VLDR S%d, [%s, #%d]", int(v.d), s_rn[v.n], int(v.imm));
+  NL_LOG_DBG("VLDR S%d, [%s, #%d]", int(v.d), s_rn[v.n], int(v.imm));
 }
 
 void print(inst_vmov_double const& v) {
   if (v.to_arm_regs) {
-    printf("VMOV %s, %s, D%u", s_rn[v.t], s_rn[v.t2], unsigned(v.m));
+    NL_LOG_DBG("VMOV %s, %s, D%u", s_rn[v.t], s_rn[v.t2], unsigned(v.m));
   } else {
-    printf("VMOV D%u, %s, %s", unsigned(v.m), s_rn[v.t], s_rn[v.t2]);
+    NL_LOG_DBG("VMOV D%u, %s, %s", unsigned(v.m), s_rn[v.t], s_rn[v.t2]);
   }
 }
 
 void print(inst_vmov_single const& v) {
   if (v.to_arm_reg) {
-    printf("VMOV %s, S%u", s_rn[v.t], unsigned(v.n));
+    NL_LOG_DBG("VMOV %s, S%u", s_rn[v.t], unsigned(v.n));
   } else {
-    printf("VMOV S%u, %s", unsigned(v.n), s_rn[v.t]);
+    NL_LOG_DBG("VMOV S%u, %s", unsigned(v.n), s_rn[v.t]);
   }
 }
 
 void print(inst_vmov_special const& v) {
-  printf("VMRS %s, FPSCR", v.t == 0b1111 ? "APSR_nzcv" : s_rn[v.t]);
+  NL_LOG_DBG("VMRS %s, FPSCR", v.t == 0b1111 ? "APSR_nzcv" : s_rn[v.t]);
 }
 
 void print(inst_vpop const& v) {
-  printf("VPOP { %x }", v.regs); // TODO: print the list, don't care right now
+  NL_LOG_DBG("VPOP { %x }", v.regs); // TODO: print the list, don't care right now
 }
 
 void print(inst_vpush const& v) {
-  printf("VPUSH { %x }", v.regs); // TODO: print the list, don't care right now
+  NL_LOG_DBG("VPUSH { %x }", v.regs); // TODO: print the list, don't care right now
 }
 
 void print(inst_vstore const& v) {
-  printf("VSTR %c%d, [%s, #%d]", v.single_reg ? 'S' : 'D', int(v.d), s_rn[v.n], int(v.imm));
+  NL_LOG_DBG("VSTR %c%d, [%s, #%d]", v.single_reg ? 'S' : 'D', int(v.d), s_rn[v.n], int(v.imm));
 }
 
 u32 decode_imm12(u32 imm12) { // 4.2.2 Operation (pg 4-9)
@@ -1357,6 +1358,28 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
     return true;
   }
 
+  // 4.6.59 LDRSB (imm), T2 encoding (pg 4-132)
+  if (((w0 & 0xFFF0u) == 0xF910u) && ((w1 & 0x800u) == 0x800u)) {
+    u8 const n{u8(w0 & 0xFu)}, t{u8((w1 >> 12u) & 0xFu)}, p{u8((w1 >> 10u) & 1u)},
+      u{u8((w1 >> 9u) & 1u)}, w{u8((w1 >> 8u) & 1u)};
+    u16 const imm{u16(w1 & 0xFFu)};
+    if (n == 15) {
+      NL_LOG_DBG("SEE LDRSB (literal) on page 4-134;\n");
+      return false;
+    }
+    if ((t == 15) && (p == 1) && (u == 0) && (w == 0)) {
+      NL_LOG_DBG("SEE PLI (immediate) on page 4-205;\n");
+      return false;
+    }
+    if ((p == 1) && (u == 1) && (w == 0)) {
+      NL_LOG_DBG("SEE LDRSBT on page 4-138;\n");
+      return false;
+    }
+    out_inst.type = inst_type::LOAD_SIGNED_BYTE_IMM;
+    out_inst.i.load_signed_byte_imm = { .index = p, .add = u, .t = t, .n = n, .imm = imm };
+    return true;
+  }
+
   if ((w0 & 0xFFF0u) == 0xF9B0u) { // 4.6.63 LDRSH (imm), T1 encoding (pg 4-140)
     u8 const n{u8(w0 & 0xFu)}, t{u8((w1 >> 12u) & 0xFu)};
     if (n == 15) { // "SEE LDRSH (literal) on page 4-142"
@@ -1371,25 +1394,25 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
     return true;
   }
 
-  // 4.6.63 LDRSB (imm), T2 encoding (pg 4-132)
-  if (((w0 & 0xFFF0u) == 0xF910u) && ((w1 & 0x800u) == 0x800u)) {
-    u8 const n{u8(w0 & 0xFu)}, t{u8((w1 >> 12u) & 0xFu)}, p{u8((w1 >> 10u) & 1u)},
+  // 4.6.63 LDRSH (imm), T2 encoding (pg 4-140)
+  if (((w0 & 0xFFF0u) == 0xF930u) && ((w1 & 0x800u) == 0x800u)) {
+    u8 const t{u8((w1 >> 12u) & 0xFu)}, n{u8(w0 & 0xFu)}, p{u8((w0 >> 10u) & 1u)},
       u{u8((w1 >> 9u) & 1u)}, w{u8((w1 >> 8u) & 1u)};
     u16 const imm{u16(w1 & 0xFFu)};
     if (n == 15) {
-      printf("SEE LDRSB (literal) on page 4-134;\n");
+      NL_LOG_DBG("SEE LDRSH (literal) on page 4-142\n");
       return false;
     }
     if ((t == 15) && (p == 1) && (u == 0) && (w == 0)) {
-      printf("SEE PLI (immediate) on page 4-205;\n");
+      NL_LOG_DBG("SEE Memory hints on page 4-14\n");
       return false;
     }
     if ((p == 1) && (u == 1) && (w == 0)) {
-      printf("SEE LDRSBT on page 4-138;\n");
+      NL_LOG_DBG("SEE LDRSHT on page 4-146\n");
       return false;
     }
-    out_inst.type = inst_type::LOAD_SIGNED_BYTE_IMM;
-    out_inst.i.load_signed_byte_imm = { .index = p, .add = u, .t = t, .n = n, .imm = imm };
+    out_inst.type = inst_type::LOAD_SIGNED_HALF_IMM;
+    out_inst.i.load_signed_half_imm = { .n = n, .t = t, .add = u, .index = p, .imm = imm };
     return true;
   }
 
@@ -1413,7 +1436,7 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
     u8 const imm3{u8((w1 >> 12u) & 7u)}, imm2{u8((w1 >> 6u) & 3u)},
       imm{u8((imm3 << 2u) | imm2)};
     if (imm == 0) { // "SEE MOV (register) on page 4-168"
-      printf("4.6.68 LSL (imm), T2 encoding (pg 4-150)\n");
+      NL_LOG_DBG("4.6.68 LSL (imm), T2 encoding (pg 4-150)\n");
       return false;
     }
     out_inst.type = inst_type::LSHIFT_LOG_IMM;

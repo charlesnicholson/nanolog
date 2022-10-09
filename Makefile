@@ -12,6 +12,10 @@ UNCLOG_DEPS := $(UNCLOG_OBJS:.o=.d)
 CFLAGS = --std=c17
 CXXFLAGS = --std=c++20
 
+ifdef NANOLOG_VERBOSE
+CPPFLAGS += -DNANOLOG_VERBOSE
+endif
+
 CPPFLAGS += -MMD -MP -Os -flto -g
 CPPFLAGS += -Werror -Wall -Wextra
 

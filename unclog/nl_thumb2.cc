@@ -35,7 +35,9 @@ struct func_state {
     , lca(lca_)
     , func_start{f_.st_value & ~1u}
     , func_end{func_start + f.st_size}
-    , func_ofs{s.sh_offset + func_start - s.sh_addr} {}
+    , func_ofs{s.sh_offset + func_start - s.sh_addr} {
+    taken_branches_reg_states.reserve(64);
+  }
 
   elf_symbol32 const& f;
   elf const& e;
@@ -61,15 +63,15 @@ bool reg_states_equal(reg_state const& r1, reg_state const& r2) {
 
 void print(reg_state const& r) {
   for (auto i{0u}; i < 16; ++i) {
-    if (r.known & (1u << i)) { printf("  R%d: %x ", int(i), r.regs[i]); }
+    if (r.known & (1u << i)) { NL_LOG_DBG("  R%d: %x ", int(i), r.regs[i]); }
   }
-  printf("\n");
+  NL_LOG_DBG("\n");
 }
 
 void print(std::unordered_set<u32> const& b) {
-  printf("taken_branches: ");
-  for (auto const i: b) { printf("%x ", i); }
-  printf("\n");
+  NL_LOG_DBG("taken_branches: ");
+  for (auto const i: b) { NL_LOG_DBG("%x ", i); }
+  NL_LOG_DBG("\n");
 }
 
 bool address_in_func(u32 addr, func_state const& s) {
@@ -112,7 +114,6 @@ bool branch(u32 addr, path_state& p, func_state& s) {
 
   p.taken_branches.insert(addr);
   auto [vi, inserted] = s.taken_branches_reg_states.insert({addr, {}});
-  vi->second.reserve(32);
   vi->second.push_back(p.rs);
   return true;
 }
@@ -272,7 +273,7 @@ bool thumb2_analyze_func(elf const& e,
   func_state s{func, e, e.sec_hdrs[func.st_shndx], out_lca};
   out_lca.reg_muts.reserve(256);
 
-  printf("\nScanning %s: addr %x, len %x, range %x-%x, offset %x:\n", &e.strtab[func.st_name],
+  NL_LOG_DBG("\nScanning %s: addr %x, len %x, range %x-%x, offset %x:\n", &e.strtab[func.st_name],
     func.st_value, func.st_size, s.func_start, s.func_end, s.func_ofs);
 
   s.paths.push(path_state{.rs{.regs[reg::PC] = s.func_start}});
@@ -281,12 +282,12 @@ bool thumb2_analyze_func(elf const& e,
     path_state path{s.paths.top()};
     s.paths.pop();
 
-    printf("  Starting path\n");
+    NL_LOG_DBG("  Starting path\n");
     //print(path);
 
     for (;;) {
       if (func.st_size && (path.rs.regs[reg::PC] >= s.func_end)) {
-        printf("  Stopping path: Ran off the end!\n");
+        NL_LOG_DBG("  Stopping path: Ran off the end!\n");
         break;
       }
 
@@ -294,25 +295,25 @@ bool thumb2_analyze_func(elf const& e,
       bool const decode_ok = inst_decode(&e.bytes[s.func_ofs], s.func_start,
         path.rs.regs[reg::PC] - s.func_start, pc_i);
 
-      printf("    %x: %04x ", path.rs.regs[reg::PC], pc_i.w0);
-      if (pc_i.len == 2) { printf("       "); } else { printf("%04x   ", pc_i.w1); }
+      NL_LOG_DBG("    %x: %04x ", path.rs.regs[reg::PC], pc_i.w0);
+      if (pc_i.len == 2) { NL_LOG_DBG("       "); } else { NL_LOG_DBG("%04x   ", pc_i.w1); }
       inst_print(pc_i);
-      printf("\n");
+      NL_LOG_DBG("\n");
 
       if (!decode_ok) {
-        printf("  Stopping path: Unknown instruction!\n");
+        NL_LOG_DBG("  Stopping path: Unknown instruction!\n");
         break;
       }
 
       if (inst_terminates_path(pc_i, s)) {
-        printf("  Stopping path: terminal pattern\n");
+        NL_LOG_DBG("  Stopping path: terminal pattern\n");
         break;
       }
 
       u32 label;
       if (inst_is_conditional_branch(pc_i, label) && address_in_func(label, s)) {
         if (branch(pc_i.addr, path, s)) {
-          printf("  Internal branch, pushing state\n");
+          NL_LOG_DBG("  Internal branch, pushing state\n");
           s.paths.push(path_state_branch(path, label));
         }
       }
@@ -322,13 +323,13 @@ bool thumb2_analyze_func(elf const& e,
           path.rs.regs[reg::PC] = label;
           continue;
         }
-        printf("  Stopping path: revisiting unconditional branch\n");
+        NL_LOG_DBG("  Stopping path: revisiting unconditional branch\n");
         break;
       }
 
       if (inst_is_log_call(pc_i, log_funcs)) {
         if (!test_reg_known(path.rs.known, reg::R0)) {
-          printf("  Found log function, R0 is unknown\n");
+          NL_LOG_DBG("  Found log function, R0 is unknown\n");
           break;
         }
 
@@ -337,11 +338,11 @@ bool thumb2_analyze_func(elf const& e,
             .node_idx = path.rs.mut_node_idxs[reg::R0] }});
 
         if (!inserted) {
-          printf("  Found log function, already discovered\n");
+          NL_LOG_DBG("  Found log function, already discovered\n");
           break;
         }
 
-        printf("  Found log function, format string 0x%08x\n", path.rs.regs[reg::R0]);
+        NL_LOG_DBG("  Found log function, format string 0x%08x\n", path.rs.regs[reg::R0]);
         inst const& r0_i = s.lca.reg_muts[path.rs.mut_node_idxs[reg::R0]].i;
         switch (r0_i.type) {
           case inst_type::LOAD_LIT:
@@ -357,9 +358,9 @@ bool thumb2_analyze_func(elf const& e,
             break;
 
           default:
-            printf("Unrecognized pattern!\n***\n");
+            NL_LOG_DBG("Unrecognized pattern!\n***\n");
             inst_print(r0_i);
-            printf("\n***\n");
+            NL_LOG_DBG("\n***\n");
             break;
         }
       }
