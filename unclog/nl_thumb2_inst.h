@@ -147,6 +147,7 @@ struct imm_shift { imm_shift_type t; u8 n; };
   X(VLOAD, vload, { u16 imm; u8 single_reg, add, n, d; }) \
   X(VMOV_DOUBLE, vmov_double, { u8 t, t2, m, to_arm_regs; }) \
   X(VMOV_SINGLE, vmov_single, { u8 t, n, m, to_arm_reg; }) \
+  X(VMOV_SPECIAL, vmov_special, { u8 t; }) \
   X(VPOP, vpop, { u16 imm; u8 d, single_regs, regs; }) \
   X(VPUSH, vpush, { u16 imm; u8 d, single_regs, regs; }) \
   X(VSTORE, vstore, { u16 imm; u8 single_reg, add, d, n; })

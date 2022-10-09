@@ -478,6 +478,10 @@ void print(inst_vmov_single const& v) {
   }
 }
 
+void print(inst_vmov_special const& v) {
+  printf("VMRS %s, FPSCR", v.t == 0b1111 ? "APSR_nzcv" : s_rn[v.t]);
+}
+
 void print(inst_vpop const& v) {
   printf("VPOP { %x }", v.regs); // TODO: print the list, don't care right now
 }
@@ -1857,6 +1861,13 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
     out_inst.type = inst_type::VLOAD;
     out_inst.i.vload = { .single_reg = 1u, .add = u8((w0 >> 7u) & 1u), .n = u8(w0 & 0xFu),
       .d = u8((vd << 1) | D), .imm = u16(imm8 << 2u) };
+    return true;
+  }
+
+  // A7.7.239 VMRS, T1 encoding (pg A7-592)
+  if (((w0 & 0xFFF0u) == 0xEEF0u) && ((w1 & 0xF10u) == 0xA10u)) {
+    out_inst.type = inst_type::VMOV_SPECIAL;
+    out_inst.i.vmov_special = { .t = u8((w1 >> 12u) & 0xFu) };
     return true;
   }
 
