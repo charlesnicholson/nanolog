@@ -500,6 +500,10 @@ void print(inst_vstore const& v) {
   NL_LOG_DBG("VSTR %c%d, [%s, #%d]", v.single_reg ? 'S' : 'D', int(v.d), s_rn[v.n], int(v.imm));
 }
 
+void print(inst_vsub const& v) {
+  NL_LOG_DBG("VSUB S%d, S%d, S%d", int(v.d), int(v.n), int(v.m));
+}
+
 u32 decode_imm12(u32 imm12) { // 4.2.2 Operation (pg 4-9)
   if ((imm12 & 0xC00u) == 0) {
     u32 const imm8{imm12 & 0xFFu};
@@ -1989,6 +1993,16 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
     out_inst.type = inst_type::VSTORE;
     out_inst.i.vstore = { .single_reg = 1u, .add = u8((w0 >> 7u) & 1u), .n = u8(w0 & 0xFu),
       .d = u8((vd << 1u) | D), .imm = u16(imm8 << 2u) };
+    return true;
+  }
+
+  // A7.7.249 VSUB, T1 encoding (pg  A7-609)
+  if (((w0 & 0xFFB0u) == 0xEE30u) && ((w1 & 0xF50u) == 0xA40u)) {
+    u8 const vm{u8(w1 & 0xFu)}, vn{u8(w0 & 0xFu)}, M{u8((w1 >> 5u) & 1u)},
+      N{u8((w1 >> 7u) & 1u)}, D{u8((w0 >> 6u) & 1u)}, vd{u8((w1 >> 12u) & 0xFu)};
+    out_inst.type = inst_type::VSUB;
+    out_inst.i.vsub = { .d = u8((vd << 1) | D), .n = u8((vn << 1u) | N),
+      .m = u8((vm << 1u) | M) };
     return true;
   }
 

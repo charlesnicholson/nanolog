@@ -151,7 +151,8 @@ struct imm_shift { imm_shift_type t; u8 n; };
   X(VMUL, vmul, { u8 d, n, m; }) \
   X(VPOP, vpop, { u16 imm; u8 d, single_regs, regs; }) \
   X(VPUSH, vpush, { u16 imm; u8 d, single_regs, regs; }) \
-  X(VSTORE, vstore, { u16 imm; u8 single_reg, add, d, n; })
+  X(VSTORE, vstore, { u16 imm; u8 single_reg, add, d, n; }) \
+  X(VSUB, vsub, { u8 d, n, m; })
 
 #define X(ENUM, TYPE, ...) ENUM,
 enum class inst_type : u8 { INST_TYPE_X_LIST() };
