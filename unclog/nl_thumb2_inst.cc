@@ -464,7 +464,11 @@ void print(inst_vload const& v) {
   NL_LOG_DBG("VLDR S%d, [%s, #%d]", int(v.d), s_rn[v.n], int(v.imm));
 }
 
-void print(inst_vmov_double const& v) {
+void print(inst_vmov_imm const& v) {
+  NL_LOG_DBG("VMOV.F32 S%d, #%f", int(v.d), double(v.imm));
+}
+
+void print(inst_vmov_reg_double const& v) {
   if (v.to_arm_regs) {
     NL_LOG_DBG("VMOV %s, %s, D%u", s_rn[v.t], s_rn[v.t2], unsigned(v.m));
   } else {
@@ -472,7 +476,7 @@ void print(inst_vmov_double const& v) {
   }
 }
 
-void print(inst_vmov_single const& v) {
+void print(inst_vmov_reg_single const& v) {
   if (v.to_arm_reg) {
     NL_LOG_DBG("VMOV %s, S%u", s_rn[v.t], unsigned(v.n));
   } else {
@@ -528,6 +532,20 @@ imm_shift decode_imm_shift(u8 const type, u8 const imm5) {
       return imm_shift{ .t = imm_shift_type::ROR, .n = imm5 };
   }
   __builtin_unreachable();
+}
+
+float decode_vfp_imm8(u8 imm8, unsigned n) {
+  // A6.4.1 Operation of modified immediate constants in floating-point instructions.
+  // Page A-196
+  // return imm8<7>:NOT(imm8<6>):Replicate(imm8<6>,5):imm8<5:0>:Zeros(19);
+
+  assert(n == 32);
+  u32 const replicate{(-((imm8 >> 6u) & 1u)) & 0x1Fu}, imm8_5_0{imm8 & 0x3Fu},
+    not_imm8_6{!((imm8 >> 6u) & 1u)}, imm8_7{(imm8 >> 7u) & 1u},
+    imm {(imm8_7 << 31u) | (not_imm8_6 << 30u) | (replicate << 24u) | (imm8_5_0 << 19u)};
+  float f;
+  memcpy(&f, &imm, sizeof(f));
+  return f;
 }
 
 u32 sext(u32 x, unsigned sign_bit) {
@@ -1933,6 +1951,16 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
     return true;
   }
 
+  // A7.7.232 VMOV (imm), T1 encoding (pg A7-585)
+  if (((w0 & 0xFFB0u) == 0xEEB0u) && ((w1 & 0xF50u) == 0xA00u)) {
+    u8 const imm4h{u8(w0 & 0xFu)}, imm4l{u8(w1 & 0xFu)}, vd{u8((w1 >> 12u) & 0xFu)},
+      D{u8((w0 >> 6u) & 1u)};
+    out_inst.type = inst_type::VMOV_IMM;
+    out_inst.i.vmov_imm = { .d = u8((D << 4u) | vd), .regs = 1u,
+      .imm = decode_vfp_imm8(u8((imm4h << 4u) | imm4l), 32) };
+    return true;
+  }
+
   // A7.7.239 VMRS, T1 encoding (pg A7-592)
   if (((w0 & 0xFFF0u) == 0xEEF0u) && ((w1 & 0xF10u) == 0xA10u)) {
     out_inst.type = inst_type::VMOV_SPECIAL;
@@ -1942,8 +1970,8 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
 
   // A7.7.240 VMOV (ARM core reg and single-precision reg), T1 encoding (pg A7-531)
   if (((w0 & 0xFFE0u) == 0xEE00u) && ((w1 & 0xF10u) == 0xA10u)) {
-    out_inst.type = inst_type::VMOV_SINGLE;
-    out_inst.i.vmov_single = { .to_arm_reg = u8((w0 >> 4u) & 1u),
+    out_inst.type = inst_type::VMOV_REG_SINGLE;
+    out_inst.i.vmov_reg_single = { .to_arm_reg = u8((w0 >> 4u) & 1u),
       .t = u8((w1 >> 12u) & 0xFu), .n = u8(((w0 & 0xFu) << 1u) | ((w1 >> 7u) & 1u)) };
     return true;
   }
@@ -1960,8 +1988,8 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
 
   // A7.7.242 VMOV (2 ARM core regsters and a dword reg), T1 encoding (pg A7-533)
   if (((w0 & 0xFFE0u) == 0xEC40u) && ((w1 & 0xFD0u) == 0xB10u)) {
-    out_inst.type = inst_type::VMOV_DOUBLE;
-    out_inst.i.vmov_double = { .m = u8((w1 & 0xFu) | ((w1 >> 1u) & 0x10u)),
+    out_inst.type = inst_type::VMOV_REG_DOUBLE;
+    out_inst.i.vmov_reg_double = { .m = u8((w1 & 0xFu) | ((w1 >> 1u) & 0x10u)),
       .t2 = u8(w0 & 0xFu), .t = u8((w1 >> 12u) & 0xFu), .to_arm_regs = u8((w0 >> 4u) & 1u) };
     return true;
   }
