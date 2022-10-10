@@ -305,28 +305,6 @@ bool thumb2_analyze_func(elf const& e,
         break;
       }
 
-      if (inst_terminates_path(pc_i, s)) {
-        NL_LOG_DBG("  Stopping path: terminal pattern\n");
-        break;
-      }
-
-      u32 label;
-      if (inst_is_conditional_branch(pc_i, label) && address_in_func(label, s)) {
-        if (branch(pc_i.addr, path, s)) {
-          NL_LOG_DBG("  Internal branch, pushing state\n");
-          s.paths.push(path_state_branch(path, label));
-        }
-      }
-
-      if (inst_is_goto(pc_i, label) && address_in_func(label, s)) {
-        if (branch(pc_i.addr, path, s)) {
-          path.rs.regs[reg::PC] = label;
-          continue;
-        }
-        NL_LOG_DBG("  Stopping path: revisiting unconditional branch\n");
-        break;
-      }
-
       if (inst_is_log_call(pc_i, log_funcs)) {
         if (!test_reg_known(path.rs.known, reg::R0)) {
           NL_LOG_DBG("  Found log function, R0 is unknown\n");
@@ -363,6 +341,28 @@ bool thumb2_analyze_func(elf const& e,
             NL_LOG_DBG("\n***\n");
             break;
         }
+      }
+
+      if (inst_terminates_path(pc_i, s)) {
+        NL_LOG_DBG("  Stopping path: terminal pattern\n");
+        break;
+      }
+
+      u32 label;
+      if (inst_is_conditional_branch(pc_i, label) && address_in_func(label, s)) {
+        if (branch(pc_i.addr, path, s)) {
+          NL_LOG_DBG("  Internal branch, pushing state\n");
+          s.paths.push(path_state_branch(path, label));
+        }
+      }
+
+      if (inst_is_goto(pc_i, label) && address_in_func(label, s)) {
+        if (branch(pc_i.addr, path, s)) {
+          path.rs.regs[reg::PC] = label;
+          continue;
+        }
+        NL_LOG_DBG("  Stopping path: revisiting unconditional branch\n");
+        break;
       }
 
       if (!simulate(pc_i, s, path)) { return false; }
