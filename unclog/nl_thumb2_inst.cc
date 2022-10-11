@@ -470,6 +470,11 @@ void print(inst_vdiv const& v) {
   NL_LOG_DBG("VDIV S%d, S%d, S%d", int(v.d), int(v.n), int(v.m));
 }
 
+void print(inst_vmult_accum const& v) {
+  NL_LOG_DBG("VFM%c.F32 S%d, S%d, S%d", v.op1_neg ? 'S' : 'A', int(v.d), int(v.n),
+    int(v.m));
+}
+
 void print(inst_vload const& v) {
   NL_LOG_DBG("VLDR S%d, [%s, #%d]", int(v.d), s_rn[v.n], int(v.imm));
 }
@@ -1975,6 +1980,16 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
     out_inst.type = inst_type::VDIV;
     out_inst.i.vdiv = { .d = u8((vd << 1u) | D), .n = u8((vn << 1u) | N),
       .m = u8((vm << 1u) | M) };
+    return true;
+  }
+
+  // A7.7.227 VFMA, VFMS, T1 encoding (pg A7-576)
+  if (((w0 & 0xFFB0u) == 0xEEA0u) && ((w1 & 0xF10u) == 0xA00u)) {
+    u8 const vn{u8(w0 & 0xFu)}, vm{u8(w1 & 0xFu)}, vd{u8((w1 >> 12u) & 0xFu)},
+      N{u8((w1 >> 7u) & 1u)}, M{u8((w1 >> 5u) & 1u)}, D{u8((w0 >> 6u) & 1u)};
+    out_inst.type = inst_type::VMULT_ACCUM;
+    out_inst.i.vmult_accum = { .op1_neg = u8((w1 >> 6u) & 1u), .n = u8((vn << 1u) | N),
+      .d = u8((vd << 1u) | D), .m = u8((vm << 1u) | M) };
     return true;
   }
 
