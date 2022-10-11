@@ -78,6 +78,7 @@ struct imm_shift { imm_shift_type t; u8 n; };
   X(EXTEND_SIGNED_HALF, extend_signed_half, { u8 d, m, rotation; }) \
   X(EXTEND_UNSIGNED_BYTE, extend_unsigned_byte, { u8 d, m, rotation; }) \
   X(EXTEND_UNSIGNED_HALF, extend_unsigned_half, { u8 d, m, rotation; }) \
+  X(EXTEND_UNSIGNED_HALF_ADD, extend_unsigned_half_add, { u8 d, n, m, rotation; }) \
   X(IF_THEN, if_then, { u8 firstcond, mask; }) \
   X(LOAD_BYTE_IMM, load_byte_imm, { u16 imm; u8 t, n, add, index; }) \
   X(LOAD_BYTE_LIT, load_byte_lit, { u16 imm; u8 t, add; }) \

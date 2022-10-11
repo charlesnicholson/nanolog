@@ -196,6 +196,10 @@ void print(inst_extend_unsigned_half const& u) {
   NL_LOG_DBG("UXTH %s, %s, <%d>", s_rn[u.d], s_rn[u.m], int(u.rotation));
 }
 
+void print(inst_extend_unsigned_half_add const& u) {
+  NL_LOG_DBG("UXTAH %s, %s, %s, <#%d>", s_rn[u.d], s_rn[u.n], s_rn[u.m], int(u.rotation));
+}
+
 void print(inst_extend_add_signed_byte const &e) {
   NL_LOG_DBG("SXTAB %s, %s, %s, <%d>", s_rn[e.d], s_rn[e.n], s_rn[e.m], int(e.rotation));
 }
@@ -1918,6 +1922,21 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
     out_inst.type = inst_type::MUL_ACCUM_UNSIGNED_LONG;
     out_inst.i.mul_accum_unsigned_long = { .m = u8(w1 & 0xFu), .n = u8(w0 & 0xFu),
       .dlo = u8((w1 >> 12u) & 0xFu), .dhi = u8((w1 >> 8u) & 0xFu)};
+    return true;
+  }
+
+  // 4.6.223 UXTAH, T1 encoding (pg 4-459)
+  if (((w0 & 0xFFF0u) == 0xFA10u) && ((w1 & 0xF080u) == 0xF080u)) {
+    u8 const n{u8(w0 & 0xFu)}, d{u8((w1 >> 8u) & 0xFu)}, m{u8(w1 & 0xFu)},
+      rotation{u8(((w1 >> 4u) & 3u) << 3u)};
+    if (n == 15) { // 4.6.226 UXTH, T2 encoding (pg 4-465)
+      out_inst.type = inst_type::EXTEND_UNSIGNED_HALF;
+      out_inst.i.extend_unsigned_half = { .d = d, .m = m, .rotation = rotation };
+      return true;
+    }
+    out_inst.type = inst_type::EXTEND_UNSIGNED_HALF_ADD;
+    out_inst.i.extend_unsigned_half_add = { .d = d, .n = n, .m = m,
+      .rotation = rotation };
     return true;
   }
 
