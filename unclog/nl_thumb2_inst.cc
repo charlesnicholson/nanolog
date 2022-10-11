@@ -474,6 +474,10 @@ void print(inst_vload const& v) {
   NL_LOG_DBG("VLDR S%d, [%s, #%d]", int(v.d), s_rn[v.n], int(v.imm));
 }
 
+void print(inst_vload_mult const& v) {
+  NL_LOG_DBG("VLDM%s %s, {%x}", v.add ? "IA" : "DB", s_rn[v.n], unsigned(v.list));
+}
+
 void print(inst_vmov_imm const& v) {
   NL_LOG_DBG("VMOV_IMM.F32 S%d, #%f", int(v.d), double(v.imm));
 }
@@ -1974,12 +1978,28 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
     return true;
   }
 
-  // A7.7.230 VLDR, T2 encoding (pg A7-581)
-  if (((w0 & 0xFF30u) == 0xED10u) && ((w1 & 0xF00u) == 0xA00u)) {
-    u8 const D{u8((w1 >> 6u) & 1u)}, vd{u8((w1 >> 12u) & 0xFu)}, imm8{u8(w1 & 0xFFu)};
-    out_inst.type = inst_type::VLOAD;
-    out_inst.i.vload = { .single_reg = 1u, .add = u8((w0 >> 7u) & 1u), .n = u8(w0 & 0xFu),
-      .d = u8((vd << 1) | D), .imm = u16(imm8 << 2u) };
+  // A7.7.229 VLDM, T2 encoding (pg A7-579)
+  if (((w0 & 0xFE10u) == 0xEC10u) && ((w1 & 0xF00u) == 0xA00u)) {
+    u8 const p{u8((w0 >> 8u) & 1u)}, u{u8((w0 >> 7u) & 1u)}, w{u8((w0 >> 5u) & 1u)},
+      n{u8(w0 & 0xFu)}, imm8{u8(w1 & 0xFFu)};
+    if ((p == 0) && (u == 0) && (w == 0)) {
+      printf("See 64-bit transfers ... on page A6-199\n");
+      return false;
+    }
+    if ((p == 0) && (u == 1) && (w == 1) && (n == 0b1101)) {
+      printf("SEE VPOP\n");
+      return false;
+    }
+    if ((p == 1) && (w == 0)) { // A7.7.230 VLDR, T2 encoding (pg A7-581)
+      u8 const D{u8((w0 >> 6u) & 1u)}, vd{u8((w1 >> 12u) & 0xFu)};
+      out_inst.type = inst_type::VLOAD;
+      out_inst.i.vload = { .single_reg = 1u, .add = u8((w0 >> 7u) & 1u), .n = u8(w0 & 0xFu),
+        .d = u8((vd << 1) | D), .imm = u16(imm8 << 2u) };
+      return true;
+    }
+    out_inst.type = inst_type::VLOAD_MULT;
+    out_inst.i.vload_mult = { .single_regs = 1u, .n = n, .list = imm8, .add = u,
+      .imm = u16(imm8 << 2u) };
     return true;
   }
 
