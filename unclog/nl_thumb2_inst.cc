@@ -437,7 +437,13 @@ void print(inst_table_branch_half const& t) {
   NL_LOG_DBG("TBH [%s, %s]", s_rn[t.n], s_rn[t.m]);
 }
 
-void print(inst_test_equiv const& t) { NL_LOG_DBG("TEQ %s, #%d", s_rn[t.n], int(t.imm)); }
+void print(inst_test_equiv_imm const& t) {
+  NL_LOG_DBG("TEQ_IMM %s, #%d", s_rn[t.n], int(t.imm));
+}
+
+void print(inst_test_equiv_reg const& t) {
+  NL_LOG_DBG("TEQ_REG %s, %s", s_rn[t.n], s_rn[t.m]);
+}
 
 void print(inst_test_reg const& t) {
   NL_LOG_DBG("TST %s, %s, %s #%d", s_rn[t.n], s_rn[t.m], s_sn[int(t.shift.t)],
@@ -458,6 +464,10 @@ void print(inst_vconvert_fp_int const& v) {
   NL_LOG_DBG("%c32.", v.to_int ? (v.int_unsigned ? 'U' : 'S') : 'F');
   NL_LOG_DBG("%c32 ", v.to_int ? 'F' : (v.int_unsigned ? 'U' : 'S'));
   NL_LOG_DBG("S%d, S%d", int(v.d), int(v.m));
+}
+
+void print(inst_vdiv const& v) {
+  NL_LOG_DBG("VDIV S%d, S%d, S%d", int(v.d), int(v.n), int(v.m));
 }
 
 void print(inst_vload const& v) {
@@ -488,12 +498,18 @@ void print(inst_vmov_reg_single const& v) {
   }
 }
 
-void print(inst_vmov_special const& v) {
+void print(inst_vmov_special_from const& v) {
   NL_LOG_DBG("VMRS %s, FPSCR", v.t == 0b1111 ? "APSR_nzcv" : s_rn[v.t]);
 }
 
+void print(inst_vmov_special_to const& v) { NL_LOG_DBG("VMSR FPSCR, %s", s_rn[v.t]); }
+
 void print(inst_vmul const& v) {
   NL_LOG_DBG("VMUL.F32 S%d, S%d, S%d", int(v.d), int(v.n), int(v.m));
+}
+
+void print(inst_vneg const& v) {
+  NL_LOG_DBG("VNEG.F32 S%d, S%d", int(v.d), int(v.m));
 }
 
 void print(inst_vpop const& v) {
@@ -1218,8 +1234,8 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
     u32 const imm8{w1 & 0xFFu}, imm3{(w1 >> 12u) & 7u}, i{(w0 >> 10u) & 1u},
       imm{decode_imm12((i << 11u) | (imm3 << 8u) | imm8)};
     if ((s == 1) && (d == 15)) { // 4.6.190 TEQ (imm), T1 encoding (pg 4-393)
-      out_inst.type = inst_type::TEST_EQUIV;
-      out_inst.i.test_equiv = { .n = n, .imm = imm };
+      out_inst.type = inst_type::TEST_EQUIV_IMM;
+      out_inst.i.test_equiv_imm = { .n = n, .imm = imm };
       return true;
     }
     out_inst.type = inst_type::EXCL_OR_IMM;
@@ -1229,13 +1245,15 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
 
   if ((w0 & 0xFFE0) == 0xEA80u) { // 4.6.37 EOR (reg), T2 encoding (pg 4-88)
     u8 const d{u8((w1 >> 8u) & 0xFu)}, s{u8((w0 >> 4u) & 1u)}, imm3{u8((w1 >> 12u) & 7u)},
-      imm2{u8((w1 >> 6u) & 3u)};
-    if ((d == 15) && (s == 1)) { // "SEE TEQ (register) on page 4-395"
-      return false;
+      imm2{u8((w1 >> 6u) & 3u)}, m{u8(w1 & 0xFu)}, n{u8(w0 & 0xFu)};
+    imm_shift const shift{decode_imm_shift(u8((w1 >> 4u) & 3u), u8((imm3 << 2u) | imm2))};
+    if ((d == 15) && (s == 1)) { // 4.6.191 TEQ (reg), T1 encoding (pg 4-395)
+      out_inst.type = inst_type::TEST_EQUIV_REG;
+      out_inst.i.test_equiv_reg = { .m = m, .n = n, .shift = shift };
+      return true;
     }
     out_inst.type = inst_type::EXCL_OR_REG;
-    out_inst.i.excl_or_reg = { .d = d, .n = u8(w0 & 0xFu), .m = u8(w1 & 0xFu),
-      .shift = decode_imm_shift(u8((w1 >> 4u) & 3u), u8((imm3 << 2u) | imm2)) };
+    out_inst.i.excl_or_reg = { .d = d, .n = n, .m = m, .shift = shift };
     return true;
   }
 
@@ -1946,6 +1964,16 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
     return true;
   }
 
+  // A7.7.226 VDIV, T1 encoding (pg A7-575)
+  if (((w0 & 0xFFB0u) == 0xEE80u) && ((w1 & 0xF50u) == 0xA00u)) {
+    u8 const vm{u8(w1 & 0xFu)}, vn{u8(w0 & 0xFu)}, vd{u8((w1 >> 12u) & 1u)},
+      D{u8((w0 >> 6u) & 1u)}, N{u8((w1 >> 7u) & 1u)}, M{u8((w1 >> 5u) & 1u)};
+    out_inst.type = inst_type::VDIV;
+    out_inst.i.vdiv = { .d = u8((vd << 1u) | D), .n = u8((vn << 1u) | N),
+      .m = u8((vm << 1u) | M) };
+    return true;
+  }
+
   // A7.7.230 VLDR, T2 encoding (pg A7-581)
   if (((w0 & 0xFF30u) == 0xED10u) && ((w1 & 0xF00u) == 0xA00u)) {
     u8 const D{u8((w1 >> 6u) & 1u)}, vd{u8((w1 >> 12u) & 0xFu)}, imm8{u8(w1 & 0xFFu)};
@@ -1974,10 +2002,25 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
     return true;
   }
 
+  // A7.7.237 VMOV (2 ARM core regsters and a dword reg), T1 encoding (pg A7-590)
+  if (((w0 & 0xFFE0u) == 0xEC40u) && ((w1 & 0xFD0u) == 0xB10u)) {
+    out_inst.type = inst_type::VMOV_REG_DOUBLE;
+    out_inst.i.vmov_reg_double = { .m = u8((w1 & 0xFu) | ((w1 >> 1u) & 0x10u)),
+      .t2 = u8(w0 & 0xFu), .t = u8((w1 >> 12u) & 0xFu), .to_arm_regs = u8((w0 >> 4u) & 1u) };
+    return true;
+  }
+
   // A7.7.239 VMRS, T1 encoding (pg A7-592)
   if (((w0 & 0xFFF0u) == 0xEEF0u) && ((w1 & 0xF10u) == 0xA10u)) {
-    out_inst.type = inst_type::VMOV_SPECIAL;
-    out_inst.i.vmov_special = { .t = u8((w1 >> 12u) & 0xFu) };
+    out_inst.type = inst_type::VMOV_SPECIAL_FROM;
+    out_inst.i.vmov_special_from = { .t = u8((w1 >> 12u) & 0xFu) };
+    return true;
+  }
+
+  // A7.7.240 VMSR, T1 encoding (pg A7-593)
+  if (((w0 & 0xFFF0u) == 0xEEE0u) && ((w1 & 0xF10u) == 0xA10u)) {
+    out_inst.type = inst_type::VMOV_SPECIAL_TO;
+    out_inst.i.vmov_special_to = { .t = u8((w1 >> 12u) & 0xFu) };
     return true;
   }
 
@@ -1990,7 +2033,7 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
   }
 
   // A7.7.241 VMUL, T1 encoding (pg A7-594)
-  if (((w0 & 0xFFB0) == 0xEE20u) && ((w1 & 0xF50u) == 0xA00u)) {
+  if (((w0 & 0xFFB0u) == 0xEE20u) && ((w1 & 0xF50u) == 0xA00u)) {
     u8 const D{u8((w0 >> 6u) & 1u)}, N{u8((w1 >> 7u) & 1u)}, M{u8((w1 >> 5u) & 1u)},
       vd{u8((w1 >> 12u) & 0xFu)}, vm{u8(w1 & 0xFu)}, vn{u8(w0 & 0xFu)};
     out_inst.type = inst_type::VMUL;
@@ -1999,11 +2042,12 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
     return true;
   }
 
-  // A7.7.242 VMOV (2 ARM core regsters and a dword reg), T1 encoding (pg A7-533)
-  if (((w0 & 0xFFE0u) == 0xEC40u) && ((w1 & 0xFD0u) == 0xB10u)) {
-    out_inst.type = inst_type::VMOV_REG_DOUBLE;
-    out_inst.i.vmov_reg_double = { .m = u8((w1 & 0xFu) | ((w1 >> 1u) & 0x10u)),
-      .t2 = u8(w0 & 0xFu), .t = u8((w1 >> 12u) & 0xFu), .to_arm_regs = u8((w0 >> 4u) & 1u) };
+  // A7.7.242 VNEG, T1 encoding (pg A7-595)
+  if (((w0 & 0xFFBFu) == 0xEEB1u) && ((w1 & 0xFD0u) == 0xA40u)) {
+    u8 const vm{u8(w1 & 0xFu)}, vd{u8((w1 >> 12u) & 0xFu)}, D{u8((w0 >> 6u) & 1u)},
+      M{u8((w1 >> 5u) & 1u)};
+    out_inst.type = inst_type::VNEG;
+    out_inst.i.vneg = { .d = u8((vd << 1u) | D), .m = u8((vm << 1u) | M) };
     return true;
   }
 

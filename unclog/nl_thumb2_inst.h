@@ -139,18 +139,22 @@ struct imm_shift { imm_shift_type t; u8 n; };
   X(SVC, svc, { u32 imm; }) \
   X(TABLE_BRANCH_BYTE, table_branch_byte, { u8 n, m; }) \
   X(TABLE_BRANCH_HALF, table_branch_half, { u8 n, m; }) \
-  X(TEST_EQUIV, test_equiv, { u32 imm; u8 n; }) \
+  X(TEST_EQUIV_IMM, test_equiv_imm, { u32 imm; u8 n; }) \
+  X(TEST_EQUIV_REG, test_equiv_reg, { imm_shift shift; u8 n, m; }) \
   X(TEST_REG, test_reg, { imm_shift shift; u8 n, m; }) \
   X(VADD, vadd, { u8 d, n, m; }) \
   X(VCOMPARE, vcompare, { u8 quiet_nan_exc, with_zero, d, m; }) \
   X(VCONVERT_FP_INT, vconvert_fp_int, { u8 d, m, to_int, int_unsigned, round_zero; }) \
+  X(VDIV, vdiv, { u8 d, n, m; }) \
   X(VLOAD, vload, { u16 imm; u8 single_reg, add, n, d; }) \
   X(VMOV_IMM, vmov_imm, { float imm; u8 d, regs; }) \
   X(VMOV_REG, vmov_reg, { u8 d, m; }) \
   X(VMOV_REG_DOUBLE, vmov_reg_double, { u8 t, t2, m, to_arm_regs; }) \
   X(VMOV_REG_SINGLE, vmov_reg_single, { u8 t, n, m, to_arm_reg; }) \
-  X(VMOV_SPECIAL, vmov_special, { u8 t; }) \
+  X(VMOV_SPECIAL_FROM, vmov_special_from, { u8 t; }) \
+  X(VMOV_SPECIAL_TO, vmov_special_to, { u8 t; }) \
   X(VMUL, vmul, { u8 d, n, m; }) \
+  X(VNEG, vneg, { u8 d, m; }) \
   X(VPOP, vpop, { u16 imm; u8 d, single_regs, regs; }) \
   X(VPUSH, vpush, { u16 imm; u8 d, single_regs, regs; }) \
   X(VSTORE, vstore, { u16 imm; u8 single_reg, add, d, n; }) \
