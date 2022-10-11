@@ -465,7 +465,11 @@ void print(inst_vload const& v) {
 }
 
 void print(inst_vmov_imm const& v) {
-  NL_LOG_DBG("VMOV.F32 S%d, #%f", int(v.d), double(v.imm));
+  NL_LOG_DBG("VMOV_IMM.F32 S%d, #%f", int(v.d), double(v.imm));
+}
+
+void print(inst_vmov_reg const& v) {
+  NL_LOG_DBG("VMOV_REG.F32 S%d, S%d", int(v.d), int(v.m));
 }
 
 void print(inst_vmov_reg_double const& v) {
@@ -1958,6 +1962,15 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
     out_inst.type = inst_type::VMOV_IMM;
     out_inst.i.vmov_imm = { .d = u8((D << 4u) | vd), .regs = 1u,
       .imm = decode_vfp_imm8(u8((imm4h << 4u) | imm4l), 32) };
+    return true;
+  }
+
+  // A7.7.233 VMOV (reg), T1 encoding (pg A7-586)
+  if (((w0 & 0xFFBFu) == 0xEEB0u) && ((w1 & 0xFD0u) == 0xA40u)) {
+    u8 const vm{u8(w1 & 0xFu)}, vd{u8((w1 >> 12u) & 0xFu)}, M{u8((w1 >> 5u) & 1u)},
+      D{u8((w0 >> 6u) & 1u)};
+    out_inst.type = inst_type::VMOV_REG;
+    out_inst.i.vmov_reg = { .d = u8((vd << 1u) | D), .m = u8((vm << 1u) | M) };
     return true;
   }
 

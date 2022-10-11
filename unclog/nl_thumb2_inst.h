@@ -146,6 +146,7 @@ struct imm_shift { imm_shift_type t; u8 n; };
   X(VCONVERT_FP_INT, vconvert_fp_int, { u8 d, m, to_int, int_unsigned, round_zero; }) \
   X(VLOAD, vload, { u16 imm; u8 single_reg, add, n, d; }) \
   X(VMOV_IMM, vmov_imm, { float imm; u8 d, regs; }) \
+  X(VMOV_REG, vmov_reg, { u8 d, m; }) \
   X(VMOV_REG_DOUBLE, vmov_reg_double, { u8 t, t2, m, to_arm_regs; }) \
   X(VMOV_REG_SINGLE, vmov_reg_single, { u8 t, n, m, to_arm_reg; }) \
   X(VMOV_SPECIAL, vmov_special, { u8 t; }) \
