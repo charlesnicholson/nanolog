@@ -105,6 +105,7 @@ struct imm_shift { imm_shift_type t; u8 n; };
   X(MOV_NEG_REG, mov_neg_reg, { imm_shift shift; u8 d, m; }) \
   X(MUL, mul, { u8 d, n, m; }) \
   X(MUL_ACCUM, mul_accum, { u8 d, n, m, a; }) \
+  X(MUL_ACCUM_SIGNED_HALF, mul_accum_signed_half, { u8 d, n, m, a, n_high, m_high; }) \
   X(MUL_ACCUM_SIGNED_LONG, mul_accum_signed_long, { u8 dlo, dhi, n, m; }) \
   X(MUL_ACCUM_UNSIGNED_LONG, mul_accum_unsigned_long, { u8 dlo, dhi, n, m; }) \
   X(MUL_SUB, mul_sub, { u8 d, n, m, a; }) \

@@ -326,6 +326,11 @@ void print(inst_mul_accum const& m) {
   NL_LOG_DBG("MLA %s, %s, %s, %s", s_rn[m.d], s_rn[m.n], s_rn[m.m], s_rn[m.a]);
 }
 
+void print(inst_mul_accum_signed_half const& m) {
+  NL_LOG_DBG("SMLA%c%c %s, %s, %s, %s", m.n_high ? 'T' : 'B', m.m_high ? 'T' : 'B',
+    s_rn[m.d], s_rn[m.n], s_rn[m.m], s_rn[m.a]);
+}
+
 void print(inst_mul_accum_signed_long const& m) {
   NL_LOG_DBG("SMLAL %s, %s, %s, %s", s_rn[m.dlo], s_rn[m.dhi], s_rn[m.n], s_rn[m.m]);
 }
@@ -1170,10 +1175,11 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
     return true;
   }
 
-  if ((w0 & 0xFFF0u) == 0xEA00u) { // 4.6.9 AND (reg), T2 encoding (pg 4-32)
+  if ((w0 & 0xFFE0u) == 0xEA00u) { // 4.6.9 AND (reg), T2 encoding (pg 4-32)
     u8 const imm2{u8((w1 >> 6u) & 3u)}, imm3{u8((w1 >> 12u) & 7u)},
       d{u8((w1 >> 8u) & 0xFu)}, s{u8((w0 >> 4u) & 1u)};
-    if ((d == 15) && (s == 1)) { // "SEE TST (register) on page 4-399"
+    if ((d == 15) && (s == 1)) {
+      printf("SEE TST (register) on page 4-399\n");
       return false;
     }
     out_inst.type = inst_type::AND_REG;
@@ -1748,6 +1754,20 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
     out_inst.type = inst_type::SELECT_BYTES;
     out_inst.i.select_bytes = { .m = u8(w1 & 0xFu), .n = u8(w0 & 0xFu),
       .d = u8((w1 >> 8u) & 0xFu) };
+    return true;
+  }
+
+  // 4.6.137 SMLABB, SMLABT, SMLATB, SMLATT, T1 encoding (pg 4-287)
+  if (((w0 & 0xFFF0u) == 0xFB10u) && ((w1 & 0xC0u) == 0)) {
+    u8 const d{u8((w1 >> 8u) & 0xFu)}, m{u8(w1 & 0xFu)}, n{u8(w0 & 0xFu)},
+      a{u8((w1 >> 12u) & 0xFu)}, M{u8((w1 >> 4u) & 1u)}, N{u8((w1 >> 5u) & 1u)};
+    if (a == 15) {
+      printf("SEE SMULBB, SMULBT, SMULTB, SMULTT on page 4-311\n");
+      return false;
+    }
+    out_inst.type = inst_type::MUL_ACCUM_SIGNED_HALF;
+    out_inst.i.mul_accum_signed_half = { .d = d, .n = n, .m = m, .a = a, .n_high = N,
+      .m_high = M };
     return true;
   }
 
