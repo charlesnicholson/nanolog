@@ -534,7 +534,13 @@ void print(inst_vpush const& v) {
 }
 
 void print(inst_vstore const& v) {
-  NL_LOG_DBG("VSTR %c%d, [%s, #%d]", v.single_reg ? 'S' : 'D', int(v.d), s_rn[v.n], int(v.imm));
+  NL_LOG_DBG("VSTR %c%d, [%s, #%d]", v.single_reg ? 'S' : 'D', int(v.d), s_rn[v.n],
+    int(v.imm));
+}
+
+void print(inst_vstore_mult const& v) {
+  NL_LOG_DBG("VSTM%s %s%s, { %x }", v.add ? "IA" : "DB", s_rn[v.n], v.wb ? "!" : "",
+    unsigned(v.list));
 }
 
 void print(inst_vsub const& v) {
@@ -2122,6 +2128,29 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
     out_inst.type = inst_type::VPUSH;
     out_inst.i.vpush = { .single_regs = 0, .regs = u8(imm8 / 2), .imm = u16(imm8 << 2u),
       .d = u8((D << 4u) | vd) };
+    return true;
+  }
+
+  // A7.7.247 VSTM, T2 encoding (pg A7-605)
+  if (((w0 & 0xFE10u) == 0xEC00u) && ((w1 & 0xF00u) == 0xA00u)) {
+    u8 const n{u8(w0 & 0xFu)}, vd{u8((w1 >> 12u) & 0xFu)}, D{u8((w1 >> 6u) & 1u)},
+      imm{u8(w1 & 0xFFu)}, p{u8((w0 >> 8u) & 1u)}, u{u8((w0 >> 7u) & 1u)},
+      w{u8((w0 >> 5u) & 1u)};
+    if ((p == 0) && (u == 0) && (w == 0)) {
+      printf("See 64-bit transfers ... on page A6-199\n");
+      return false;
+    }
+    if ((p == 1) && (u == 0) && (w == 1) && (n == 0b1101)) {
+      printf("SEE VPUSH\n");
+      return false;
+    }
+    if ((p == u) && (w == 1)) {
+      printf("SEE VSTR\n");
+      return false;
+    }
+    out_inst.type = inst_type::VSTORE_MULT;
+    out_inst.i.vstore_mult = { .single_regs = 1u, .list = imm, .imm = u16(imm << 2u),
+      .n = n, .d = u8((vd << 1u) | D), .wb = w, .add = u };
     return true;
   }
 
