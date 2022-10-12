@@ -96,7 +96,11 @@ void print(inst_rshift_log_reg const& r) {
 }
 
 void print(inst_rshift_arith_imm const& r) {
-  NL_LOG_DBG("ASR %s, %s, #%d", s_rn[r.d], s_rn[r.m], int(r.shift.n));
+  NL_LOG_DBG("ASR_IMM %s, %s, #%d", s_rn[r.d], s_rn[r.m], int(r.shift.n));
+}
+
+void print(inst_rshift_arith_reg const& r) {
+  NL_LOG_DBG("ASR_REG %s, %s, %s", s_rn[r.d], s_rn[r.n], s_rn[r.m]);
 }
 
 void print(inst_bit_clear_imm const& b) {
@@ -328,6 +332,10 @@ void print(inst_mul_accum_unsigned_long const& m) {
 
 void print(inst_mul_sub const& m) {
   NL_LOG_DBG("MLS %s, %s, %s, %s", s_rn[m.d], s_rn[m.n], s_rn[m.m], s_rn[m.a]);
+}
+
+void print(inst_mul_unsigned_long const& m) {
+  NL_LOG_DBG("UMULL %s, %s, %s, %s", s_rn[m.dlo], s_rn[m.dhi], s_rn[m.n], s_rn[m.m]);
 }
 
 void print(inst_or_not_reg const& o) {
@@ -669,6 +677,13 @@ bool decode_16bit_inst(u16 const w0, inst& out_inst) {
     out_inst.type = inst_type::RSHIFT_ARITH_IMM;
     out_inst.i.rshift_arith_imm = { .d = u8(w0 & 7u), .m = u8((w0 >> 3u) & 7u),
       .shift = decode_imm_shift(0b10, (w0 >> 6u) & 0x1Fu) };
+    return true;
+  }
+
+  if ((w0 & 0xFFC0u) == 0x4100u) { // 4.6.11 ASR (reg), T1 encoding (pg 4-36)
+    u8 const dn{u8(w0 & 7u)};
+    out_inst.type = inst_type::RSHIFT_ARITH_REG;
+    out_inst.i.rshift_arith_reg = { .d = dn, .n = dn, .m = u8((w0 >> 3u) & 7u) };
     return true;
   }
 
@@ -1928,6 +1943,14 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
     out_inst.type = inst_type::MUL_ACCUM_UNSIGNED_LONG;
     out_inst.i.mul_accum_unsigned_long = { .m = u8(w1 & 0xFu), .n = u8(w0 & 0xFu),
       .dlo = u8((w1 >> 12u) & 0xFu), .dhi = u8((w1 >> 8u) & 0xFu)};
+    return true;
+  }
+
+  // 4.6.207 UMULL, T1 encoding (pg 4-427)
+  if (((w0 & 0xFFF0u) == 0xFBA0u) && ((w1 & 0xF0u) == 0)) {
+    out_inst.type = inst_type::MUL_UNSIGNED_LONG;
+    out_inst.i.mul_unsigned_long = { .m = u8(w1 & 0xFu), .n = u8(w0 & 0xFu),
+      .dlo = u8((w1 >> 12u) & 0xFu), .dhi = u8((w1 >> 8u) & 0xFu) };
     return true;
   }
 

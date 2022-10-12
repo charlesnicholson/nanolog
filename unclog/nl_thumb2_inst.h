@@ -107,6 +107,7 @@ struct imm_shift { imm_shift_type t; u8 n; };
   X(MUL_ACCUM_SIGNED_LONG, mul_accum_signed_long, { u8 dlo, dhi, n, m; }) \
   X(MUL_ACCUM_UNSIGNED_LONG, mul_accum_unsigned_long, { u8 dlo, dhi, n, m; }) \
   X(MUL_SUB, mul_sub, { u8 d, n, m, a; }) \
+  X(MUL_UNSIGNED_LONG, mul_unsigned_long, { u8 dlo, dhi, n, m; }) \
   X(NOP, nop, {}) \
   X(OR_NOT_REG, or_not_reg, { imm_shift shift; u8 d, n, m; }) \
   X(OR_IMM, or_imm, { u32 imm; u8 d, n; }) \
@@ -116,6 +117,7 @@ struct imm_shift { imm_shift_type t; u8 n; };
   X(POP, pop, { u16 reg_list; }) \
   X(REVERSE_BITS, reverse_bits, { u8 d, m; }) \
   X(RSHIFT_ARITH_IMM, rshift_arith_imm, { imm_shift shift; u8 d, m; }) \
+  X(RSHIFT_ARITH_REG, rshift_arith_reg, { u8 d, n, m; }) \
   X(RSHIFT_LOG_IMM, rshift_log_imm, { imm_shift shift; u8 d, m; }) \
   X(RSHIFT_LOG_REG, rshift_log_reg, { u8 d, n, m; }) \
   X(SELECT_BYTES, select_bytes, { u8 d, n, m; }) \
