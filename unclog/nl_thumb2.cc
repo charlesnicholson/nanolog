@@ -297,14 +297,14 @@ simulate_results simulate(inst const& i, func_state& fs, path_state& path) {
     case inst_type::TABLE_BRANCH_HALF: {
       auto const& tbh{i.i.table_branch_half};
       len = table_branch(i.addr, 2, tbh.n, tbh.m, path, fs);
-      if (!len) { printf("TBH failure\n"); }
+      if (!len) { printf("TBH failure\n"); return simulate_results::FAILURE; }
       return simulate_results::TERMINATE_PATH;
     }
 
     case inst_type::TABLE_BRANCH_BYTE: {
       auto const& tbb{i.i.table_branch_byte};
       len = table_branch(i.addr, 1, tbb.n, tbb.m, path, fs);
-      if (!len) { printf("TBB failure\n"); }
+      if (!len) { printf("TBB failure\n"); return simulate_results::FAILURE; }
       return simulate_results::TERMINATE_PATH;
     }
 
@@ -312,7 +312,7 @@ simulate_results simulate(inst const& i, func_state& fs, path_state& path) {
   }
 
   path.rs.regs[reg::PC] += len;
-  return len ? simulate_results::SUCCESS : simulate_results::FAILURE;
+  return simulate_results::SUCCESS;
 }
 
 void process_log_call(inst const& pc_i, path_state const& path, log_call_analysis& lca) {
@@ -331,20 +331,11 @@ void process_log_call(inst const& pc_i, path_state const& path, log_call_analysi
   }
 
   NL_LOG_DBG("  Found log function, format string 0x%08x\n", path.rs.regs[reg::R0]);
-  inst const& r0_i = lca.reg_muts[path.rs.mut_node_idxs[reg::R0]].i;
+  inst const& r0_i{lca.reg_muts[path.rs.mut_node_idxs[reg::R0]].i};
   switch (r0_i.type) {
-    case inst_type::LOAD_LIT:
-      it->second.s = fmt_str_strat::DIRECT_LOAD;
-      break;
-
-    case inst_type::MOV_REG:
-      it->second.s = fmt_str_strat::MOV_FROM_DIRECT_LOAD;
-      break;
-
-    case inst_type::ADD_IMM:
-      it->second.s = fmt_str_strat::ADD_IMM_FROM_BASE_REG;
-      break;
-
+    case inst_type::LOAD_LIT: it->second.s = fmt_str_strat::DIRECT_LOAD; break;
+    case inst_type::MOV_REG:  it->second.s = fmt_str_strat::MOV_FROM_DIRECT_LOAD; break;
+    case inst_type::ADD_IMM:  it->second.s = fmt_str_strat::ADD_IMM_FROM_BASE_REG; break;
     default:
       NL_LOG_DBG("Unrecognized pattern!\n***\n");
       inst_print(r0_i);
