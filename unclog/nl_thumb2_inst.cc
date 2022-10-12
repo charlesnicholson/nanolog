@@ -550,6 +550,8 @@ void print(inst_vpush const& v) {
   NL_LOG_DBG("VPUSH { %x }", v.regs); // TODO: print the list, don't care right now
 }
 
+void print(inst_vsqrt const& v) { NL_LOG_DBG("VSQRT.F32 S%d, S%d", int(v.d), int(v.m)); }
+
 void print(inst_vstore const& v) {
   NL_LOG_DBG("VSTR %c%d, [%s, #%d]", v.single_reg ? 'S' : 'D', int(v.d), s_rn[v.n],
     int(v.imm));
@@ -1429,18 +1431,38 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
   if (((w0 & 0xFFF0u) == 0xF830u) && ((w1 & 0x800u) == 0x800u)) {
     u8 const p{u8((w1 >> 10u) & 1u)}, u{u8((w1 >> 9u) & 1u)}, w{u8((w1 >> 8u) & 1u)},
       n{u8(w0 & 0xFu)}, t{u8((w1 >> 12u) & 0xFu)};
-    if (n == 15) { // "SEE LDRH (literal) on page 4-126"
+    if (n == 15) {
+      printf("SEE LDRH (literal) on page 4-126\n");
       return false;
     }
-    if ((t == 15) && (p == 1) && (u == 0) && (w == 0)) { // "SEE Memory hints on page 4-14"
+    if ((t == 15) && (p == 1) && (u == 0) && (w == 0)) {
+      printf("SEE Memory hints on page 4-14\n");
       return false;
     }
-    if ((p == 1) && (u == 1) && (w == 0)) { // "SEE LDRHT on page 4-130"
+    if ((p == 1) && (u == 1) && (w == 0)) {
+      printf("SEE LDRHT on page 4-130\n");
       return false;
     }
     out_inst.type = inst_type::LOAD_HALF_IMM;
     out_inst.i.load_half_imm = { .n = n, .t = t, .imm = u16(w1 & 0xFFu), .add = u,
       .index = p };
+    return true;
+  }
+
+  // 4.6.57 LDRH (reg), T2 encoding (pg 4-128)
+  if (((w0 & 0xFFF0u) == 0xF830u) && ((w1 & 0xFC0u) == 0)) {
+    u8 const t{u8((w1 >> 12u) & 0xFu)}, m{u8(w1 & 0xFu)}, n{u8(w0 & 0xFu)};
+    imm_shift const shift{decode_imm_shift(u8(imm_shift_type::LSL), u8((w1 >> 4u) & 3u))};
+    if (n == 15) {
+      printf("SEE LDRH (literal) on page 4-126\n");
+      return false;
+    }
+    if (t == 15) {
+      printf("SEE Memory hints on page 4-14\n");
+      return false;
+    }
+    out_inst.type = inst_type::LOAD_HALF_REG;
+    out_inst.i.load_half_reg = { .shift = shift, .m = m, .n = n, .t = t };
     return true;
   }
 
@@ -1903,6 +1925,15 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
     return true;
   }
 
+  // 4.6.173 STRH (reg), T2 encoding (pg 4-359)
+  if (((w0 & 0xFFF0u) == 0xF820u) && ((w1 & 0xFC0u) == 0)) {
+    out_inst.type = inst_type::STORE_HALF_REG;
+    out_inst.i.store_half_reg = { .m = u8(w1 & 0xFu), .n = u8(w0 & 0xFu),
+      .t = u8((w1 >> 12u) & 0xFu),
+      .shift = decode_imm_shift(u8(imm_shift_type::LSL), u8((w1 >> 4u) & 3u)) };
+    return true;
+  }
+
   // 4.6.176 SUB (imm), T3 encoding (pg 4-365)
   if (((w0 & 0xFBE0u) == 0xF1A0u) && ((w1 & 0x8000u) == 0)) {
     u32 const imm8{w1 & 0xFFu}, imm3{(w1 >> 12u) & 7u}, i{(w0 >> 10u) & 1u},
@@ -2207,6 +2238,15 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
     out_inst.type = inst_type::VPUSH;
     out_inst.i.vpush = { .single_regs = 0, .regs = u8(imm8 / 2), .imm = u16(imm8 << 2u),
       .d = u8((D << 4u) | vd) };
+    return true;
+  }
+
+  // A7.7.246 VSQRT, T1 encoding (pg A7-603)
+  if (((w0 & 0xFFBFu) == 0xEEB1u) && ((w1 & 0xFD0u) == 0xAC0u)) {
+    u8 const vm{u8(w1 & 0xFu)}, vd{u8((w1 >> 12u) & 0xFu)}, M{u8((w1 >> 5u) & 1u)},
+      D{u8((w0 >> 6u) & 1u)};
+    out_inst.type = inst_type::VSQRT;
+    out_inst.i.vsqrt = { .m = u8((vm << 1u) | M), .d = u8((vd << 1u) | D) };
     return true;
   }
 

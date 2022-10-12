@@ -247,14 +247,26 @@ bool simulate(inst const& i, func_state& fs, path_state& path) {
       cmp_imm_lit_set(path.rs, i.i.cmp_imm.n, i.i.cmp_imm.imm);
       break;
 
+    case inst_type::SUB_IMM: {
+      auto const& sub = i.i.sub_imm;
+      path.rs.regs[sub.d] = path.rs.regs[sub.n] - sub.imm;
+      copy_reg_known(path.rs.known, sub.d, sub.n);
+      reg_muts.push_back(
+        reg_mut_node{.i = i, .par_idxs[0] = path.rs.mut_node_idxs[sub.n]});
+      path.rs.mut_node_idxs[sub.d] = u16(reg_muts.size() - 1u);
+    } break;
+
+
     case inst_type::TABLE_BRANCH_HALF: {
       auto const& tbh = i.i.table_branch_half;
       len = table_branch(i.addr, 2, tbh.n, tbh.m, path, fs);
+      if (!len) { printf("TBH failure\n"); }
     } break;
 
     case inst_type::TABLE_BRANCH_BYTE: {
       auto const& tbb = i.i.table_branch_byte;
       len = table_branch(i.addr, 1, tbb.n, tbb.m, path, fs);
+      if (!len) { printf("TBB failure\n"); }
     } break;
 
     default: break;
