@@ -290,6 +290,44 @@ simulate_results simulate(inst const& i, func_state& fs, path_state& path) {
 
 }
 
+void process_log_call(inst const& pc_i, path_state const& path, log_call_analysis& lca) {
+  if (!test_reg_known(path.rs.known, reg::R0)) {
+    NL_LOG_DBG("  Found log function, R0 is unknown\n");
+    return;
+  }
+
+  auto [it, inserted] = lca.log_calls.insert({path.rs.regs[reg::R0],
+    log_call{ .fmt_str_addr = path.rs.regs[reg::R0], .log_func_call_addr = pc_i.addr,
+      .node_idx = path.rs.mut_node_idxs[reg::R0] }});
+
+  if (!inserted) {
+    NL_LOG_DBG("  Found log function, already discovered\n");
+    return;
+  }
+
+  NL_LOG_DBG("  Found log function, format string 0x%08x\n", path.rs.regs[reg::R0]);
+  inst const& r0_i = lca.reg_muts[path.rs.mut_node_idxs[reg::R0]].i;
+  switch (r0_i.type) {
+    case inst_type::LOAD_LIT:
+      it->second.s = fmt_str_strat::DIRECT_LOAD;
+      break;
+
+    case inst_type::MOV_REG:
+      it->second.s = fmt_str_strat::MOV_FROM_DIRECT_LOAD;
+      break;
+
+    case inst_type::ADD_IMM:
+      it->second.s = fmt_str_strat::ADD_IMM_FROM_BASE_REG;
+      break;
+
+    default:
+      NL_LOG_DBG("Unrecognized pattern!\n***\n");
+      inst_print(r0_i);
+      NL_LOG_DBG("\n***\n");
+      break;
+  }
+}
+
 bool thumb2_analyze_func(elf const& e,
                          elf_symbol32 const& func,
                          std::vector<elf_symbol32 const*> const& log_funcs,
@@ -330,43 +368,7 @@ bool thumb2_analyze_func(elf const& e,
         break;
       }
 
-      if (inst_is_log_call(pc_i, log_funcs)) {
-        if (!test_reg_known(path.rs.known, reg::R0)) {
-          NL_LOG_DBG("  Found log function, R0 is unknown\n");
-          break;
-        }
-
-        auto [it, inserted] = out_lca.log_calls.insert({path.rs.regs[reg::R0],
-          log_call{ .fmt_str_addr = path.rs.regs[reg::R0], .log_func_call_addr = pc_i.addr,
-            .node_idx = path.rs.mut_node_idxs[reg::R0] }});
-
-        if (!inserted) {
-          NL_LOG_DBG("  Found log function, already discovered\n");
-          break;
-        }
-
-        NL_LOG_DBG("  Found log function, format string 0x%08x\n", path.rs.regs[reg::R0]);
-        inst const& r0_i = s.lca.reg_muts[path.rs.mut_node_idxs[reg::R0]].i;
-        switch (r0_i.type) {
-          case inst_type::LOAD_LIT:
-            it->second.s = fmt_str_strat::DIRECT_LOAD;
-            break;
-
-          case inst_type::MOV_REG:
-            it->second.s = fmt_str_strat::MOV_FROM_DIRECT_LOAD;
-            break;
-
-          case inst_type::ADD_IMM:
-            it->second.s = fmt_str_strat::ADD_IMM_FROM_BASE_REG;
-            break;
-
-          default:
-            NL_LOG_DBG("Unrecognized pattern!\n***\n");
-            inst_print(r0_i);
-            NL_LOG_DBG("\n***\n");
-            break;
-        }
-      }
+      if (inst_is_log_call(pc_i, log_funcs)) { process_log_call(pc_i, path, out_lca); }
 
       u32 label;
       if (inst_is_conditional_branch(pc_i, label) && address_in_func(label, s)) {
