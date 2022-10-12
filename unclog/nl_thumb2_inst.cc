@@ -861,7 +861,7 @@ bool decode_16bit_inst(u16 const w0, inst& out_inst) {
     return true;
   }
 
-  if ((w0 & 0xFE00u) == 0x5600u) {
+  if ((w0 & 0xFE00u) == 0x5600u) { // 4.6.61 LDRSB (reg), T1 encoding (pg 4-136)
     out_inst.type = inst_type::LOAD_SIGNED_BYTE_REG;
     out_inst.i.load_signed_byte_reg = { .t = u8(w0 & 7u), .n = u8((w0 >> 3u) & 7u),
       .m = u8((w0 >> 6u) & 7u), .shift = decode_imm_shift(0b00, 0) };
@@ -1460,6 +1460,24 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
     }
     out_inst.type = inst_type::LOAD_SIGNED_BYTE_IMM;
     out_inst.i.load_signed_byte_imm = { .index = p, .add = u, .t = t, .n = n, .imm = imm };
+    return true;
+  }
+
+  // 4.6.61 LDRSB (reg), T2 encoding (pg 4-136)
+  if (((w0 & 0xFFF0u) == 0xF910u) && ((w1 & 0xFC0u) == 0)) {
+    u8 const t{u8((w1 >> 12u) & 0xFu)}, m{u8(w1 & 0xFu)}, n{u8(w0 & 0xFu)},
+      shift{u8((w1 >> 4u) & 3u)};
+    if (t == 15) {
+      printf("SEE PLI (register) on page 4-207\n");
+      return false;
+    }
+    if (n == 15) {
+      printf("SEE LDRSB (literal) on page 4-134\n");
+      return false;
+    }
+    out_inst.type = inst_type::LOAD_SIGNED_BYTE_REG;
+    out_inst.i.load_signed_byte_reg = { .t = t, .m = m, .n = n,
+      .shift = decode_imm_shift(u8(imm_shift_type::LSL), shift) };
     return true;
   }
 
