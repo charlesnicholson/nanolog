@@ -119,26 +119,10 @@ bool branch(u32 addr, path_state& p, func_state& s) {
 }
 
 bool inst_terminates_path(inst const& i, func_state& s) {
+  (void)s;
   switch (i.type) {
-    case inst_type::BRANCH:
-      if (cond_code_is_always(i.i.branch.cc)) {
-        if (!address_in_func(i.i.branch.addr, s)) { return true; }
-      }
-      break;
-
-    case inst_type::BRANCH_XCHG: // BX ... (All BX are tail calls?)
-      return true;
-
-    case inst_type::POP: // POP { ..., PC }
-      if (i.i.pop.reg_list & (1u << reg::PC)) { return true; }
-      break;
-
     case inst_type::LOAD_IMM: // LDR PC, [..], #..
       if (i.i.load_imm.t == reg::PC) { return true; }
-      break;
-
-    case inst_type::LOAD_MULT_INC_AFTER: // LDMIA SP!, { ... PC }
-      if (i.i.load_mult_inc_after.regs & (1u << reg::PC)) { return true; }
       break;
 
     case inst_type::LOAD_REG: // LDR PC, [...]
@@ -187,45 +171,19 @@ u32 table_branch(u32 addr, u32 sz, u32 base, u32 ofs, path_state& path, func_sta
   return 4 + table_size_pad;
 }
 
-bool simulate(inst const& i, func_state& fs, path_state& path) {
+enum class simulate_results {
+  SUCCESS,
+  FAILURE,
+  TERMINATE_PATH,
+};
+
+simulate_results simulate(inst const& i, func_state& fs, path_state& path) {
   std::vector<reg_mut_node>& reg_muts{fs.lca.reg_muts};
   u32 len{i.len};
 
   switch (i.type) {
-    case inst_type::LOAD_LIT:
-      memcpy(&path.rs.regs[i.i.load_lit.t],
-             &fs.e.bytes[fs.func_ofs + (i.i.load_lit.addr - fs.func_start)],
-             4);
-      mark_reg_known(path.rs.known, i.i.load_lit.t);
-      reg_muts.push_back(reg_mut_node{.i = i});
-      path.rs.mut_node_idxs[i.i.load_lit.t] = u16(reg_muts.size() - 1u);
-      break;
-
-    case inst_type::MOV_REG: {
-      auto const& mov = i.i.mov_reg;
-      path.rs.regs[mov.d] = path.rs.regs[mov.m];
-      copy_reg_known(path.rs.known, mov.d, mov.m);
-      reg_muts.push_back(reg_mut_node{.i = i, .par_idxs[0] = path.rs.mut_node_idxs[mov.m]});
-      path.rs.mut_node_idxs[mov.d] = u16(reg_muts.size() - 1u);
-    } break;
-
-    case inst_type::MOV_IMM:
-      path.rs.regs[i.i.mov_imm.d] = i.i.mov_imm.imm;
-      mark_reg_known(path.rs.known, i.i.mov_imm.d);
-      reg_muts.push_back(reg_mut_node{.i = i});
-      path.rs.mut_node_idxs[i.i.mov_imm.d] = u16(reg_muts.size() - 1u);
-      break;
-
-    case inst_type::MOV_NEG_IMM: {
-      auto const& mvn = i.i.mov_neg_imm;
-      path.rs.regs[mvn.d] = ~u32(mvn.imm);
-      mark_reg_known(path.rs.known, mvn.d);
-      reg_muts.push_back(reg_mut_node{.i = i});
-      path.rs.mut_node_idxs[mvn.d] = u16(reg_muts.size() - 1u);
-    } break;
-
     case inst_type::ADD_IMM: {
-      auto const& add = i.i.add_imm;
+      auto const& add{i.i.add_imm};
       path.rs.regs[add.d] = path.rs.regs[add.n] + add.imm;
       copy_reg_known(path.rs.known, add.d, add.n);
       reg_muts.push_back(
@@ -234,7 +192,7 @@ bool simulate(inst const& i, func_state& fs, path_state& path) {
     } break;
 
     case inst_type::ADD_REG: {
-      auto const& add = i.i.add_reg;
+      auto const& add{i.i.add_reg};
       path.rs.regs[add.d] = path.rs.regs[add.n] + path.rs.regs[add.m];
       union_reg_known(path.rs.known, add.d, add.m, add.n);
       reg_muts.push_back(
@@ -247,8 +205,62 @@ bool simulate(inst const& i, func_state& fs, path_state& path) {
       cmp_imm_lit_set(path.rs, i.i.cmp_imm.n, i.i.cmp_imm.imm);
       break;
 
+    case inst_type::BRANCH: {
+      auto const& b{i.i.branch};
+      if (cond_code_is_always(b.cc)) {
+        if (!address_in_func(b.addr, fs)) { return simulate_results::TERMINATE_PATH; }
+        if (!branch(i.addr, path, fs)) { return simulate_results::TERMINATE_PATH; }
+        path.rs.regs[reg::PC] = b.addr;
+        return simulate_results::SUCCESS;
+      }
+    } break;
+
+    case inst_type::BRANCH_XCHG: return simulate_results::TERMINATE_PATH; // tail call
+
+    case inst_type::LOAD_LIT:
+      memcpy(&path.rs.regs[i.i.load_lit.t],
+             &fs.e.bytes[fs.func_ofs + (i.i.load_lit.addr - fs.func_start)],
+             4);
+      mark_reg_known(path.rs.known, i.i.load_lit.t);
+      reg_muts.push_back(reg_mut_node{.i = i});
+      path.rs.mut_node_idxs[i.i.load_lit.t] = u16(reg_muts.size() - 1u);
+      break;
+
+    case inst_type::LOAD_MULT_INC_AFTER: // LDMIA SP!, { ... PC }
+      if (i.i.load_mult_inc_after.regs & (1u << reg::PC)) {
+        return simulate_results::TERMINATE_PATH;
+      }
+      break;
+
+    case inst_type::MOV_IMM:
+      path.rs.regs[i.i.mov_imm.d] = i.i.mov_imm.imm;
+      mark_reg_known(path.rs.known, i.i.mov_imm.d);
+      reg_muts.push_back(reg_mut_node{.i = i});
+      path.rs.mut_node_idxs[i.i.mov_imm.d] = u16(reg_muts.size() - 1u);
+      break;
+
+    case inst_type::MOV_NEG_IMM: {
+      auto const& mvn{i.i.mov_neg_imm};
+      path.rs.regs[mvn.d] = ~u32(mvn.imm);
+      mark_reg_known(path.rs.known, mvn.d);
+      reg_muts.push_back(reg_mut_node{.i = i});
+      path.rs.mut_node_idxs[mvn.d] = u16(reg_muts.size() - 1u);
+    } break;
+
+    case inst_type::MOV_REG: {
+      auto const& mov{i.i.mov_reg};
+      path.rs.regs[mov.d] = path.rs.regs[mov.m];
+      copy_reg_known(path.rs.known, mov.d, mov.m);
+      reg_muts.push_back(reg_mut_node{.i = i, .par_idxs[0] = path.rs.mut_node_idxs[mov.m]});
+      path.rs.mut_node_idxs[mov.d] = u16(reg_muts.size() - 1u);
+    } break;
+
+    case inst_type::POP:
+      if (i.i.pop.reg_list & (1u << reg::PC)) { return simulate_results::TERMINATE_PATH; }
+      break;
+
     case inst_type::SUB_IMM: {
-      auto const& sub = i.i.sub_imm;
+      auto const& sub{i.i.sub_imm};
       path.rs.regs[sub.d] = path.rs.regs[sub.n] - sub.imm;
       copy_reg_known(path.rs.known, sub.d, sub.n);
       reg_muts.push_back(
@@ -256,24 +268,25 @@ bool simulate(inst const& i, func_state& fs, path_state& path) {
       path.rs.mut_node_idxs[sub.d] = u16(reg_muts.size() - 1u);
     } break;
 
-
     case inst_type::TABLE_BRANCH_HALF: {
-      auto const& tbh = i.i.table_branch_half;
+      auto const& tbh{i.i.table_branch_half};
       len = table_branch(i.addr, 2, tbh.n, tbh.m, path, fs);
       if (!len) { printf("TBH failure\n"); }
-    } break;
+      return simulate_results::TERMINATE_PATH;
+    }
 
     case inst_type::TABLE_BRANCH_BYTE: {
-      auto const& tbb = i.i.table_branch_byte;
+      auto const& tbb{i.i.table_branch_byte};
       len = table_branch(i.addr, 1, tbb.n, tbb.m, path, fs);
       if (!len) { printf("TBB failure\n"); }
-    } break;
+      return simulate_results::TERMINATE_PATH;
+    }
 
     default: break;
   }
 
   path.rs.regs[reg::PC] += len;
-  return bool(len);
+  return len ? simulate_results::SUCCESS : simulate_results::FAILURE;
 }
 
 }
@@ -285,8 +298,9 @@ bool thumb2_analyze_func(elf const& e,
   func_state s{func, e, e.sec_hdrs[func.st_shndx], out_lca};
   out_lca.reg_muts.reserve(256);
 
-  NL_LOG_DBG("\nScanning %s: addr %x, len %x, range %x-%x, offset %x:\n", &e.strtab[func.st_name],
-    func.st_value, func.st_size, s.func_start, s.func_end, s.func_ofs);
+  NL_LOG_DBG("\nScanning %s: addr %x, len %x, range %x-%x, offset %x:\n",
+    &e.strtab[func.st_name], func.st_value, func.st_size, s.func_start, s.func_end,
+    s.func_ofs);
 
   s.paths.push(path_state{.rs{.regs[reg::PC] = s.func_start}});
 
@@ -377,9 +391,9 @@ bool thumb2_analyze_func(elf const& e,
         break;
       }
 
-      if (!simulate(pc_i, s, path)) { return false; }
-
-      if (inst_is_table_branch(pc_i)) { break; }
+      simulate_results const sr = simulate(pc_i, s, path);
+      if (sr == simulate_results::FAILURE) { return false; }
+      if (sr == simulate_results::TERMINATE_PATH) { break; }
     }
   }
 
