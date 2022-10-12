@@ -208,6 +208,10 @@ void print(inst_extend_add_signed_byte const &e) {
   NL_LOG_DBG("SXTAB %s, %s, %s, <%d>", s_rn[e.d], s_rn[e.n], s_rn[e.m], int(e.rotation));
 }
 
+void print(inst_extend_add_signed_half const &e) {
+  NL_LOG_DBG("SXTAH %s, %s, %s, <%d>", s_rn[e.d], s_rn[e.n], s_rn[e.m], int(e.rotation));
+}
+
 void print(inst_extend_signed_byte const& u) {
   NL_LOG_DBG("SXTB %s, %s, <%d>", s_rn[u.d], s_rn[u.m], int(u.rotation));
 }
@@ -723,7 +727,7 @@ bool decode_16bit_inst(u16 const w0, inst& out_inst) {
 
   if ((w0 & 0xFF80u) == 0x4780u) { // 4.6.19 BLX (reg), T1 encoding (pg 4-52)
     out_inst.type = inst_type::BRANCH_LINK_XCHG_REG;
-    out_inst.i.branch_link_xchg_reg = { .reg = u8((w0 >> 3u) & 7u) };
+    out_inst.i.branch_link_xchg_reg = { .reg = u8((w0 >> 3u) & 0xFu) };
     return true;
   }
 
@@ -1928,6 +1932,20 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
     }
     out_inst.type = inst_type::EXTEND_ADD_SIGNED_BYTE;
     out_inst.i.extend_add_signed_byte = { .d = d, .m = m, .n = n, .rotation = rotation };
+    return true;
+  }
+
+  // 4.6.184 SXTAH, T1 encoding (pg 4-381)
+  if (((w0 & 0xFFF0u) == 0xFA00u) && ((w1 & 0xF080u) == 0xF080u)) {
+    u8 const n{u8(w0 & 0xFu)}, m{u8(w1 & 0xFu)}, d{u8((w1 >> 8u) & 0xFu)},
+      rotation{u8(((w1 >> 4u) & 3u) << 3u)};
+    if (n == 15) { // 4.6.187 SXTH, T2 encoding (pg 4-387)
+      out_inst.type = inst_type::EXTEND_SIGNED_HALF;
+      out_inst.i.extend_signed_half = { .d = d, .m = m, .rotation = rotation };
+      return true;
+    }
+    out_inst.type = inst_type::EXTEND_ADD_SIGNED_HALF;
+    out_inst.i.extend_add_signed_half = { .m = m, .n = n, .d = d, .rotation = rotation };
     return true;
   }
 
