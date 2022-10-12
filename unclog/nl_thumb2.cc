@@ -288,8 +288,6 @@ simulate_results simulate(inst const& i, func_state& fs, path_state& path) {
   return len ? simulate_results::SUCCESS : simulate_results::FAILURE;
 }
 
-}
-
 void process_log_call(inst const& pc_i, path_state const& path, log_call_analysis& lca) {
   if (!test_reg_known(path.rs.known, reg::R0)) {
     NL_LOG_DBG("  Found log function, R0 is unknown\n");
@@ -326,6 +324,8 @@ void process_log_call(inst const& pc_i, path_state const& path, log_call_analysi
       NL_LOG_DBG("\n***\n");
       break;
   }
+}
+
 }
 
 bool thumb2_analyze_func(elf const& e,
