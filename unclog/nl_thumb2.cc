@@ -84,9 +84,10 @@ void copy_reg_known(u16& regs, u8 dst, u8 src) {
   regs = u16(regs & ~(1u << dst)) | u16(((regs >> src) & 1u) << dst);
 }
 
-void union_reg_known(u16& regs, u8 dst, u8 src1, u8 src2) {
+bool union_reg_known(u16& regs, u8 dst, u8 src1, u8 src2) {
   u16 const u{u16(u16(regs >> src1) & u16(regs >> src2) & 1u)};
   regs = u16(regs & ~(1u << dst)) | u16(u << dst);
+  return bool(u);
 }
 
 bool cmp_imm_lit_get(reg_state const& rs, u8 index, u32& out_lit) {
@@ -116,26 +117,6 @@ bool branch(u32 addr, path_state& p, func_state& s) {
   auto [vi, inserted] = s.taken_branches_reg_states.insert({addr, {}});
   vi->second.push_back(p.rs);
   return true;
-}
-
-bool inst_terminates_path(inst const& i, func_state& s) {
-  (void)s;
-  switch (i.type) {
-    case inst_type::LOAD_IMM: // LDR PC, [..], #..
-      if (i.i.load_imm.t == reg::PC) { return true; }
-      break;
-
-    case inst_type::LOAD_REG: // LDR PC, [...]
-      if (i.i.load_reg.t == reg::PC) { return true; }
-
-    case inst_type::LOAD_LIT: // LDR PC, [PC, #x]
-      // TODO: implement
-      break;
-
-    default: break;
-  }
-
-  return false;
 }
 
 bool inst_is_log_call(inst const& i, std::vector<elf_symbol32 const*> const& log_funcs) {
@@ -217,14 +198,32 @@ simulate_results simulate(inst const& i, func_state& fs, path_state& path) {
 
     case inst_type::BRANCH_XCHG: return simulate_results::TERMINATE_PATH; // tail call
 
-    case inst_type::LOAD_LIT:
-      memcpy(&path.rs.regs[i.i.load_lit.t],
-             &fs.e.bytes[fs.func_ofs + (i.i.load_lit.addr - fs.func_start)],
-             4);
-      mark_reg_known(path.rs.known, i.i.load_lit.t);
+    case inst_type::LOAD_IMM: {
+      auto const& ldr{i.i.load_imm};
+      if (ldr.t == reg::PC) { return simulate_results::TERMINATE_PATH; }
+    } break;
+
+    case inst_type::LOAD_LIT: {
+      auto const& ldr{i.i.load_lit};
+      memcpy(&path.rs.regs[ldr.t], &fs.e.bytes[fs.func_ofs + (ldr.addr - fs.func_start)], 4);
+      mark_reg_known(path.rs.known, ldr.t);
       reg_muts.push_back(reg_mut_node{.i = i});
-      path.rs.mut_node_idxs[i.i.load_lit.t] = u16(reg_muts.size() - 1u);
-      break;
+      path.rs.mut_node_idxs[ldr.t] = u16(reg_muts.size() - 1u);
+    } break;
+
+    case inst_type::LOAD_REG: {
+      auto const& ldr{i.i.load_reg};
+      bool const known{union_reg_known(path.rs.known, ldr.t, ldr.n, ldr.m)};
+      if (ldr.t == reg::PC) {
+        return simulate_results::TERMINATE_PATH; // TODO: jump tables :(
+      } else {
+        u32 const addr{u32(ldr.n + (ldr.m << ldr.shift.n))};
+        if (known && address_in_func(addr, fs)) {
+          unsigned const ofs{fs.func_ofs + (addr - fs.func_start)};
+          memcpy(&path.rs.regs[ldr.t], &fs.e.bytes[ofs], 4);
+        }
+      }
+    } break;
 
     case inst_type::LOAD_MULT_INC_AFTER: // LDMIA SP!, { ... PC }
       if (i.i.load_mult_inc_after.regs & (1u << reg::PC)) {
@@ -369,11 +368,6 @@ bool thumb2_analyze_func(elf const& e,
         }
       }
 
-      if (inst_terminates_path(pc_i, s)) {
-        NL_LOG_DBG("  Stopping path: terminal pattern\n");
-        break;
-      }
-
       u32 label;
       if (inst_is_conditional_branch(pc_i, label) && address_in_func(label, s)) {
         if (branch(pc_i.addr, path, s)) {
@@ -382,18 +376,12 @@ bool thumb2_analyze_func(elf const& e,
         }
       }
 
-      if (inst_is_goto(pc_i, label) && address_in_func(label, s)) {
-        if (branch(pc_i.addr, path, s)) {
-          path.rs.regs[reg::PC] = label;
-          continue;
-        }
-        NL_LOG_DBG("  Stopping path: revisiting unconditional branch\n");
-        break;
-      }
-
       simulate_results const sr = simulate(pc_i, s, path);
       if (sr == simulate_results::FAILURE) { return false; }
-      if (sr == simulate_results::TERMINATE_PATH) { break; }
+      if (sr == simulate_results::TERMINATE_PATH) {
+        NL_LOG_DBG("  Stopping path: terminal pattern\n");
+        break;
+      }
     }
   }
 
