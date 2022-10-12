@@ -2303,17 +2303,6 @@ void inst_print(inst const& i) {
 #undef X
 }
 
-bool inst_is_conditional_branch(inst const& i, u32& target) {
-  switch (i.type) {
-    case inst_type::BRANCH:
-      target = i.i.branch.addr; return !cond_code_is_always(i.i.branch.cc);
-    case inst_type::CBZ: target = i.i.cmp_branch_z.addr; return true;
-    case inst_type::CBNZ: target = i.i.cmp_branch_nz.addr; return true;
-    default: break;
-  }
-  return false;
-}
-
 bool inst_is_unconditional_branch(inst const& i, u32& label) {
   switch (i.type) {
     case inst_type::BRANCH:

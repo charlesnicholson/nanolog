@@ -188,15 +188,42 @@ simulate_results simulate(inst const& i, func_state& fs, path_state& path) {
 
     case inst_type::BRANCH: {
       auto const& b{i.i.branch};
-      if (cond_code_is_always(b.cc)) {
-        if (!address_in_func(b.addr, fs)) { return simulate_results::TERMINATE_PATH; }
-        if (!branch(i.addr, path, fs)) { return simulate_results::TERMINATE_PATH; }
+      bool const addr_in_func{address_in_func(b.addr, fs)}, cond{!cond_code_is_always(b.cc)};
+      if (!cond) {
+        if (!addr_in_func) {
+          NL_LOG_DBG("  Stopping Path: Unconditional branch out of function\n");
+          return simulate_results::TERMINATE_PATH;
+        }
+        if (!branch(i.addr, path, fs)) {
+          return simulate_results::TERMINATE_PATH;
+        }
         path.rs.regs[reg::PC] = b.addr;
         return simulate_results::SUCCESS;
+      } else {
+        if (addr_in_func) {
+          if (branch(i.addr, path, fs)) {
+            NL_LOG_DBG("  Internal branch, pushing state\n");
+            fs.paths.push(path_state_branch(path, b.addr));
+          }
+        }
       }
     } break;
 
     case inst_type::BRANCH_XCHG: return simulate_results::TERMINATE_PATH; // tail call
+
+    case inst_type::CBNZ:
+      if (branch(i.addr, path, fs)) {
+        NL_LOG_DBG("  Internal branch, pushing state\n");
+        fs.paths.push(path_state_branch(path, i.i.cmp_branch_nz.addr));
+      }
+      break;
+
+    case inst_type::CBZ:
+      if (branch(i.addr, path, fs)) {
+        NL_LOG_DBG("  Internal branch, pushing state\n");
+        fs.paths.push(path_state_branch(path, i.i.cmp_branch_z.addr));
+      }
+      break;
 
     case inst_type::LOAD_IMM: {
       auto const& ldr{i.i.load_imm};
@@ -369,14 +396,6 @@ bool thumb2_analyze_func(elf const& e,
       }
 
       if (inst_is_log_call(pc_i, log_funcs)) { process_log_call(pc_i, path, out_lca); }
-
-      u32 label;
-      if (inst_is_conditional_branch(pc_i, label) && address_in_func(label, s)) {
-        if (branch(pc_i.addr, path, s)) {
-          NL_LOG_DBG("  Internal branch, pushing state\n");
-          s.paths.push(path_state_branch(path, label));
-        }
-      }
 
       simulate_results const sr = simulate(pc_i, s, path);
       if (sr == simulate_results::FAILURE) { return false; }
