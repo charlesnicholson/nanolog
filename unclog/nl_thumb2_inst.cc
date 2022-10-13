@@ -55,7 +55,7 @@ void print(inst_add_8_unsigned const& a) {
 }
 
 void print(inst_adr const& a) {
-  NL_LOG_DBG("ADR %s, PC, #%d", s_rn[a.d], (int)a.imm);
+  NL_LOG_DBG("ADR %s, PC, #%c%d", s_rn[a.d], a.add ? '+' : '-', (int)a.imm);
 }
 
 void print(inst_and_reg const& a) {
