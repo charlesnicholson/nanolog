@@ -158,6 +158,41 @@ enum class simulate_results {
   TERMINATE_PATH,
 };
 
+simulate_results process_ldr_pc_jump_table(inst const& i, path_state& p, func_state& fs) {
+  if (!branch(i.addr, p, fs)) { return simulate_results::TERMINATE_PATH; }
+
+  auto const& ldr{i.i.load_reg};
+
+  if (!test_reg_known(p.rs.known, ldr.n)) {
+    printf("  Unknown PC-rel load, stopping\n");
+    return simulate_results::FAILURE;
+  }
+
+  u32 cmp_lit;
+  if (!cmp_imm_lit_get(p.rs, ldr.m, cmp_lit)) {
+    printf("  PC-rel load, haven't seen CMP for offset reg %s\n", reg_name(ldr.m));
+    return simulate_results::FAILURE;
+  }
+
+  if (ldr.shift.n != 2) {
+    printf("  PC-rel load, %s shift is %d (expected 2)\n", reg_name(ldr.m),
+      int(ldr.shift.n));
+    return simulate_results::FAILURE;
+  }
+  printf("  Known PC-rel load: %s: %x, %d entries\n", reg_name(ldr.n),
+    unsigned(p.rs.regs[ldr.n]), cmp_lit);
+
+  char const *src{&fs.e.bytes[fs.func_ofs + (p.rs.regs[ldr.n] - fs.func_start)]};
+  for (u32 idx{0u}; idx <= cmp_lit; ++idx) {
+    u32 jump_label;
+    memcpy(&jump_label, src, 4);
+    src += 4;
+    fs.paths.push(path_state_branch(p, jump_label & ~1u));
+  }
+
+  return simulate_results::TERMINATE_PATH;
+}
+
 simulate_results simulate(inst const& i, func_state& fs, path_state& path) {
   std::vector<reg_mut_node>& reg_muts{fs.lca.reg_muts};
   u32 len{i.len};
@@ -180,6 +215,15 @@ simulate_results simulate(inst const& i, func_state& fs, path_state& path) {
         reg_mut_node{.i = i, .par_idxs[0] = path.rs.mut_node_idxs[add.n],
           .par_idxs[1] = path.rs.mut_node_idxs[add.m]});
       path.rs.mut_node_idxs[add.d] = u16(reg_muts.size() - 1u);
+    } break;
+
+    case inst_type::ADR: {
+      auto const& adr{i.i.adr};
+      u32 const base{inst_align(path.rs.regs[reg::PC], 4) + 4};
+      path.rs.regs[adr.d] = adr.add ? (base + adr.imm) : (base - adr.imm);
+      mark_reg_known(path.rs.known, adr.d);
+      reg_muts.push_back(reg_mut_node{.i = i});
+      path.rs.mut_node_idxs[adr.d] = u16(reg_muts.size() - 1u);
     } break;
 
     case inst_type::CMP_IMM:
@@ -240,10 +284,10 @@ simulate_results simulate(inst const& i, func_state& fs, path_state& path) {
 
     case inst_type::LOAD_REG: {
       auto const& ldr{i.i.load_reg};
-      bool const known{union_reg_known(path.rs.known, ldr.t, ldr.n, ldr.m)};
       if (ldr.t == reg::PC) {
-        return simulate_results::TERMINATE_PATH; // TODO: jump tables :(
+        return process_ldr_pc_jump_table(i, path, fs);
       } else {
+        bool const known{union_reg_known(path.rs.known, ldr.t, ldr.n, ldr.m)};
         u32 const addr{u32(ldr.n + (ldr.m << ldr.shift.n))};
         if (known && address_in_func(addr, fs)) {
           unsigned const ofs{fs.func_ofs + (addr - fs.func_start)};
@@ -289,8 +333,7 @@ simulate_results simulate(inst const& i, func_state& fs, path_state& path) {
       auto const& sub{i.i.sub_imm};
       path.rs.regs[sub.d] = path.rs.regs[sub.n] - sub.imm;
       copy_reg_known(path.rs.known, sub.d, sub.n);
-      reg_muts.push_back(
-        reg_mut_node{.i = i, .par_idxs[0] = path.rs.mut_node_idxs[sub.n]});
+      reg_muts.push_back(reg_mut_node{.i = i, .par_idxs[0] = path.rs.mut_node_idxs[sub.n]});
       path.rs.mut_node_idxs[sub.d] = u16(reg_muts.size() - 1u);
     } break;
 

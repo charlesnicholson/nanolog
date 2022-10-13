@@ -55,7 +55,7 @@ void print(inst_add_8_unsigned const& a) {
 }
 
 void print(inst_adr const& a) {
-  NL_LOG_DBG("ADR %s, PC, #%d", s_rn[a.dst_reg], (int)a.imm);
+  NL_LOG_DBG("ADR %s, PC, #%d", s_rn[a.d], (int)a.imm);
 }
 
 void print(inst_and_reg const& a) {
@@ -673,7 +673,7 @@ bool decode_16bit_inst(u16 const w0, inst& out_inst) {
 
   if ((w0 & 0xF800u) == 0xA000u) { // 4.6.7 ADR, T1 encoding (pg 4-28)
     out_inst.type = inst_type::ADR;
-    out_inst.i.adr = { .dst_reg = u8((w0 >> 8u) & 7u), .imm = u8((w0 & 0xFFu) << 2u) };
+    out_inst.i.adr = { .d = u8((w0 >> 8u) & 7u), .imm = u8((w0 & 0xFFu) << 2u), .add = 1u };
     return true;
   }
 
@@ -2334,3 +2334,4 @@ bool inst_decode(char const *text, u32 func_addr, u32 pc_addr, inst& out_inst) {
   return decode_32bit_inst(out_inst.w0, out_inst.w1, out_inst);
 }
 
+char const *reg_name(unsigned reg) { return s_rn[reg]; }
