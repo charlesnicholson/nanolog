@@ -168,7 +168,13 @@ void print(inst_cmp_reg const& c) {
 }
 
 void print(inst_if_then const& i) {
-  NL_LOG_DBG("IT %x, %x", unsigned(i.firstcond), unsigned(i.mask));
+  static char const *s_it[] = {
+    [0b1000] = "",    [0b1100] = "T",   [0b0100] = "E",   [0b1110] = "TT",
+    [0b0110] = "ET",  [0b1010] = "TE",  [0b0010] = "EE",  [0b1111] = "TTT",
+    [0b0111] = "ETT", [0b1011] = "TET", [0b0011] = "EET", [0b1101] = "TTE",
+    [0b0101] = "ETE", [0b1001] = "TEE", [0b0001] = "EEE", [0b0000] = "???",
+  };
+  NL_LOG_DBG("IT%s %s", s_it[i.mask], cond_code_name(cond_code(i.firstcond)));
 }
 
 void print(inst_count_leading_zeros const& c) {
@@ -800,10 +806,10 @@ bool decode_16bit_inst(u16 const w0, inst& out_inst) {
     u8 const mask{u8(w0 & 0xFu)};
     if (mask == 0) { // T1 encoding note: '0000' = nop-compatible hint
       out_inst.type = inst_type::NOP; out_inst.i.nop = {};
-    } else {
-      out_inst.type = inst_type::IF_THEN;
-      out_inst.i.if_then = { .firstcond = u8((w0 >> 4u) & 0xFu), .mask = mask };
+      return true;
     }
+    out_inst.type = inst_type::IF_THEN;
+    out_inst.i.if_then = { .firstcond = u8((w0 >> 4u) & 0xFu), .mask = mask };
     return true;
   }
 
