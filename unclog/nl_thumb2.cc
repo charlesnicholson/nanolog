@@ -20,6 +20,7 @@ struct reg_state {
 struct path_state {
   reg_state rs;
   std::unordered_set<u32> taken_branches;
+  u8 it_flags, it_rem;
 };
 
 using path_state_vec = std::vector<path_state>;
@@ -50,6 +51,12 @@ struct func_state {
 path_state path_state_branch(path_state const& p, u32 label) {
   path_state b{p};
   b.rs.regs[reg::PC] = label;
+  return b;
+}
+
+path_state path_state_it(path_state const& p) {
+  path_state b{p};
+  b.it_flags = ~b.it_flags;
   return b;
 }
 
@@ -149,6 +156,16 @@ bool table_branch(u32 addr, u32 sz, u32 base, u32 ofs, path_state& path, func_st
   return true;
 }
 
+void process_it(inst_if_then const& it, path_state& path) {
+  // Reorder "Table 4.1, pg 4-93" from 1230 to 3210, shifted to LSB.
+  u32 ord{u32(it.mask >> u8((4 - it.cnt) + 1))};
+  ord = (ord & 0b11110000) >> 4 | (ord & 0b00001111) << 4;
+  ord = (ord & 0b11001100) >> 2 | (ord & 0b00110011) << 2;
+  ord = (ord & 0b10101010) >> 1 | (ord & 0b01010101) << 1;
+  path.it_flags = u8((ord >> (8 - it.cnt)) | 1u);
+  path.it_rem = it.cnt;
+}
+
 enum class simulate_results {
   SUCCESS,
   FAILURE,
@@ -191,6 +208,10 @@ simulate_results process_ldr_pc_jump_table(inst const& i, path_state& p, func_st
 }
 
 simulate_results simulate(inst const& i, func_state& fs, path_state& path) {
+  bool const it_skip{path.it_rem && !(path.it_flags & 1)};
+  if (path.it_rem) { --path.it_rem; path.it_flags >>= 1u; }
+  if (it_skip) { path.rs.regs[reg::PC] += i.len; return simulate_results::SUCCESS; }
+
   std::vector<reg_mut_node>& reg_muts{fs.lca.reg_muts};
   u32 len{i.len};
 
@@ -264,6 +285,13 @@ simulate_results simulate(inst const& i, func_state& fs, path_state& path) {
         NL_LOG_DBG("  Internal branch, pushing state\n");
         fs.paths.push(path_state_branch(path, i.i.cmp_branch_z.addr));
       }
+      break;
+
+    case inst_type::IF_THEN:
+      if (!branch(i.addr, path, fs)) { return simulate_results::TERMINATE_PATH; }
+      process_it(i.i.if_then, path);
+      NL_LOG_DBG("  IT, pushing state\n");
+      fs.paths.push(path_state_it(path));
       break;
 
     case inst_type::LOAD_IMM: {
@@ -408,7 +436,6 @@ bool thumb2_analyze_func(elf const& e,
     s.paths.pop();
 
     NL_LOG_DBG("  Starting path\n");
-    //print(path);
 
     for (;;) {
       if (func.st_size && (path.rs.regs[reg::PC] >= s.func_end)) {

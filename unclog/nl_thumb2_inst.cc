@@ -808,8 +808,10 @@ bool decode_16bit_inst(u16 const w0, inst& out_inst) {
       out_inst.type = inst_type::NOP; out_inst.i.nop = {};
       return true;
     }
+    u8 cnt = 4u, tmp = mask;
+    while (!(tmp & 1u)) { tmp >>= 1u; --cnt; }
     out_inst.type = inst_type::IF_THEN;
-    out_inst.i.if_then = { .firstcond = u8((w0 >> 4u) & 0xFu), .mask = mask };
+    out_inst.i.if_then = { .firstcond = u8((w0 >> 4u) & 0xFu), .mask = mask, .cnt = cnt };
     return true;
   }
 
