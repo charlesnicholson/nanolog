@@ -127,29 +127,26 @@ bool inst_is_log_call(inst const& i, std::vector<elf_symbol32 const*> const& log
     != std::end(log_funcs);
 }
 
-u32 table_branch(u32 addr, u32 sz, u32 base, u32 ofs, path_state& path, func_state& fs) {
-  if (base != reg::PC) { return 4; }
-
-  bool const will_take{branch(addr, path, fs)};
+bool table_branch(u32 addr, u32 sz, u32 base, u32 ofs, path_state& path, func_state& fs) {
+  if (base != reg::PC) { return false; }
 
   u32 cmp_imm_lit;
-  if (!cmp_imm_lit_get(path.rs, u8(ofs), cmp_imm_lit)) { return 0; }
+  if (!cmp_imm_lit_get(path.rs, u8(ofs), cmp_imm_lit)) { return false; }
   ++cmp_imm_lit;
 
-  if (will_take) {
-    unsigned const src_off{fs.func_ofs + (addr - fs.func_start) + 4};
-    auto const *src{reinterpret_cast<unsigned char const *>(&fs.e.bytes[src_off])};
+  if (!branch(addr, path, fs)) { return true; }
 
-    for (auto i = 0u; i < cmp_imm_lit; ++i) {
-      u32 val{*src++};
-      if (sz == 2) { val = u32(val | u32(*src++ << 8u)); }
-      u32 const label{path.rs.regs[reg::PC] + 4 + (val << 1u)};
-      fs.paths.push(path_state_branch(path, label));
-    }
+  unsigned const src_off{fs.func_ofs + (addr - fs.func_start) + 4};
+  auto const *src{reinterpret_cast<unsigned char const *>(&fs.e.bytes[src_off])};
+
+  for (auto i = 0u; i < cmp_imm_lit; ++i) {
+    u32 val{*src++};
+    if (sz == 2) { val = u32(val | u32(*src++ << 8u)); }
+    u32 const label{path.rs.regs[reg::PC] + 4 + (val << 1u)};
+    fs.paths.push(path_state_branch(path, label));
   }
 
-  u32 const table_size_pad{((cmp_imm_lit * sz) + 1u) & ~1u};
-  return 4 + table_size_pad;
+  return true;
 }
 
 enum class simulate_results {
@@ -339,15 +336,19 @@ simulate_results simulate(inst const& i, func_state& fs, path_state& path) {
 
     case inst_type::TABLE_BRANCH_HALF: {
       auto const& tbh{i.i.table_branch_half};
-      len = table_branch(i.addr, 2, tbh.n, tbh.m, path, fs);
-      if (!len) { printf("TBH failure\n"); return simulate_results::FAILURE; }
+      if (!table_branch(i.addr, 2, tbh.n, tbh.m, path, fs)) {
+        printf("TBH failure\n");
+        return simulate_results::FAILURE;
+      }
       return simulate_results::TERMINATE_PATH;
     }
 
     case inst_type::TABLE_BRANCH_BYTE: {
       auto const& tbb{i.i.table_branch_byte};
-      len = table_branch(i.addr, 1, tbb.n, tbb.m, path, fs);
-      if (!len) { printf("TBB failure\n"); return simulate_results::FAILURE; }
+      if (!table_branch(i.addr, 1, tbb.n, tbb.m, path, fs)) {
+        printf("TBB failure\n");
+        return simulate_results::FAILURE;
+      }
       return simulate_results::TERMINATE_PATH;
     }
 
