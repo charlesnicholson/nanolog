@@ -23,21 +23,32 @@ typedef enum {
 typedef void (*nanolog_log_handler_cb_t)(nl_sev_t sev, char const *fmt, va_list args);
 typedef void (*nanolog_binary_field_handler_cb_t)(void *ctx, void const *p, unsigned len);
 
-void nanolog_set_log_handler(nanolog_log_handler_cb_t handler);
+typedef enum {
+  NANOLOG_RET_SUCCESS = 0,
+  NANOLOG_RET_ERR_BAD_ARG,
+  NANOLOG_RET_INVALID_PAYLOAD,
+} nanolog_ret_t;
 
-int nanolog_log_is_binary(char const *fmt);
+nanolog_ret_t nanolog_set_log_handler(nanolog_log_handler_cb_t handler);
 
-void nanolog_parse_binary_log(nanolog_binary_field_handler_cb_t cb,
-                              void *ctx,
-                              char const *fmt,
-                              va_list args);
+// Writes 1 to |out_is_binary| if fmt is a rewritten binary spec, 0 if ASCII.
+nanolog_ret_t nanolog_log_is_binary(char const *fmt, int *out_is_binary);
 
-// Public logging macros
+// Calls |cb| with |ctx| for every
+nanolog_ret_t nanolog_parse_binary_log(nanolog_binary_field_handler_cb_t cb,
+                                       void *ctx,
+                                       char const *fmt,
+                                       va_list args);
+
+
+// Boilerplate, has to be before the public logging macros
 
 #define NL_STR_PASTE(X) #X
 #define NL_STR(X) NL_STR_PASTE(X)
 #define NL_ATTR_SEC(SEV) \
   __attribute__((section(".nanolog." #SEV "." NL_STR(__LINE__) "." NL_STR(__COUNTER__))))
+
+// Public logging macros
 
 #if NL_LOG_SEVERITY_THRESHOLD >= NL_SEV_DBG
 #define NL_LOG_DBG(FMT, ...) (void)sizeof((void)(FMT, ##__VA_ARGS__))
@@ -90,7 +101,7 @@ void nanolog_log_err(char const *fmt, ...);
 void nanolog_log_crit(char const *fmt, ...);
 void nanolog_log_assert(char const *fmt, ...);
 
-// Binary log vararg extraction types (from printf specification)
+// Private binary log vararg extraction types (from printf specification)
 
 typedef enum {
   NL_VARARG_TYPE_SCHAR = 0,
@@ -103,17 +114,24 @@ typedef enum {
   NL_VARARG_TYPE_ULONG = 7,
   NL_VARARG_TYPE_SLONG_LONG = 8,
   NL_VARARG_TYPE_ULONG_LONG = 9,
-  NL_VARARG_TYPE_SSIZE_T = 10,
-  NL_VARARG_TYPE_SIZE_T = 11,
-  NL_VARARG_TYPE_SINTMAX_T = 12,
-  NL_VARARG_TYPE_UINTMAX_T = 13,
-  NL_VARARG_TYPE_WINT_T = 14,
-  NL_VARARG_TYPE_CHAR_PTR = 15,
-  NL_VARARG_TYPE_WCHAR_T_PTR = 16,
-  NL_VARARG_TYPE_PTRDIFF_T = 17,
-  NL_VARARG_TYPE_UPTRDIFF_T = 18,
-  NL_VARARG_TYPE_DOUBLE = 19,
-  NL_VARARG_TYPE_LONG_DOUBLE = 20,
+  // 10 left blank to not alias '\r'
+  NL_VARARG_TYPE_SSIZE_T = 11,
+  NL_VARARG_TYPE_SIZE_T = 12,
+  // 13 left blank to not alias '\n'
+  NL_VARARG_TYPE_SINTMAX_T = 14,
+  NL_VARARG_TYPE_UINTMAX_T = 15,
+  NL_VARARG_TYPE_WINT_T = 16,
+  NL_VARARG_TYPE_CHAR_PTR = 17,
+  NL_VARARG_TYPE_WCHAR_T_PTR = 18,
+  NL_VARARG_TYPE_PTRDIFF_T = 19,
+  NL_VARARG_TYPE_UPTRDIFF_T = 20,
+  NL_VARARG_TYPE_DOUBLE = 21,
+  NL_VARARG_TYPE_LONG_DOUBLE = 22,
+
+  NL_VARARG_LAST_PLUS_ONE_DO_NOT_USE,
 } nl_vararg_type_t;
+
+// Rewritten elf file format payloads start with this byte instead of printable ascii.
+enum { NL_BINARY_PREFIX_MARKER = 0x1F };
 
 #endif
