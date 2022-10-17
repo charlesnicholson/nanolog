@@ -83,8 +83,7 @@ nanolog_ret_t nanolog_parse_binary_log(nanolog_binary_field_handler_cb_t cb,
 
 #define STAMP_NL_FUNC(sev, SEV) \
   void nanolog_log_##sev(char const *fmt, ...) { \
-    va_list args; \
-    va_start(args, fmt); \
+    va_list args; va_start(args, fmt); \
     if (s_log_handler) { s_log_handler(NL_SEV_##SEV, fmt, args); } \
     va_end(args); \
   }
