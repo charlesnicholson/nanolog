@@ -1,7 +1,7 @@
 /* nanoprintf: a tiny embeddable printf replacement written in C.
    https://github.com/charlesnicholson/nanoprintf
    charles.nicholson+nanoprintf@gmail.com
-   dual-licensed under 0bsd AND unlicense, see end of file for details. */
+   dual-licensed under 0bsd and unlicense, take your pick. see eof for details. */
 
 #ifndef NANOPRINTF_H_INCLUDED
 #define NANOPRINTF_H_INCLUDED
@@ -29,18 +29,18 @@
 extern "C" {
 #endif
 
-NPF_VISIBILITY int npf_snprintf(char *buffer, size_t bufsz, const char *format,
-                                ...) NPF_PRINTF_ATTR(3, 4);
+NPF_VISIBILITY int npf_snprintf(
+  char *buffer, size_t bufsz, const char *format, ...) NPF_PRINTF_ATTR(3, 4);
 
-NPF_VISIBILITY int npf_vsnprintf(char *buffer, size_t bufsz, char const *format,
-                                 va_list vlist) NPF_PRINTF_ATTR(3, 0);
+NPF_VISIBILITY int npf_vsnprintf(
+  char *buffer, size_t bufsz, char const *format, va_list vlist) NPF_PRINTF_ATTR(3, 0);
 
 typedef void (*npf_putc)(int c, void *ctx);
-NPF_VISIBILITY int npf_pprintf(npf_putc pc, void *pc_ctx, char const *format,
-                               ...) NPF_PRINTF_ATTR(3, 4);
+NPF_VISIBILITY int npf_pprintf(
+  npf_putc pc, void *pc_ctx, char const *format, ...) NPF_PRINTF_ATTR(3, 4);
 
-NPF_VISIBILITY int npf_vpprintf(npf_putc pc, void *pc_ctx, char const *format,
-                                va_list vlist) NPF_PRINTF_ATTR(3, 0);
+NPF_VISIBILITY int npf_vpprintf(
+  npf_putc pc, void *pc_ctx, char const *format, va_list vlist) NPF_PRINTF_ATTR(3, 0);
 
 #ifdef __cplusplus
 }
@@ -185,13 +185,12 @@ typedef enum {
   NPF_FMT_SPEC_LEN_MOD_SHORT,       // 'h'
   NPF_FMT_SPEC_LEN_MOD_LONG_DOUBLE, // 'L'
   NPF_FMT_SPEC_LEN_MOD_CHAR,        // 'hh'
-  NPF_FMT_SPEC_LEN_MOD_LONG         // 'l'
+  NPF_FMT_SPEC_LEN_MOD_LONG,        // 'l'
 #if NANOPRINTF_USE_LARGE_FORMAT_SPECIFIERS == 1
-  ,
   NPF_FMT_SPEC_LEN_MOD_LARGE_LONG_LONG, // 'll'
   NPF_FMT_SPEC_LEN_MOD_LARGE_INTMAX,    // 'j'
   NPF_FMT_SPEC_LEN_MOD_LARGE_SIZET,     // 'z'
-  NPF_FMT_SPEC_LEN_MOD_LARGE_PTRDIFFT   // 't'
+  NPF_FMT_SPEC_LEN_MOD_LARGE_PTRDIFFT,  // 't'
 #endif
 } npf_format_spec_length_modifier_t;
 
@@ -206,16 +205,19 @@ typedef enum {
   NPF_FMT_SPEC_CONV_OCTAL,        // 'o'
   NPF_FMT_SPEC_CONV_HEX_INT,      // 'x', 'X'
   NPF_FMT_SPEC_CONV_UNSIGNED_INT, // 'u'
-  NPF_FMT_SPEC_CONV_POINTER       // 'p'
+  NPF_FMT_SPEC_CONV_POINTER,      // 'p'
 #if NANOPRINTF_USE_WRITEBACK_FORMAT_SPECIFIERS == 1
-  , NPF_FMT_SPEC_CONV_WRITEBACK   // 'n'
+  NPF_FMT_SPEC_CONV_WRITEBACK,    // 'n'
 #endif
 #if NANOPRINTF_USE_FLOAT_FORMAT_SPECIFIERS == 1
-  , NPF_FMT_SPEC_CONV_FLOAT_DECIMAL // 'f', 'F'
+  NPF_FMT_SPEC_CONV_FLOAT_DEC,      // 'f', 'F'
+  NPF_FMT_SPEC_CONV_FLOAT_SCI,      // 'e', 'E'
+  NPF_FMT_SPEC_CONV_FLOAT_SHORTEST, // 'g', 'G'
+  NPF_FMT_SPEC_CONV_FLOAT_HEX,      // 'a', 'A'
 #endif
 } npf_format_spec_conversion_t;
 
-typedef struct {
+typedef struct npf_format_spec {
   char prepend;          // ' ' or '+'
   char alt_form;         // '#'
 
@@ -244,7 +246,7 @@ typedef struct {
   typedef uintmax_t npf_uint_t;
 #endif
 
-typedef struct {
+typedef struct npf_bufputc_ctx {
   char *dst;
   size_t len;
   size_t cur;
@@ -435,7 +437,28 @@ int npf_parse_format_spec(char const *format, npf_format_spec_t *out_spec) {
     case 'F':
       out_spec->case_adjust = 0;
     case 'f':
-      out_spec->conv_spec = NPF_FMT_SPEC_CONV_FLOAT_DECIMAL;
+      out_spec->conv_spec = NPF_FMT_SPEC_CONV_FLOAT_DEC;
+      if (out_spec->prec_opt == NPF_FMT_SPEC_OPT_NONE) { out_spec->prec = 6; }
+      break;
+
+    case 'E':
+      out_spec->case_adjust = 0;
+    case 'e':
+      out_spec->conv_spec = NPF_FMT_SPEC_CONV_FLOAT_SCI;
+      if (out_spec->prec_opt == NPF_FMT_SPEC_OPT_NONE) { out_spec->prec = 6; }
+      break;
+
+    case 'G':
+      out_spec->case_adjust = 0;
+    case 'g':
+      out_spec->conv_spec = NPF_FMT_SPEC_CONV_FLOAT_SHORTEST;
+      if (out_spec->prec_opt == NPF_FMT_SPEC_OPT_NONE) { out_spec->prec = 6; }
+      break;
+
+    case 'A':
+      out_spec->case_adjust = 0;
+    case 'a':
+      out_spec->conv_spec = NPF_FMT_SPEC_CONV_FLOAT_HEX;
       if (out_spec->prec_opt == NPF_FMT_SPEC_OPT_NONE) { out_spec->prec = 6; }
       break;
 #endif
@@ -861,7 +884,10 @@ int npf_vpprintf(npf_putc pc, void *pc_ctx, char const *format, va_list args) {
 #endif
 
 #if NANOPRINTF_USE_FLOAT_FORMAT_SPECIFIERS == 1
-      case NPF_FMT_SPEC_CONV_FLOAT_DECIMAL: {
+      case NPF_FMT_SPEC_CONV_FLOAT_DEC:
+      case NPF_FMT_SPEC_CONV_FLOAT_SCI:
+      case NPF_FMT_SPEC_CONV_FLOAT_SHORTEST:
+      case NPF_FMT_SPEC_CONV_FLOAT_HEX: {
         float val;
         if (fs.length_modifier == NPF_FMT_SPEC_LEN_MOD_LONG_DOUBLE) {
           val = (float)va_arg(args, long double);
@@ -911,7 +937,7 @@ int npf_vpprintf(npf_putc pc, void *pc_ctx, char const *format, va_list args) {
 #if NANOPRINTF_USE_FLOAT_FORMAT_SPECIFIERS == 1
       if (!inf_or_nan) { // float precision is after the decimal point
         int const prec_start =
-          (fs.conv_spec == NPF_FMT_SPEC_CONV_FLOAT_DECIMAL) ? frac_chars : cbuf_len;
+          (fs.conv_spec == NPF_FMT_SPEC_CONV_FLOAT_DEC) ? frac_chars : cbuf_len;
         prec_pad = npf_max(0, fs.prec - prec_start);
       }
 #elif NANOPRINTF_USE_PRECISION_FORMAT_SPECIFIERS == 1
@@ -925,7 +951,7 @@ int npf_vpprintf(npf_putc pc, void *pc_ctx, char const *format, va_list args) {
     if (need_0x) { field_pad -= 2; }
 
 #if NANOPRINTF_USE_FLOAT_FORMAT_SPECIFIERS == 1
-    if ((fs.conv_spec == NPF_FMT_SPEC_CONV_FLOAT_DECIMAL) && !fs.prec && !fs.alt_form) {
+    if ((fs.conv_spec == NPF_FMT_SPEC_CONV_FLOAT_DEC) && !fs.prec && !fs.alt_form) {
       ++field_pad; // 0-pad, no decimal point.
     }
 #endif
@@ -956,7 +982,7 @@ int npf_vpprintf(npf_putc pc, void *pc_ctx, char const *format, va_list args) {
     } else {
       if (sign_c) { NPF_PUTC(sign_c); }
 #if NANOPRINTF_USE_FLOAT_FORMAT_SPECIFIERS == 1
-      if (fs.conv_spec != NPF_FMT_SPEC_CONV_FLOAT_DECIMAL) {
+      if (fs.conv_spec != NPF_FMT_SPEC_CONV_FLOAT_DEC) {
 #endif
 
 #if NANOPRINTF_USE_PRECISION_FORMAT_SPECIFIERS == 1
@@ -980,7 +1006,7 @@ int npf_vpprintf(npf_putc pc, void *pc_ctx, char const *format, va_list args) {
 
 #if NANOPRINTF_USE_FLOAT_FORMAT_SPECIFIERS == 1
       // real precision comes after the number.
-      if ((fs.conv_spec == NPF_FMT_SPEC_CONV_FLOAT_DECIMAL) && !inf_or_nan) {
+      if ((fs.conv_spec == NPF_FMT_SPEC_CONV_FLOAT_DEC) && !inf_or_nan) {
         while (prec_pad-- > 0) { NPF_PUTC('0'); }
       }
 #endif

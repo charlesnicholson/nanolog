@@ -45,10 +45,10 @@ nanolog_ret_t nanolog_parse_binary_log(nanolog_binary_field_handler_cb_t cb,
   if (!cb || !fmt) { return NANOLOG_RET_ERR_BAD_ARG; }
 
   unsigned char const *src = (unsigned char const*)fmt;
-  if (*src++ != NL_BINARY_PREFIX_MARKER) { return NANOLOG_RET_INVALID_PAYLOAD; }
+  if (*src != NL_BINARY_PREFIX_MARKER) { return NANOLOG_RET_INVALID_PAYLOAD; }
 
-  cb(ctx, src, 3); // format string guid
-  src += 3;
+  cb(ctx, src, 4); // binary marker and format string guid
+  src += 4;
 
   nl_extract_t e;
   while (*src != 0xFF) {
@@ -69,7 +69,7 @@ nanolog_ret_t nanolog_parse_binary_log(nanolog_binary_field_handler_cb_t cb,
       case NL_VARARG_TYPE_UINTMAX_T: NL_EXTRACT_CB_SAME(e.uim, uintmax_t); break;
       case NL_VARARG_TYPE_WINT_T: NL_EXTRACT_CB_SAME(e.wintt, wint_t); break;
       case NL_VARARG_TYPE_CHAR_PTR: NL_EXTRACT_CB_SAME(e.cp, char *); break;
-      case NL_VARARG_TYPE_WCHAR_T_PTR: NL_EXTRACT_CB_SAME(e.wcp, wchar_t*); break;
+      case NL_VARARG_TYPE_WCHAR_T_PTR: NL_EXTRACT_CB_SAME(e.wcp, wchar_t *); break;
       case NL_VARARG_TYPE_PTRDIFF_T: NL_EXTRACT_CB_SAME(e.pdt, ptrdiff_t); break;
       case NL_VARARG_TYPE_UPTRDIFF_T: NL_EXTRACT_CB_SAME(e.updt, uintptr_t); break;
       case NL_VARARG_TYPE_DOUBLE: NL_EXTRACT_CB_SAME(e.d, double); break;

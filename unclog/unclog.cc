@@ -171,16 +171,6 @@ int main(int argc, char const *argv[]) {
   //}
   //printf("\n");
 
-  //printf("Non-nanolog functions:\n");
-  //for (auto const& sym_entry : s.non_nl_funcs_sym_map) {
-  //  printf("  0x%08x ", sym_entry.first);
-  //  for (auto const* sym : sym_entry.second) {
-  //    printf("%s ", &e.strtab[sym->st_name]);
-  //  }
-  //  printf("\n");
-  //}
-  //printf("\n");
-
   printf("Nanolog public functions:\n");
   for (auto const& nl_func : s.nl_funcs) {
     printf("  0x%08x %s\n", nl_func->st_value & ~1u, &e.strtab[nl_func->st_name]);
@@ -188,18 +178,16 @@ int main(int argc, char const *argv[]) {
   printf("\n");
 
   std::vector<log_call_analysis> log_calls;
-  for (auto const& func_syms : s.non_nl_funcs_sym_map) {
-    elf_symbol32 const& func{*func_syms.second[0]};
-    log_call_analysis lca(func);
-    thumb2_analyze_func(e, func, s.nl_funcs, lca);
+  for (auto const& [_, syms] : s.non_nl_funcs_sym_map) {
+    log_call_analysis lca{*syms[0]};
+    thumb2_analyze_func(e, lca.func, s.nl_funcs, lca);
     if (!lca.log_calls.empty()) { log_calls.push_back(lca); }
   }
 
   printf("\nLog calls:\n");
   for (auto const& lca: log_calls) {
     printf("  %s\n", &e.strtab[lca.func.st_name]);
-    for (auto const& call_it: lca.log_calls) {
-      auto const& call{call_it.second};
+    for (auto const& [_, call]: lca.log_calls) {
       reg_mut_node const& r0_mut = lca.reg_muts[call.node_idx];
 
       printf("    %x: %s r0 at %x: ", call.log_func_call_addr, fmt_str_strat_name(call.s),
