@@ -421,7 +421,8 @@ void process_log_call(inst const& pc_i, path_state const& path, log_call_analysi
 bool thumb2_analyze_func(elf const& e,
                          elf_symbol32 const& func,
                          std::vector<elf_symbol32 const*> const& log_funcs,
-                         log_call_analysis& out_lca) {
+                         log_call_analysis& out_lca,
+                         analysis_stats& out_stats) {
   func_state s{func, e, e.sec_hdrs[func.st_shndx], out_lca};
   out_lca.reg_muts.reserve(256);
 
@@ -436,6 +437,7 @@ bool thumb2_analyze_func(elf const& e,
     s.paths.pop();
 
     NL_LOG_DBG("  Starting path\n");
+    ++out_stats.analyzed_paths;
 
     for (;;) {
       if (func.st_size && (path.rs.regs[reg::PC] >= s.func_end)) {
@@ -446,6 +448,8 @@ bool thumb2_analyze_func(elf const& e,
       inst pc_i;
       bool const decode_ok = inst_decode(&e.bytes[s.func_ofs], s.func_start,
         path.rs.regs[reg::PC] - s.func_start, pc_i);
+
+      ++out_stats.decoded_insts;
 
       NL_LOG_DBG("    %x: %04x ", path.rs.regs[reg::PC], pc_i.w0);
       if (pc_i.len == 2) { NL_LOG_DBG("       "); } else { NL_LOG_DBG("%04x   ", pc_i.w1); }

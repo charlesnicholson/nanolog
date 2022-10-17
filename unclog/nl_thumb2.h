@@ -1,5 +1,6 @@
 #pragma once
 
+#include "nl_stats.h"
 #include "nl_thumb2_inst.h"
 #include <unordered_map>
 #include <vector>
@@ -40,5 +41,6 @@ struct log_call_analysis {
 bool thumb2_analyze_func(elf const& e,
                          elf_symbol32 const& func,
                          std::vector<elf_symbol32 const*> const& log_funcs,
-                         log_call_analysis& out_lca);
+                         log_call_analysis& out_lca,
+                         analysis_stats& out_stats);
 
