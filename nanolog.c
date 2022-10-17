@@ -15,7 +15,7 @@ nanolog_ret_t nanolog_set_handler(nanolog_log_handler_cb_t handler) {
 
 nanolog_ret_t nanolog_log_is_binary(char const *fmt, int *out_is_binary) {
   if (!fmt || !out_is_binary) { return NANOLOG_RET_ERR_BAD_ARG; }
-  *out_is_binary = (fmt[0] == 0x1F);
+  *out_is_binary = (fmt[0] == NL_BINARY_PREFIX_MARKER);
   return NANOLOG_RET_SUCCESS;
 }
 
@@ -36,7 +36,6 @@ typedef union { // All the legal printf argument types
 
 #define NL_EXTRACT_CB(FIELD, CAST_TO, EXTRACT_AS) \
   FIELD = (CAST_TO)va_arg(args, EXTRACT_AS); cb(ctx, &FIELD, sizeof(FIELD));
-
 #define NL_EXTRACT_CB_SAME(FIELD, TYPE) NL_EXTRACT_CB(FIELD, TYPE, TYPE)
 
 nanolog_ret_t nanolog_parse_binary_log(nanolog_binary_field_handler_cb_t cb,
@@ -45,9 +44,13 @@ nanolog_ret_t nanolog_parse_binary_log(nanolog_binary_field_handler_cb_t cb,
                                        va_list args) {
   if (!cb || !fmt) { return NANOLOG_RET_ERR_BAD_ARG; }
 
-  unsigned char const *src = (unsigned char const*)&fmt[1];
-  nl_extract_t e;
+  unsigned char const *src = (unsigned char const*)fmt;
+  if (*src++ != NL_BINARY_PREFIX_MARKER) { return NANOLOG_RET_INVALID_PAYLOAD; }
 
+  cb(ctx, src, 3); // format string guid
+  src += 3;
+
+  nl_extract_t e;
   while (*src != 0xFF) {
     switch (*src++) {
       case NL_VARARG_TYPE_SCHAR: NL_EXTRACT_CB(e.sc, signed char, int); break;

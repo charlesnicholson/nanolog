@@ -40,7 +40,6 @@ nanolog_ret_t nanolog_parse_binary_log(nanolog_binary_field_handler_cb_t cb,
                                        char const *fmt,
                                        va_list args);
 
-
 // Boilerplate, has to be before the public logging macros
 
 #define NL_STR_PASTE(X) #X
