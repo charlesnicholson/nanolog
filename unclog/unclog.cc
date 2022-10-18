@@ -180,9 +180,9 @@ int main(int argc, char const *argv[]) {
 
   analysis_stats stats;
 
-  std::vector<log_call_analysis> log_calls;
+  std::vector<func_log_call_analysis> log_calls;
   for (auto const& [_, syms] : s.non_nl_funcs_sym_map) {
-    log_call_analysis lca{*syms[0]};
+    func_log_call_analysis lca{*syms[0]};
     thumb2_analyze_func(e, lca.func, s.nl_funcs, lca, stats);
     if (!lca.log_calls.empty()) { log_calls.push_back(lca); }
   }

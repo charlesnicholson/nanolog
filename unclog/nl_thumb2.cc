@@ -30,7 +30,7 @@ struct func_state {
   func_state(elf_symbol32 const& f_,
              elf const& e_,
              elf_section_hdr32 const& s,
-             log_call_analysis& lca_)
+             func_log_call_analysis& lca_)
     : f(f_)
     , e(e_)
     , lca(lca_)
@@ -42,7 +42,7 @@ struct func_state {
 
   elf_symbol32 const& f;
   elf const& e;
-  log_call_analysis& lca;
+  func_log_call_analysis& lca;
   path_state_stack paths;
   std::unordered_map<u32, std::vector<reg_state>> taken_branches_reg_states;
   unsigned const func_start, func_end, func_ofs;
@@ -387,7 +387,9 @@ simulate_results simulate(inst const& i, func_state& fs, path_state& path) {
   return simulate_results::SUCCESS;
 }
 
-void process_log_call(inst const& pc_i, path_state const& path, log_call_analysis& lca) {
+void process_log_call(inst const& pc_i,
+                      path_state const& path,
+                      func_log_call_analysis& lca) {
   if (!test_reg_known(path.rs.known, reg::R0)) {
     NL_LOG_DBG("  Found log function, R0 is unknown\n");
     return;
@@ -421,7 +423,7 @@ void process_log_call(inst const& pc_i, path_state const& path, log_call_analysi
 bool thumb2_analyze_func(elf const& e,
                          elf_symbol32 const& func,
                          std::vector<elf_symbol32 const*> const& log_funcs,
-                         log_call_analysis& out_lca,
+                         func_log_call_analysis& out_lca,
                          analysis_stats& out_stats) {
   func_state s{func, e, e.sec_hdrs[func.st_shndx], out_lca};
   out_lca.reg_muts.reserve(256);

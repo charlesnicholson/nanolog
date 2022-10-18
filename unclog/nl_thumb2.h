@@ -31,8 +31,8 @@ struct reg_mut_node {
   u16 par_idxs[3] = { 0xFFFFu, 0xFFFFu, 0xFFFFu };
 };
 
-struct log_call_analysis {
-  explicit log_call_analysis(elf_symbol32 const& func_) : func(func_) {}
+struct func_log_call_analysis {
+  explicit func_log_call_analysis(elf_symbol32 const& func_) : func(func_) {}
   elf_symbol32 const& func;
   std::vector<reg_mut_node> reg_muts;
   std::unordered_map<u32, log_call> log_calls; // fmt str addr -> log_call
@@ -41,6 +41,6 @@ struct log_call_analysis {
 bool thumb2_analyze_func(elf const& e,
                          elf_symbol32 const& func,
                          std::vector<elf_symbol32 const*> const& log_funcs,
-                         log_call_analysis& out_lca,
+                         func_log_call_analysis& out_lca,
                          analysis_stats& out_stats);
 
