@@ -1,6 +1,7 @@
 #include "nl_elf.h"
 #include "nl_thumb2.h"
 #include "nl_stats.h"
+#include "../nanolog.h"
 
 #include <cassert>
 #include <cstdio>
@@ -16,7 +17,7 @@
 #define NANOPRINTF_USE_FLOAT_FORMAT_SPECIFIERS 1
 #define NANOPRINTF_USE_LARGE_FORMAT_SPECIFIERS 1
 #define NANOPRINTF_USE_BINARY_FORMAT_SPECIFIERS 1
-#define NANOPRINTF_USE_WRITEBACK_FORMAT_SPECIFIERS 0
+#define NANOPRINTF_USE_WRITEBACK_FORMAT_SPECIFIERS 1
 #include "nanoprintf.h"
 
 using u32_vec_t = std::vector<uint32_t>;
@@ -129,12 +130,6 @@ void print(nl_str_desc const &d) {
   }
 }
 
-elf_symbol32 const *get_nl_func(state const& s, uint32_t cand) {
-  auto iter{std::find_if(std::begin(s.nl_funcs), std::end(s.nl_funcs),
-    [=](auto const *f){ return (f->st_value & ~1u) == cand; })};
-  return (iter != std::end(s.nl_funcs)) ? *iter : nullptr;
-}
-
 nl_str_desc_map_t build_nl_str_desc_map(nl_str_refs_t const& nl_str_refs) {
   unsigned guid{0};
   nl_str_desc_map_t m;
@@ -159,18 +154,138 @@ nl_str_desc_map_t build_nl_str_desc_map(nl_str_refs_t const& nl_str_refs) {
   }
   return m;
 }
+
+static_assert(int(NL_VARARG_LAST_PLUS_ONE_DO_NOT_USE) < int(NL_BINARY_TERM_MARKER), "");
+
+void convert_strings_to_bins(std::vector<char const *> const& fmt_strs,
+                             std::vector<u32>& fmt_bin_addrs,
+                             std::vector<unsigned char>& fmt_bin_mem) {
+  for (auto str: fmt_strs) {
+    fmt_bin_addrs.push_back(unsigned(fmt_bin_mem.size()));
+    auto guid{fmt_bin_addrs.empty() ? 0 : unsigned(fmt_bin_addrs.size() - 1)};
+
+    fmt_bin_mem.push_back(NL_BINARY_PREFIX_MARKER);
+
+    do {
+      u8 b{u8(guid & 0x7Fu)};
+      guid >>= 7u;
+      if (guid) { b |= 0x80; }
+      fmt_bin_mem.push_back(b);
+    } while (guid);
+
+    char const *cur = str;
+    while (*cur) {
+      npf_format_spec_t fs;
+      int const n{(*cur != '%') ? 0 : npf_parse_format_spec(cur, &fs)};
+      if (!n) { ++cur; continue; }
+      cur += n;
+
+      switch (fs.conv_spec) {
+        case NPF_FMT_SPEC_CONV_PERCENT: break;
+
+        case NPF_FMT_SPEC_CONV_CHAR:
+          switch (fs.length_modifier) {
+            case NPF_FMT_SPEC_LEN_MOD_NONE:
+              fmt_bin_mem.push_back(NL_VARARG_TYPE_SCHAR); break;
+            case NPF_FMT_SPEC_LEN_MOD_LONG:
+              fmt_bin_mem.push_back(NL_VARARG_TYPE_WINT_T); break;
+            default: break;
+          } break;
+
+        case NPF_FMT_SPEC_CONV_STRING:
+          switch (fs.length_modifier) {
+            case NPF_FMT_SPEC_LEN_MOD_NONE:
+              fmt_bin_mem.push_back(NL_VARARG_TYPE_CHAR_PTR); break;
+            case NPF_FMT_SPEC_LEN_MOD_LONG:
+              fmt_bin_mem.push_back(NL_VARARG_TYPE_WCHAR_T_PTR); break;
+            default: break;
+          } break;
+
+        case NPF_FMT_SPEC_CONV_SIGNED_INT:
+          switch (fs.length_modifier) {
+            case NPF_FMT_SPEC_LEN_MOD_CHAR:
+              fmt_bin_mem.push_back(NL_VARARG_TYPE_SCHAR); break;
+            case NPF_FMT_SPEC_LEN_MOD_SHORT:
+              fmt_bin_mem.push_back(NL_VARARG_TYPE_SHORT); break;
+            case NPF_FMT_SPEC_LEN_MOD_NONE:
+              fmt_bin_mem.push_back(NL_VARARG_TYPE_SINT); break;
+            case NPF_FMT_SPEC_LEN_MOD_LONG:
+              fmt_bin_mem.push_back(NL_VARARG_TYPE_SLONG); break;
+            case NPF_FMT_SPEC_LEN_MOD_LARGE_LONG_LONG:
+              fmt_bin_mem.push_back(NL_VARARG_TYPE_SLONG_LONG); break;
+            case NPF_FMT_SPEC_LEN_MOD_LARGE_INTMAX:
+              fmt_bin_mem.push_back(NL_VARARG_TYPE_SINTMAX_T); break;
+            case NPF_FMT_SPEC_LEN_MOD_LARGE_SIZET:
+              fmt_bin_mem.push_back(NL_VARARG_TYPE_SSIZE_T); break;
+            case NPF_FMT_SPEC_LEN_MOD_LARGE_PTRDIFFT:
+              fmt_bin_mem.push_back(NL_VARARG_TYPE_PTRDIFF_T); break;
+            default: break;
+          } break;
+
+        case NPF_FMT_SPEC_CONV_BINARY:
+        case NPF_FMT_SPEC_CONV_OCTAL:
+        case NPF_FMT_SPEC_CONV_HEX_INT:
+        case NPF_FMT_SPEC_CONV_UNSIGNED_INT:
+          switch (fs.length_modifier) {
+            case NPF_FMT_SPEC_LEN_MOD_CHAR:
+              fmt_bin_mem.push_back(NL_VARARG_TYPE_UCHAR); break;
+            case NPF_FMT_SPEC_LEN_MOD_SHORT:
+              fmt_bin_mem.push_back(NL_VARARG_TYPE_USHORT); break;
+            case NPF_FMT_SPEC_LEN_MOD_NONE:
+              fmt_bin_mem.push_back(NL_VARARG_TYPE_UINT); break;
+            case NPF_FMT_SPEC_LEN_MOD_LONG:
+              fmt_bin_mem.push_back(NL_VARARG_TYPE_ULONG); break;
+            case NPF_FMT_SPEC_LEN_MOD_LARGE_LONG_LONG:
+              fmt_bin_mem.push_back(NL_VARARG_TYPE_ULONG_LONG); break;
+            case NPF_FMT_SPEC_LEN_MOD_LARGE_INTMAX:
+              fmt_bin_mem.push_back(NL_VARARG_TYPE_UINTMAX_T); break;
+            case NPF_FMT_SPEC_LEN_MOD_LARGE_SIZET:
+              fmt_bin_mem.push_back(NL_VARARG_TYPE_SIZE_T); break;
+            case NPF_FMT_SPEC_LEN_MOD_LARGE_PTRDIFFT:
+              fmt_bin_mem.push_back(NL_VARARG_TYPE_UPTRDIFF_T); break;
+            default: break;
+          } break;
+
+        case NPF_FMT_SPEC_CONV_POINTER:
+          fmt_bin_mem.push_back(NL_VARARG_TYPE_VOID_PTR); break;
+
+        case NPF_FMT_SPEC_CONV_WRITEBACK: break;
+
+        case NPF_FMT_SPEC_CONV_FLOAT_DEC:
+        case NPF_FMT_SPEC_CONV_FLOAT_SCI:
+        case NPF_FMT_SPEC_CONV_FLOAT_SHORTEST:
+        case NPF_FMT_SPEC_CONV_FLOAT_HEX:
+          switch (fs.length_modifier) {
+            case NPF_FMT_SPEC_LEN_MOD_NONE:
+              fmt_bin_mem.push_back(NL_VARARG_TYPE_DOUBLE); break;
+            case NPF_FMT_SPEC_LEN_MOD_LONG:
+              fmt_bin_mem.push_back(NL_VARARG_TYPE_LONG_DOUBLE); break;
+            default: break;
+          } break;
+      }
+    }
+
+    fmt_bin_mem.push_back(NL_BINARY_TERM_MARKER);
+  }
+}
+
+void on_log(int sev, char const *fmt, va_list args) {
+  (void)sev;
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wformat-nonliteral"
+  vprintf(fmt, args);
+#pragma GCC diagnostic pop
+}
+
 }
 
 int main(int argc, char const *argv[]) {
+  nanolog_set_log_handler(on_log);
+
   assert(argc > 1);
   state s;
   load(s, argv[1]);
-  elf const& e{s.elf};
-
-  //for (auto i{0u}; i < e.elf_hdr->e_shnum; ++i) {
-  //  nl_elf_print(e.sec_hdrs[i], e.sec_names);
-  //}
-  //printf("\n");
+  auto const& e{s.elf};
 
   printf("Nanolog public functions:\n");
   for (auto const& nl_func : s.nl_funcs) {
@@ -180,21 +295,21 @@ int main(int argc, char const *argv[]) {
 
   analysis_stats stats;
 
-  std::vector<func_log_call_analysis> log_calls;
+  std::vector<func_log_call_analysis> log_call_funcs;
   for (auto const& [_, syms] : s.non_nl_funcs_sym_map) {
     func_log_call_analysis lca{*syms[0]};
     thumb2_analyze_func(e, lca.func, s.nl_funcs, lca, stats);
-    if (!lca.log_calls.empty()) { log_calls.push_back(lca); }
+    if (!lca.log_calls.empty()) { log_call_funcs.push_back(lca); }
   }
 
   printf("\n%u instructions decoded, %u paths analyzed\n\n",
     stats.decoded_insts, stats.analyzed_paths);
 
   printf("\nLog calls:\n");
-  for (auto const& lca: log_calls) {
-    printf("  %s\n", &e.strtab[lca.func.st_name]);
-    for (auto const& [_, call]: lca.log_calls) {
-      reg_mut_node const& r0_mut = lca.reg_muts[call.node_idx];
+  for (auto const& func: log_call_funcs) {
+    printf("  %s\n", &e.strtab[func.func.st_name]);
+    for (auto const& call: func.log_calls) {
+      reg_mut_node const& r0_mut = func.reg_muts[call.node_idx];
 
       printf("    %x: %s r0 at %x: ", call.log_func_call_addr, fmt_str_strat_name(call.s),
         r0_mut.i.addr);
@@ -207,8 +322,8 @@ int main(int argc, char const *argv[]) {
         case fmt_str_strat::MOV_FROM_DIRECT_LOAD:
           printf("from r%u at %x, literal at %x: ",
             r0_mut.i.i.mov_reg.m,
-            lca.reg_muts[r0_mut.par_idxs[0]].i.addr,
-            lca.reg_muts[r0_mut.par_idxs[0]].i.i.load_lit.addr);
+            func.reg_muts[r0_mut.par_idxs[0]].i.addr,
+            func.reg_muts[r0_mut.par_idxs[0]].i.i.load_lit.addr);
           break;
 
         case fmt_str_strat::ADD_IMM_FROM_BASE_REG:
@@ -228,6 +343,42 @@ int main(int argc, char const *argv[]) {
     for (auto const& [addr, str]: s.missed_nl_strs_map) {
       printf("  %x: \"%s\"\n", addr, str);
     }
+  }
+
+  std::vector<char const *> fmt_strs;
+  for (auto const& func: log_call_funcs) {
+    char const *ofs{&e.bytes[s.nl_hdr->sh_offset]};
+    for (auto const& log_call: func.log_calls) {
+      fmt_strs.push_back(ofs + (log_call.fmt_str_addr - s.nl_hdr->sh_addr));
+    }
+  }
+
+  std::vector<u32> fmt_bin_addrs;
+  fmt_bin_addrs.reserve(fmt_strs.size());
+  std::vector<unsigned char> fmt_bin_mem;
+  fmt_bin_mem.reserve(s.nl_hdr->sh_size);
+  convert_strings_to_bins(fmt_strs, fmt_bin_addrs, fmt_bin_mem);
+
+  printf("\n%u strings, %u addrs, %u string size, %u bin size\n\n",
+    unsigned(fmt_strs.size()), unsigned(fmt_bin_addrs.size()),
+    unsigned(s.nl_hdr->sh_size), unsigned(fmt_bin_mem.size()));
+
+  for (auto i{0u}, n{unsigned(fmt_strs.size())}; i < n; ++i) {
+    unsigned char const *src = &fmt_bin_mem[fmt_bin_addrs[i]];
+    printf("  %s\n", fmt_strs[i]);
+    printf("    %02hhX ", *src);
+
+    do {
+      ++src;
+      printf("%02hhX ", *src);
+    } while (*src & 0x80);
+    ++src;
+
+    while (*src != (unsigned char)NL_BINARY_TERM_MARKER) {
+      printf("%02hhX ", *src);
+      ++src;
+    }
+    printf("%02hhX\n", *src);
   }
 
   return 0;

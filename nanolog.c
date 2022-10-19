@@ -4,11 +4,11 @@
 #include <stdint.h>
 #include <wchar.h>
 
-_Static_assert(NL_BINARY_PREFIX_MARKER >= NL_VARARG_LAST_PLUS_ONE_DO_NOT_USE);
+_Static_assert(NL_BINARY_PREFIX_MARKER >= NL_VARARG_LAST_PLUS_ONE_DO_NOT_USE, "");
 
 static nanolog_log_handler_cb_t s_log_handler = NULL;
 
-nanolog_ret_t nanolog_set_handler(nanolog_log_handler_cb_t handler) {
+nanolog_ret_t nanolog_set_log_handler(nanolog_log_handler_cb_t handler) {
   s_log_handler = handler;
   return NANOLOG_RET_SUCCESS;
 }
@@ -19,7 +19,7 @@ nanolog_ret_t nanolog_log_is_binary(char const *fmt, int *out_is_binary) {
   return NANOLOG_RET_SUCCESS;
 }
 
-_Static_assert(sizeof(long) == sizeof(size_t)); // ssize_t isn't standard
+_Static_assert(sizeof(long) == sizeof(size_t), ""); // ssize_t isn't standard
 typedef union { // All the legal printf argument types
   signed char sc; unsigned char uc;
   short ss; unsigned short us;

@@ -35,7 +35,7 @@ struct func_log_call_analysis {
   explicit func_log_call_analysis(elf_symbol32 const& func_) : func(func_) {}
   elf_symbol32 const& func;
   std::vector<reg_mut_node> reg_muts;
-  std::unordered_map<u32, log_call> log_calls; // fmt str addr -> log_call
+  std::vector<log_call> log_calls;
 };
 
 bool thumb2_analyze_func(elf const& e,

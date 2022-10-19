@@ -10,9 +10,4 @@ using i32 = int32_t;
 
 template <typename ...Args> void unused(Args&& ...args) { (void)sizeof...(args); }
 
-#ifdef NANOLOG_VERBOSE
-#include <cstdio>
-#define NL_LOG_DBG(...) printf(__VA_ARGS__)
-#else
-#define NL_LOG_DBG(...) unused(__VA_ARGS__)
-#endif
+#include "../nanolog.h"

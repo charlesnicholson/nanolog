@@ -3,14 +3,16 @@
 
 #include <stdarg.h>
 
-typedef enum {
-  NL_SEV_DBG,
-  NL_SEV_INFO,
-  NL_SEV_WARN,
-  NL_SEV_ERR,
-  NL_SEV_CRIT,
-  NL_SEV_ASSERT,
-} nl_sev_t;
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+#define NL_SEV_DBG 0
+#define NL_SEV_INFO 1
+#define NL_SEV_WARN 2
+#define NL_SEV_ERR 3
+#define NL_SEV_CRIT 4
+#define NL_SEV_ASSERT 5
 
 // Configure the log threshold, log calls below this level will expand to nothing.
 
@@ -20,7 +22,7 @@ typedef enum {
 
 // Public API
 
-typedef void (*nanolog_log_handler_cb_t)(nl_sev_t sev, char const *fmt, va_list args);
+typedef void (*nanolog_log_handler_cb_t)(int sev, char const *fmt, va_list args);
 typedef void (*nanolog_binary_field_handler_cb_t)(void *ctx, void const *p, unsigned len);
 
 typedef enum {
@@ -42,49 +44,53 @@ nanolog_ret_t nanolog_parse_binary_log(nanolog_binary_field_handler_cb_t cb,
 
 // Boilerplate, has to be before the public logging macros
 
+#ifdef NANOLOG_NO_SECTIONS
+#define NL_ATTR_SEC(SEV)
+#else
 #define NL_STR_PASTE(X) #X
 #define NL_STR(X) NL_STR_PASTE(X)
 #define NL_ATTR_SEC(SEV) \
   __attribute__((section(".nanolog." #SEV "." NL_STR(__LINE__) "." NL_STR(__COUNTER__))))
+#endif
 
 // Public logging macros
 
-#if NL_LOG_SEVERITY_THRESHOLD >= NL_SEV_DBG
-#define NL_LOG_DBG(FMT, ...) (void)sizeof((void)(FMT, ##__VA_ARGS__))
+#if NL_LOG_SEVERITY_THRESHOLD > NL_SEV_DBG
+#define NL_LOG_DBG(FMT, ...) (void)sizeof((FMT, ##__VA_ARGS__))
 #else
 #define NL_LOG_DBG(FMT, ...) do { static char const NL_ATTR_SEC(DBG) s_fmt[] = FMT; \
   nanolog_log_dbg(s_fmt, ##__VA_ARGS__); } while(0)
 #endif
 
-#if NL_LOG_SEVERITY_THRESHOLD >= NL_SEV_INFO
+#if NL_LOG_SEVERITY_THRESHOLD > NL_SEV_INFO
 #define NL_LOG_INFO(FMT, ...) (void)sizeof((void)(FMT, ##__VA_ARGS__))
 #else
 #define NL_LOG_INFO(FMT, ...) do { static char const NL_ATTR_SEC(INFO) s_fmt[] = FMT; \
   nanolog_log_inf(s_fmt, ##__VA_ARGS__); } while(0)
 #endif
 
-#if NL_LOG_SEVERITY_THRESHOLD >= NL_SEV_WARN
+#if NL_LOG_SEVERITY_THRESHOLD > NL_SEV_WARN
 #define NL_LOG_WARN(FMT, ...) (void)sizeof((void)(FMT, ##__VA_ARGS__))
 #else
 #define NL_LOG_WARN(FMT, ...) do { static char const NL_ATTR_SEC(WARN) s_fmt[] = FMT; \
   nanolog_log_warn(s_fmt, ##__VA_ARGS__); } while(0)
 #endif
 
-#if NL_LOG_SEVERITY_THRESHOLD >= NL_SEV_ERR
+#if NL_LOG_SEVERITY_THRESHOLD > NL_SEV_ERR
 #define NL_LOG_ERR(FMT, ...) (void)sizeof((void)(FMT, ##__VA_ARGS__))
 #else
 #define NL_LOG_ERR(FMT, ...) do { static char const NL_ATTR_SEC(ERR) s_fmt[] = FMT; \
   nanolog_log_err(s_fmt, ##__VA_ARGS__); } while(0)
 #endif
 
-#if NL_LOG_SEVERITY_THRESHOLD >= NL_SEV_CRIT
+#if NL_LOG_SEVERITY_THRESHOLD > NL_SEV_CRIT
 #define NL_LOG_CRIT(FMT, ...) (void)sizeof((void)(FMT, ##__VA_ARGS__))
 #else
 #define NL_LOG_CRIT(FMT, ...) do { static char const NL_ATTR_SEC(CRIT) s_fmt[] = FMT; \
   nanolog_log_crit(s_fmt, ##__VA_ARGS__); } while(0)
 #endif
 
-#if NL_LOG_SEVERITY_THRESHOLD >= NL_SEV_ASSERT
+#if NL_LOG_SEVERITY_THRESHOLD > NL_SEV_ASSERT
 #define NL_LOG_ASSERT(FMT, ...) (void)sizeof((void)(FMT, ##__VA_ARGS__))
 #else
 #define NL_LOG_ASSERT(FMT, ...) do { static char const NL_ATTR_SEC(ASSERT) s_fmt[] = FMT; \
@@ -113,24 +119,27 @@ typedef enum {
   NL_VARARG_TYPE_ULONG = 7,
   NL_VARARG_TYPE_SLONG_LONG = 8,
   NL_VARARG_TYPE_ULONG_LONG = 9,
-  // 10 left blank to not alias '\r'
-  NL_VARARG_TYPE_SSIZE_T = 11,
-  NL_VARARG_TYPE_SIZE_T = 12,
-  // 13 left blank to not alias '\n'
-  NL_VARARG_TYPE_SINTMAX_T = 14,
-  NL_VARARG_TYPE_UINTMAX_T = 15,
-  NL_VARARG_TYPE_WINT_T = 16,
-  NL_VARARG_TYPE_CHAR_PTR = 17,
-  NL_VARARG_TYPE_WCHAR_T_PTR = 18,
-  NL_VARARG_TYPE_PTRDIFF_T = 19,
-  NL_VARARG_TYPE_UPTRDIFF_T = 20,
-  NL_VARARG_TYPE_DOUBLE = 21,
-  NL_VARARG_TYPE_LONG_DOUBLE = 22,
+  NL_VARARG_TYPE_SSIZE_T = 10,
+  NL_VARARG_TYPE_SIZE_T = 11,
+  NL_VARARG_TYPE_SINTMAX_T = 12,
+  NL_VARARG_TYPE_UINTMAX_T = 13,
+  NL_VARARG_TYPE_WINT_T = 14,
+  NL_VARARG_TYPE_CHAR_PTR = 15,
+  NL_VARARG_TYPE_WCHAR_T_PTR = 16,
+  NL_VARARG_TYPE_PTRDIFF_T = 17,
+  NL_VARARG_TYPE_UPTRDIFF_T = 18,
+  NL_VARARG_TYPE_DOUBLE = 19,
+  NL_VARARG_TYPE_LONG_DOUBLE = 20,
+  NL_VARARG_TYPE_VOID_PTR = 21,
 
   NL_VARARG_LAST_PLUS_ONE_DO_NOT_USE,
 } nl_vararg_type_t;
 
 // Rewritten elf file format payloads start with this byte instead of printable ascii.
-enum { NL_BINARY_PREFIX_MARKER = 0x1F };
+enum { NL_BINARY_PREFIX_MARKER = 0x1F, NL_BINARY_TERM_MARKER = 0xFF, };
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif
