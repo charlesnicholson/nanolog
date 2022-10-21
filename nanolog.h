@@ -44,7 +44,7 @@ nanolog_ret_t nanolog_parse_binary_log(nanolog_binary_field_handler_cb_t cb,
 
 // Boilerplate, has to be before the public logging macros
 
-#ifdef NANOLOG_NO_SECTIONS
+#ifdef NANOLOG_HOST_TOOL
 #define NL_ATTR_SEC(SEV)
 #else
 #define NL_STR_PASTE(X) #X
@@ -109,34 +109,20 @@ void nanolog_log_assert(char const *fmt, ...);
 // Private binary log vararg extraction types (from printf specification)
 
 typedef enum {
-  NL_VARARG_TYPE_SCHAR = 0,
-  NL_VARARG_TYPE_UCHAR = 1,
-  NL_VARARG_TYPE_SHORT = 2,
-  NL_VARARG_TYPE_USHORT = 3,
-  NL_VARARG_TYPE_SINT = 4,
-  NL_VARARG_TYPE_UINT = 5,
-  NL_VARARG_TYPE_SLONG = 6,
-  NL_VARARG_TYPE_ULONG = 7,
-  NL_VARARG_TYPE_SLONG_LONG = 8,
-  NL_VARARG_TYPE_ULONG_LONG = 9,
-  NL_VARARG_TYPE_SSIZE_T = 10,
-  NL_VARARG_TYPE_SIZE_T = 11,
-  NL_VARARG_TYPE_SINTMAX_T = 12,
-  NL_VARARG_TYPE_UINTMAX_T = 13,
-  NL_VARARG_TYPE_WINT_T = 14,
-  NL_VARARG_TYPE_CHAR_PTR = 15,
-  NL_VARARG_TYPE_WCHAR_T_PTR = 16,
-  NL_VARARG_TYPE_PTRDIFF_T = 17,
-  NL_VARARG_TYPE_UPTRDIFF_T = 18,
-  NL_VARARG_TYPE_DOUBLE = 19,
-  NL_VARARG_TYPE_LONG_DOUBLE = 20,
-  NL_VARARG_TYPE_VOID_PTR = 21,
-
-  NL_VARARG_LAST_PLUS_ONE_DO_NOT_USE,
+  NL_VARARG_TYPE_SCALAR_1_BYTE = 0,
+  NL_VARARG_TYPE_SCALAR_2_BYTE = 1,
+  NL_VARARG_TYPE_SCALAR_4_BYTE = 2,
+  NL_VARARG_TYPE_SCALAR_8_BYTE = 3,
+  NL_VARARG_TYPE_POINTER = 4,
+  NL_VARARG_TYPE_DOUBLE = 5,
+  NL_VARARG_TYPE_LONG_DOUBLE = 6,
+  NL_VARARG_TYPE_WINT_T = 7,
+  NL_VARARG_TYPE_END_OF_LIST = 0xF,
 } nl_vararg_type_t;
 
 // Rewritten elf file format payloads start with this byte instead of printable ascii.
-enum { NL_BINARY_PREFIX_MARKER = 0x1F, NL_BINARY_TERM_MARKER = 0xFF, };
+
+enum { NL_BINARY_PREFIX_MARKER = 0x1F };
 
 #ifdef __cplusplus
 }

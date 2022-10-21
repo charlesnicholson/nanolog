@@ -155,8 +155,6 @@ nl_str_desc_map_t build_nl_str_desc_map(nl_str_refs_t const& nl_str_refs) {
   return m;
 }
 
-static_assert(int(NL_VARARG_LAST_PLUS_ONE_DO_NOT_USE) < int(NL_BINARY_TERM_MARKER), "");
-
 void convert_strings_to_bins(std::vector<char const *> const& fmt_strs,
                              std::vector<u32>& fmt_bin_addrs,
                              std::vector<unsigned char>& fmt_bin_mem) {
@@ -168,88 +166,59 @@ void convert_strings_to_bins(std::vector<char const *> const& fmt_strs,
 
     do {
       u8 b{u8(guid & 0x7Fu)};
-      guid >>= 7u;
-      if (guid) { b |= 0x80; }
+      if (guid >>= 7u) { b |= 0x80; }
       fmt_bin_mem.push_back(b);
     } while (guid);
 
-    char const *cur = str;
+    int field_count{0};
+    char const *cur{str};
     while (*cur) {
       npf_format_spec_t fs;
       int const n{(*cur != '%') ? 0 : npf_parse_format_spec(cur, &fs)};
       if (!n) { ++cur; continue; }
       cur += n;
 
+      bool added_field{false};
+      unsigned char field{0};
+
       switch (fs.conv_spec) {
-        case NPF_FMT_SPEC_CONV_PERCENT: break;
+        case NPF_FMT_SPEC_CONV_WRITEBACK:
+        case NPF_FMT_SPEC_CONV_PERCENT:
+          break;
 
         case NPF_FMT_SPEC_CONV_CHAR:
           switch (fs.length_modifier) {
             case NPF_FMT_SPEC_LEN_MOD_NONE:
-              fmt_bin_mem.push_back(NL_VARARG_TYPE_SCHAR); break;
+              field = char(NL_VARARG_TYPE_SCALAR_1_BYTE); added_field = true; break;
             case NPF_FMT_SPEC_LEN_MOD_LONG:
-              fmt_bin_mem.push_back(NL_VARARG_TYPE_WINT_T); break;
+              field = char(NL_VARARG_TYPE_WINT_T); added_field = true; break;
             default: break;
           } break;
 
+        case NPF_FMT_SPEC_CONV_POINTER:
         case NPF_FMT_SPEC_CONV_STRING:
-          switch (fs.length_modifier) {
-            case NPF_FMT_SPEC_LEN_MOD_NONE:
-              fmt_bin_mem.push_back(NL_VARARG_TYPE_CHAR_PTR); break;
-            case NPF_FMT_SPEC_LEN_MOD_LONG:
-              fmt_bin_mem.push_back(NL_VARARG_TYPE_WCHAR_T_PTR); break;
-            default: break;
-          } break;
-
-        case NPF_FMT_SPEC_CONV_SIGNED_INT:
-          switch (fs.length_modifier) {
-            case NPF_FMT_SPEC_LEN_MOD_CHAR:
-              fmt_bin_mem.push_back(NL_VARARG_TYPE_SCHAR); break;
-            case NPF_FMT_SPEC_LEN_MOD_SHORT:
-              fmt_bin_mem.push_back(NL_VARARG_TYPE_SHORT); break;
-            case NPF_FMT_SPEC_LEN_MOD_NONE:
-              fmt_bin_mem.push_back(NL_VARARG_TYPE_SINT); break;
-            case NPF_FMT_SPEC_LEN_MOD_LONG:
-              fmt_bin_mem.push_back(NL_VARARG_TYPE_SLONG); break;
-            case NPF_FMT_SPEC_LEN_MOD_LARGE_LONG_LONG:
-              fmt_bin_mem.push_back(NL_VARARG_TYPE_SLONG_LONG); break;
-            case NPF_FMT_SPEC_LEN_MOD_LARGE_INTMAX:
-              fmt_bin_mem.push_back(NL_VARARG_TYPE_SINTMAX_T); break;
-            case NPF_FMT_SPEC_LEN_MOD_LARGE_SIZET:
-              fmt_bin_mem.push_back(NL_VARARG_TYPE_SSIZE_T); break;
-            case NPF_FMT_SPEC_LEN_MOD_LARGE_PTRDIFFT:
-              fmt_bin_mem.push_back(NL_VARARG_TYPE_PTRDIFF_T); break;
-            default: break;
-          } break;
+          field = char(NL_VARARG_TYPE_POINTER); added_field = true; break;
 
         case NPF_FMT_SPEC_CONV_BINARY:
         case NPF_FMT_SPEC_CONV_OCTAL:
         case NPF_FMT_SPEC_CONV_HEX_INT:
         case NPF_FMT_SPEC_CONV_UNSIGNED_INT:
+        case NPF_FMT_SPEC_CONV_SIGNED_INT:
           switch (fs.length_modifier) {
             case NPF_FMT_SPEC_LEN_MOD_CHAR:
-              fmt_bin_mem.push_back(NL_VARARG_TYPE_UCHAR); break;
+              field = char(NL_VARARG_TYPE_SCALAR_1_BYTE); added_field = true; break;
             case NPF_FMT_SPEC_LEN_MOD_SHORT:
-              fmt_bin_mem.push_back(NL_VARARG_TYPE_USHORT); break;
+              field = char(NL_VARARG_TYPE_SCALAR_2_BYTE); added_field = true; break;
             case NPF_FMT_SPEC_LEN_MOD_NONE:
-              fmt_bin_mem.push_back(NL_VARARG_TYPE_UINT); break;
             case NPF_FMT_SPEC_LEN_MOD_LONG:
-              fmt_bin_mem.push_back(NL_VARARG_TYPE_ULONG); break;
-            case NPF_FMT_SPEC_LEN_MOD_LARGE_LONG_LONG:
-              fmt_bin_mem.push_back(NL_VARARG_TYPE_ULONG_LONG); break;
-            case NPF_FMT_SPEC_LEN_MOD_LARGE_INTMAX:
-              fmt_bin_mem.push_back(NL_VARARG_TYPE_UINTMAX_T); break;
             case NPF_FMT_SPEC_LEN_MOD_LARGE_SIZET:
-              fmt_bin_mem.push_back(NL_VARARG_TYPE_SIZE_T); break;
             case NPF_FMT_SPEC_LEN_MOD_LARGE_PTRDIFFT:
-              fmt_bin_mem.push_back(NL_VARARG_TYPE_UPTRDIFF_T); break;
+              field = char(NL_VARARG_TYPE_SCALAR_4_BYTE); added_field = true; break;
+            case NPF_FMT_SPEC_LEN_MOD_LARGE_LONG_LONG:
+            case NPF_FMT_SPEC_LEN_MOD_LARGE_INTMAX:
+              field = char(NL_VARARG_TYPE_SCALAR_8_BYTE); added_field = true; break;
             default: break;
           } break;
-
-        case NPF_FMT_SPEC_CONV_POINTER:
-          fmt_bin_mem.push_back(NL_VARARG_TYPE_VOID_PTR); break;
-
-        case NPF_FMT_SPEC_CONV_WRITEBACK: break;
 
         case NPF_FMT_SPEC_CONV_FLOAT_DEC:
         case NPF_FMT_SPEC_CONV_FLOAT_SCI:
@@ -257,15 +226,27 @@ void convert_strings_to_bins(std::vector<char const *> const& fmt_strs,
         case NPF_FMT_SPEC_CONV_FLOAT_HEX:
           switch (fs.length_modifier) {
             case NPF_FMT_SPEC_LEN_MOD_NONE:
-              fmt_bin_mem.push_back(NL_VARARG_TYPE_DOUBLE); break;
+              field = char(NL_VARARG_TYPE_DOUBLE); added_field = true; break;
             case NPF_FMT_SPEC_LEN_MOD_LONG:
-              fmt_bin_mem.push_back(NL_VARARG_TYPE_LONG_DOUBLE); break;
+              field = char(NL_VARARG_TYPE_LONG_DOUBLE); added_field = true; break;
             default: break;
           } break;
       }
+
+      if (added_field) {
+        if (field_count++ & 1) {
+          fmt_bin_mem[fmt_bin_mem.size() - 1] |= (unsigned char)(field << 4u);
+        } else {
+          fmt_bin_mem.push_back((unsigned char)field);
+        }
+      }
     }
 
-    fmt_bin_mem.push_back(NL_BINARY_TERM_MARKER);
+    if (field_count & 1) {
+      fmt_bin_mem[fmt_bin_mem.size() - 1] |= (unsigned char)(NL_VARARG_TYPE_END_OF_LIST << 4u);
+    } else {
+      fmt_bin_mem.push_back(NL_VARARG_TYPE_END_OF_LIST);
+    }
   }
 }
 
@@ -374,11 +355,15 @@ int main(int argc, char const *argv[]) {
     } while (*src & 0x80);
     ++src;
 
-    while (*src != (unsigned char)NL_BINARY_TERM_MARKER) {
+    bool done{false};
+    do {
       printf("%02hhX ", *src);
+      done =
+        (*src == NL_VARARG_TYPE_END_OF_LIST) || ((*src >> 4u) == NL_VARARG_TYPE_END_OF_LIST);
       ++src;
-    }
-    printf("%02hhX\n", *src);
+    } while (!done);
+
+    printf("\n");
   }
 
   return 0;
