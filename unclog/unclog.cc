@@ -359,7 +359,8 @@ int main(int argc, char const *argv[]) {
     do {
       printf("%02hhX ", *src);
       done =
-        (*src == NL_VARARG_TYPE_END_OF_LIST) || ((*src >> 4u) == NL_VARARG_TYPE_END_OF_LIST);
+        ((*src & 0xFu) == NL_VARARG_TYPE_END_OF_LIST) ||
+        ((*src >> 4u) == NL_VARARG_TYPE_END_OF_LIST);
       ++src;
     } while (!done);
 
