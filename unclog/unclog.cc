@@ -131,15 +131,14 @@ void print(nl_str_desc const &d) {
 }
 
 nl_str_desc_map_t build_nl_str_desc_map(nl_str_refs_t const& nl_str_refs) {
-  unsigned guid{0};
   nl_str_desc_map_t m;
-  for (auto const &nl_str_ref : nl_str_refs) {
+  for (unsigned guid{0}; auto const &nl_str_ref : nl_str_refs) {
     auto [val, inserted] = m.insert({nl_str_ref.str, nl_str_desc{}});
     if (inserted) {
       val->second.guid = guid++;
       val->second.str = nl_str_ref.str;
 
-      char const *cur = nl_str_ref.str;
+      char const *cur{nl_str_ref.str};
       while (*cur) {
         npf_format_spec_t fs;
         int const n{(*cur != '%') ? 0 : npf_parse_format_spec(cur, &fs)};
@@ -164,7 +163,7 @@ void convert_strings_to_bins(std::vector<char const *> const& fmt_strs,
 
     fmt_bin_mem.push_back(NL_BINARY_PREFIX_MARKER);
 
-    do {
+    do { // varint encode
       u8 b{u8(guid & 0x7Fu)};
       if (guid >>= 7u) { b |= 0x80; }
       fmt_bin_mem.push_back(b);
@@ -243,7 +242,8 @@ void convert_strings_to_bins(std::vector<char const *> const& fmt_strs,
     }
 
     if (field_count & 1) {
-      fmt_bin_mem[fmt_bin_mem.size() - 1] |= (unsigned char)(NL_VARARG_TYPE_END_OF_LIST << 4u);
+      fmt_bin_mem[fmt_bin_mem.size() - 1] |=
+        (unsigned char)(NL_VARARG_TYPE_END_OF_LIST << 4u);
     } else {
       fmt_bin_mem.push_back(NL_VARARG_TYPE_END_OF_LIST);
     }
@@ -327,8 +327,7 @@ int main(int argc, char const *argv[]) {
   }
 
   std::vector<char const *> fmt_strs;
-  for (auto const& func: log_call_funcs) {
-    char const *ofs{&e.bytes[s.nl_hdr->sh_offset]};
+  for (auto const *ofs{&e.bytes[s.nl_hdr->sh_offset]}; auto const& func: log_call_funcs) {
     for (auto const& log_call: func.log_calls) {
       fmt_strs.push_back(ofs + (log_call.fmt_str_addr - s.nl_hdr->sh_addr));
     }
@@ -349,19 +348,14 @@ int main(int argc, char const *argv[]) {
     printf("  %s\n", fmt_strs[i]);
     printf("    %02hhX ", *src);
 
-    do {
-      ++src;
-      printf("%02hhX ", *src);
-    } while (*src & 0x80);
-    ++src;
+    do { ++src; printf("%02hhX ", *src); } while (*src & 0x80);
 
     bool done{false};
     do {
-      printf("%02hhX ", *src);
+      printf("%02hhX ", *++src);
       done =
         ((*src & 0xFu) == NL_VARARG_TYPE_END_OF_LIST) ||
         ((*src >> 4u) == NL_VARARG_TYPE_END_OF_LIST);
-      ++src;
     } while (!done);
 
     printf("\n");
