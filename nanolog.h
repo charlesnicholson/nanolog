@@ -90,10 +90,23 @@ nanolog_ret_t nanolog_parse_binary_log(nanolog_binary_field_handler_cb_t cb,
   nanolog_log_crit(s_fmt, ##__VA_ARGS__); } while(0)
 #endif
 
-#if NL_LOG_SEVERITY_THRESHOLD > NL_SEV_ASSERT
-#define NL_LOG_ASSERT(FMT, ...) (void)sizeof((void)(FMT, ##__VA_ARGS__))
-#else
-#define NL_LOG_ASSERT(FMT, ...) do { static char const NL_ATTR_SEC(ASSERT) s_fmt[] = FMT; \
+#ifdef NANOLOG_ASSERTS_ENABLED
+#define NL_ASSERT(COND) do { if (!(COND)) { \
+  static char const NL_ATTR_SEC(ASSERT) s_fmt[] = \
+    __FILE__ "(" NL_STR(__LINE__) "): \"" #COND "\"";
+  nanolog_log_assert(s_fmt); } } while(0)
+
+#define NL_ASSERT_MSG(COND, FMT, ...) do { if (!(COND)) { \
+  static char const NL_ATTR_SEC(ASSERT) s_fmt[] = \
+    __FILE__ "(" NL_STR(__LINE__) "): \"" #COND "\" " FMT;
+  nanolog_log_assert(s_fmt, ##__VA_ARGS__); } } while(0)
+
+#define NL_ASSERT_FAIL() do { static char const NL_ATTR_SEC(ASSERT) s_fmt[] = \
+  __FILE__ "(" NL_STR(__LINE__) "): ASSERT FAIL"; \
+  nanolog_log_assert(s_fmt); } while(0)
+
+#define NL_ASSERT_FAIL_MSG(FMT, ...) do { static char const NL_ATTR_SEC(ASSERT) s_fmt[] = \
+  __FILE__ "(" NL_STR(__LINE__) "): " FMT; \
   nanolog_log_assert(s_fmt, ##__VA_ARGS__); } while(0)
 #endif
 
