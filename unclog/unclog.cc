@@ -1,3 +1,4 @@
+#include "nl_args.h"
 #include "nl_bin_strings.h"
 #include "nl_elf.h"
 #include "nl_thumb2.h"
@@ -10,6 +11,8 @@
 #include <queue>
 #include <unordered_map>
 
+namespace {
+
 using sym_addr_map_t = std::unordered_map<u32, std::vector<elf_symbol32 const*>>;
 
 struct state {
@@ -20,37 +23,22 @@ struct state {
   std::unordered_map<u32, char const *> missed_nl_strs_map;
 };
 
-struct nl_str_ref {
-  elf_symbol32 const *func; // function the nanolog call was found in.
-  uint32_t addr; // address of the 32-bit immediate load target
-  uint32_t imm; // value of the 32-bit immediate load target
-  char const *str; // nanolog format string
-};
-
-using nl_str_refs_t = std::vector<nl_str_ref>;
-
-namespace {
-elf_section_hdr32 const *find_nl_hdr(elf_section_hdr32 const *sec_hdrs,
-                                     char const *sec_names,
-                                     int sec_n) {
-  for (int i = 0; i < sec_n; ++i) {
-    elf_section_hdr32 const& sh{sec_hdrs[i]};
-    if (sh.sh_type && !strcmp(".nanolog", &sec_names[sh.sh_name])) { return &sh; }
-  }
-  return nullptr;
+elf_section_hdr32 const *find_nl_hdr(elf_section_hdr32 const *sec_hdrs, char const *sec_names, int sec_n) {
+  auto const it = std::find_if(sec_hdrs, &sec_hdrs[sec_n],
+    [&sec_names](auto const& sh) { return sh.sh_type && !strcmp(".nanolog", &sec_names[sh.sh_name]); });
+  return (it == &sec_hdrs[sec_n]) ? nullptr : &*it;
 }
 
 bool load(state& s, char const *filename) {
   if (!nl_elf_load(s.elf, filename)) { return false; }
-  elf const& e{s.elf};
 
   // nanolog section
-  s.nl_hdr = find_nl_hdr(e.sec_hdrs, e.sec_names, (int)e.elf_hdr->e_shnum);
+  s.nl_hdr = find_nl_hdr(s.elf.sec_hdrs, s.elf.sec_names, (int)s.elf.elf_hdr->e_shnum);
   assert(s.nl_hdr);
 
   {  // populate the "missed strings" map
     u32 const nl_str_off{s.nl_hdr->sh_offset}, nl_str_addr{s.nl_hdr->sh_addr};
-    char const *src{&e.bytes[nl_str_off]}, *b{src};
+    char const *src{&s.elf.bytes[nl_str_off]}, *b{src};
     u32 rem{s.nl_hdr->sh_size};
     auto& m{s.missed_nl_strs_map};
     while (rem) {
@@ -58,17 +46,17 @@ bool load(state& s, char const *filename) {
       assert(inserted);
       u32 const n{u32(strlen(src) + 1)};
       rem -= n; src += n;
-      while (rem && !*src) { --rem; ++src; }
+      while (rem && !*src) { --rem; ++src; } // arm-gcc aligns to even addresses
     }
   }
 
   // nanolog functions, and non-nanolog-function-addr-to-symbol-map
-  auto const n{e.symtab_hdr->sh_size / e.symtab_hdr->sh_entsize};
+  auto const n{s.elf.symtab_hdr->sh_size / s.elf.symtab_hdr->sh_entsize};
   for (auto i{0u}; i < n; ++i) {
-    elf_symbol32 const& sym{e.symtab[i]};
+    elf_symbol32 const& sym{s.elf.symtab[i]};
     if ((sym.st_info & 0xF) != ELF_SYM_TYPE_FUNC) { continue; }
 
-    if (strstr(&e.strtab[sym.st_name], "nanolog_") == &e.strtab[sym.st_name]) {
+    if (strstr(&s.elf.strtab[sym.st_name], "nanolog_") == &s.elf.strtab[sym.st_name]) {
       s.nl_funcs.push_back(&sym);
     } else {
       auto found{s.non_nl_funcs_sym_map.find(sym.st_value)};
@@ -97,9 +85,14 @@ void on_log(int sev, char const *fmt, va_list args) {
 int main(int argc, char const *argv[]) {
   nanolog_set_log_handler(on_log);
 
-  assert(argc > 1);
+  args cmd_args;
+  if (!args_parse(argv, argc, cmd_args)) {
+    NL_LOG_ERR("Arg parse failure");
+    return 1;
+  }
+
   state s;
-  load(s, argv[1]);
+  load(s, cmd_args.input_file);
 
   printf("Nanolog public functions:\n");
   for (auto const& nl_func : s.nl_funcs) {
