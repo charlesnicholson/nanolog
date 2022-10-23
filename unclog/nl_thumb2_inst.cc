@@ -2328,7 +2328,7 @@ u32 inst_align(u32 val, u32 align) { // Rounding and Aligning, A-16
   return align * (val / align);
 }
 
-bool inst_decode(char const *text, u32 func_addr, u32 pc_addr, inst& out_inst) {
+bool inst_decode(byte const *text, u32 func_addr, u32 pc_addr, inst& out_inst) {
   out_inst.type = inst_type::UNKNOWN;
   out_inst.addr = func_addr + pc_addr;
   out_inst.w1 = 0;

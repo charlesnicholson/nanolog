@@ -23,9 +23,11 @@ struct state {
   std::unordered_map<u32, char const *> missed_nl_strs_map;
 };
 
-elf_section_hdr32 const *find_nl_hdr(elf_section_hdr32 const *sec_hdrs, char const *sec_names, int sec_n) {
-  auto const it = std::find_if(sec_hdrs, &sec_hdrs[sec_n],
-    [&sec_names](auto const& sh) { return sh.sh_type && !strcmp(".nanolog", &sec_names[sh.sh_name]); });
+elf_section_hdr32 const *find_nl_hdr(elf_section_hdr32 const *sec_hdrs,
+                                     char const *sec_names,
+                                     int sec_n) {
+  auto const it = std::find_if(sec_hdrs, &sec_hdrs[sec_n], [&sec_names](auto const& sh) {
+    return sh.sh_type && !strcmp(".nanolog", &sec_names[sh.sh_name]); });
   return (it == &sec_hdrs[sec_n]) ? nullptr : &*it;
 }
 
@@ -37,8 +39,8 @@ bool load(state& s, char const *filename) {
   assert(s.nl_hdr);
 
   {  // populate the "missed strings" map
-    u32 const nl_str_off{s.nl_hdr->sh_offset}, nl_str_addr{s.nl_hdr->sh_addr};
-    char const *src{&s.elf.bytes[nl_str_off]}, *b{src};
+    auto const nl_str_off{s.nl_hdr->sh_offset}, nl_str_addr{s.nl_hdr->sh_addr};
+    auto const *src{(char const *)&s.elf.bytes[nl_str_off]}, *b{src};
     u32 rem{s.nl_hdr->sh_size};
     auto& m{s.missed_nl_strs_map};
     while (rem) {
@@ -72,6 +74,30 @@ bool load(state& s, char const *filename) {
   return true;
 }
 
+bytes_ptr patch_elf(state const& s,
+                    std::vector<func_log_call_analysis> const& log_call_funcs,
+                    std::vector<u32> const& fmt_bin_addrs,
+                    byte_vec const& fmt_bin_mem) {
+  (void)log_call_funcs;
+  (void)fmt_bin_addrs;
+  bytes_ptr pe{new (std::align_val_t{16}) byte[s.elf.len]};
+  memcpy(&pe[0], &s.elf.bytes[0], s.elf.len);
+  memcpy(&pe[s.nl_hdr->sh_offset], fmt_bin_mem.data(), fmt_bin_mem.size());
+  auto *patched_nl_hdr{
+    (elf_section_hdr32 *)(&pe[0] + (uintptr_t(s.nl_hdr) - uintptr_t(&s.elf.bytes[0])))};
+  patched_nl_hdr->sh_size = u32(fmt_bin_mem.size());
+  return pe;
+}
+
+bool write_file(void const* buf, unsigned len, char const *output_file) {
+  FILE *fp{std::fopen(output_file, "wb")};
+  if (!fp) { printf("Unable to open output file %s\n", output_file); return false; }
+  bool const ok{std::fwrite(buf, len, 1, fp) == 1};
+  std::fclose(fp);
+  if (!ok) { std::remove(output_file); }
+  return ok;
+}
+
 void on_log(int sev, char const *fmt, va_list args) {
   (void)sev;
 #pragma GCC diagnostic push
@@ -86,10 +112,7 @@ int main(int argc, char const *argv[]) {
   nanolog_set_log_handler(on_log);
 
   args cmd_args;
-  if (!args_parse(argv, argc, cmd_args)) {
-    NL_LOG_ERR("Arg parse failure");
-    return 1;
-  }
+  if (!args_parse(argv, argc, cmd_args)) { return 1; }
 
   state s;
   load(s, cmd_args.input_file);
@@ -156,13 +179,13 @@ int main(int argc, char const *argv[]) {
   for (auto const *ofs{&s.elf.bytes[s.nl_hdr->sh_offset]};
        auto const& func: log_call_funcs) {
     for (auto const& log_call: func.log_calls) {
-      fmt_strs.push_back(ofs + (log_call.fmt_str_addr - s.nl_hdr->sh_addr));
+      fmt_strs.push_back((char const *)(ofs + (log_call.fmt_str_addr - s.nl_hdr->sh_addr)));
     }
   }
 
   std::vector<u32> fmt_bin_addrs;
   fmt_bin_addrs.reserve(fmt_strs.size());
-  std::vector<unsigned char> fmt_bin_mem;
+  byte_vec fmt_bin_mem;
   fmt_bin_mem.reserve(s.nl_hdr->sh_size);
   convert_strings_to_bins(fmt_strs, fmt_bin_addrs, fmt_bin_mem);
 
@@ -171,7 +194,7 @@ int main(int argc, char const *argv[]) {
     unsigned(s.nl_hdr->sh_size), unsigned(fmt_bin_mem.size()));
 
   for (auto i{0u}, n{unsigned(fmt_strs.size())}; i < n; ++i) {
-    unsigned char const *src = &fmt_bin_mem[fmt_bin_addrs[i]];
+    unsigned char const *src{&fmt_bin_mem[fmt_bin_addrs[i]]};
     printf("  %s\n", fmt_strs[i]);
     printf("    %02hhX ", *src);
 
@@ -185,5 +208,7 @@ int main(int argc, char const *argv[]) {
     printf("\n");
   }
 
+  bytes_ptr patched_elf{patch_elf(s, log_call_funcs, fmt_bin_addrs, fmt_bin_mem)};
+  if (!write_file(&patched_elf[0], s.elf.len, cmd_args.output_file)) { return 1; }
   return 0;
 }

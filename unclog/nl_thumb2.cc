@@ -198,7 +198,7 @@ simulate_results process_ldr_pc_jump_table(inst const& i, path_state& p, func_st
   printf("  Known PC-rel load: %s: %x, %d entries\n", reg_name(ldr.n),
     unsigned(p.rs.regs[ldr.n]), cmp_lit);
 
-  char const *src{&fs.e.bytes[fs.func_ofs + (p.rs.regs[ldr.n] - fs.func_start)]};
+  unsigned char const *src{&fs.e.bytes[fs.func_ofs + (p.rs.regs[ldr.n] - fs.func_start)]};
   for (u32 idx{0u}; idx <= cmp_lit; ++idx) {
     u32 jump_label;
     memcpy(&jump_label, src, 4);

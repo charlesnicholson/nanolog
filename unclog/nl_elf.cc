@@ -4,16 +4,17 @@
 #include <cstdlib>
 
 namespace {
-bytes_ptr_t load_file(char const *fn) {
+bytes_ptr load_file(char const *fn, unsigned& out_len) {
   FILE *f{fopen(fn, "rb")};
-  if (!f) { return bytes_ptr_t(); }
+  if (!f) { return bytes_ptr{}; }
   fseek(f, 0, SEEK_END);
-  size_t const len{size_t(ftell(f))};
+  unsigned const len{unsigned(ftell(f))};
+  bytes_ptr contents{new (std::align_val_t{16}) byte[len]};
   rewind(f);
-  bytes_ptr_t contents{new (std::align_val_t{16}) char[len]};
-  size_t const r{fread(&contents[0], 1, len, f)};
+  auto const r{fread(&contents[0], 1, len, f)};
   fclose(f);
-  assert(r == (size_t)len);
+  assert(r == len);
+  out_len = len;
   return contents;
 }
 
@@ -38,26 +39,26 @@ elf_section_hdr32 const *find_strtab_hdr(elf_section_hdr32 const *sec_hdrs,
 }
 
 bool nl_elf_load(elf& e, char const* filename) {
-  e.bytes = load_file(filename);
+  e.bytes = load_file(filename, e.len);
   if (!e.bytes) { return false; }
 
   e.elf_hdr = (elf_hdr32*)&e.bytes[0];
   assert(e.elf_hdr->e_shentsize == sizeof(elf_section_hdr32));
 
-  e.sec_hdrs = (elf_section_hdr32 const*)&e.bytes[e.elf_hdr->e_shoff];
-  e.prog_hdrs = (elf_prog_hdr32 const*)&e.bytes[e.elf_hdr->e_phoff];
-  e.sec_names = &e.bytes[0] + e.sec_hdrs[e.elf_hdr->e_shstrndx].sh_offset;
+  e.sec_hdrs = (elf_section_hdr32 const *)&e.bytes[e.elf_hdr->e_shoff];
+  e.prog_hdrs = (elf_prog_hdr32 const *)&e.bytes[e.elf_hdr->e_phoff];
+  e.sec_names = (char const *)(&e.bytes[0] + e.sec_hdrs[e.elf_hdr->e_shstrndx].sh_offset);
 
   // symbol table
   e.symtab_hdr = find_symtab_hdr(e.sec_hdrs, (int)e.elf_hdr->e_shnum);
   assert(e.symtab_hdr);
   assert(e.symtab_hdr->sh_entsize == sizeof(elf_symbol32));
-  e.symtab = (elf_symbol32 const*)&e.bytes[e.symtab_hdr->sh_offset];
+  e.symtab = (elf_symbol32 const *)&e.bytes[e.symtab_hdr->sh_offset];
 
   // string table
   auto const *strtab_hdr{find_strtab_hdr(e.sec_hdrs, e.sec_names, (int)e.elf_hdr->e_shnum)};
   assert(strtab_hdr);
-  e.strtab = &e.bytes[strtab_hdr->sh_offset];
+  e.strtab = (char const *)&e.bytes[strtab_hdr->sh_offset];
 
   return true;
 }
