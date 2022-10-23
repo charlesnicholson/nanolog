@@ -100,11 +100,10 @@ int main(int argc, char const *argv[]) {
   assert(argc > 1);
   state s;
   load(s, argv[1]);
-  auto const& e{s.elf};
 
   printf("Nanolog public functions:\n");
   for (auto const& nl_func : s.nl_funcs) {
-    printf("  0x%08x %s\n", nl_func->st_value & ~1u, &e.strtab[nl_func->st_name]);
+    printf("  0x%08x %s\n", nl_func->st_value & ~1u, &s.elf.strtab[nl_func->st_name]);
   }
   printf("\n");
 
@@ -113,7 +112,7 @@ int main(int argc, char const *argv[]) {
   std::vector<func_log_call_analysis> log_call_funcs;
   for (auto const& [_, syms] : s.non_nl_funcs_sym_map) {
     func_log_call_analysis lca{*syms[0]};
-    thumb2_analyze_func(e, lca.func, s.nl_funcs, lca, stats);
+    thumb2_analyze_func(s.elf, lca.func, s.nl_funcs, lca, stats);
     if (!lca.log_calls.empty()) { log_call_funcs.push_back(lca); }
   }
 
@@ -122,7 +121,7 @@ int main(int argc, char const *argv[]) {
 
   printf("\nLog calls:\n");
   for (auto const& func: log_call_funcs) {
-    printf("  %s\n", &e.strtab[func.func.st_name]);
+    printf("  %s\n", &s.elf.strtab[func.func.st_name]);
     for (auto const& call: func.log_calls) {
       reg_mut_node const& r0_mut = func.reg_muts[call.node_idx];
 
@@ -147,7 +146,7 @@ int main(int argc, char const *argv[]) {
       }
 
       printf("\"%s\"\n",
-        &e.bytes[s.nl_hdr->sh_offset + (call.fmt_str_addr - s.nl_hdr->sh_addr)]);
+        &s.elf.bytes[s.nl_hdr->sh_offset + (call.fmt_str_addr - s.nl_hdr->sh_addr)]);
 
       s.missed_nl_strs_map.erase(call.fmt_str_addr);
     }
@@ -161,7 +160,8 @@ int main(int argc, char const *argv[]) {
   }
 
   std::vector<char const *> fmt_strs;
-  for (auto const *ofs{&e.bytes[s.nl_hdr->sh_offset]}; auto const& func: log_call_funcs) {
+  for (auto const *ofs{&s.elf.bytes[s.nl_hdr->sh_offset]};
+       auto const& func: log_call_funcs) {
     for (auto const& log_call: func.log_calls) {
       fmt_strs.push_back(ofs + (log_call.fmt_str_addr - s.nl_hdr->sh_addr));
     }
