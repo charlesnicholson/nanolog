@@ -82,6 +82,7 @@ bytes_ptr patch_elf(state const& s,
   (void)fmt_bin_addrs;
   bytes_ptr pe{new (std::align_val_t{16}) byte[s.elf.len]};
   memcpy(&pe[0], &s.elf.bytes[0], s.elf.len);
+  memset(&pe[s.nl_hdr->sh_offset], 0, s.nl_hdr->sh_size);
   memcpy(&pe[s.nl_hdr->sh_offset], fmt_bin_mem.data(), fmt_bin_mem.size());
   auto *patched_nl_hdr{
     (elf_section_hdr32 *)(&pe[0] + (uintptr_t(s.nl_hdr) - uintptr_t(&s.elf.bytes[0])))};
