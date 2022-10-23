@@ -93,7 +93,7 @@ bytes_ptr patch_elf(state const& s,
 bool write_file(void const* buf, unsigned len, char const *output_file) {
   FILE *fp{std::fopen(output_file, "wb")};
   if (!fp) { printf("Unable to open output file %s\n", output_file); return false; }
-  bool const ok{std::fwrite(buf, len, 1, fp) == 1};
+  bool const ok{std::fwrite(buf, 1, len, fp) == len};
   std::fclose(fp);
   if (!ok) { std::remove(output_file); }
   return ok;
