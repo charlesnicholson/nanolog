@@ -7,7 +7,6 @@
 #include <cstdio>
 #include <cstdint>
 #include <queue>
-#include <string_view>
 #include <unordered_map>
 
 #define NANOPRINTF_IMPLEMENTATION
@@ -31,14 +30,11 @@ struct nl_str_desc {
   char const *str = nullptr;
 };
 
-using nl_str_desc_map_t = std::unordered_map<std::string_view, nl_str_desc>;
-
 struct state {
   elf elf;
   elf_section_hdr32 const *nl_hdr;
   std::vector<elf_symbol32 const*> nl_funcs;
   sym_addr_map_t non_nl_funcs_sym_map;
-  nl_str_desc_map_t nl_str_desc_map;
   str_addr_map_t missed_nl_strs_map;
 };
 
@@ -128,30 +124,6 @@ void print(nl_str_desc const &d) {
              arg.case_adjust ? arg.case_adjust : ' ');
     }
   }
-}
-
-nl_str_desc_map_t build_nl_str_desc_map(nl_str_refs_t const& nl_str_refs) {
-  nl_str_desc_map_t m;
-  for (unsigned guid{0}; auto const &nl_str_ref : nl_str_refs) {
-    auto [val, inserted] = m.insert({nl_str_ref.str, nl_str_desc{}});
-    if (inserted) {
-      val->second.guid = guid++;
-      val->second.str = nl_str_ref.str;
-
-      char const *cur{nl_str_ref.str};
-      while (*cur) {
-        npf_format_spec_t fs;
-        int const n{(*cur != '%') ? 0 : npf_parse_format_spec(cur, &fs)};
-        if (n) {
-          val->second.args.push_back(fs);
-          cur += n;
-        } else {
-          ++cur;
-        }
-      }
-    }
-  }
-  return m;
 }
 
 void convert_strings_to_bins(std::vector<char const *> const& fmt_strs,
@@ -350,13 +322,10 @@ int main(int argc, char const *argv[]) {
 
     do { ++src; printf("%02hhX ", *src); } while (*src & 0x80);
 
-    bool done{false};
     do {
       printf("%02hhX ", *++src);
-      done =
-        ((*src & 0xFu) == NL_VARARG_TYPE_END_OF_LIST) ||
-        ((*src >> 4u) == NL_VARARG_TYPE_END_OF_LIST);
-    } while (!done);
+    } while (((*src & 0xFu) != NL_VARARG_TYPE_END_OF_LIST) &&
+             ((*src >> 4u) != NL_VARARG_TYPE_END_OF_LIST));
 
     printf("\n");
   }
