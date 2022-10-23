@@ -111,7 +111,7 @@ void cmp_imm_lit_set(reg_state& rs, u8 index, u32 lit) {
 
 bool branch(u32 addr, path_state& p, func_state& s) {
   if (p.taken_branches.contains(addr)) { return false; }
-  auto const it = s.taken_branches_reg_states.find(addr);
+  auto const it{s.taken_branches_reg_states.find(addr)};
   if (it != s.taken_branches_reg_states.end()) {
     auto const& reg_states{it->second};
     auto const b{reg_states.begin()}, e{reg_states.end()};
@@ -123,7 +123,7 @@ bool branch(u32 addr, path_state& p, func_state& s) {
   }
 
   p.taken_branches.insert(addr);
-  auto [vi, inserted] = s.taken_branches_reg_states.insert({addr, {}});
+  auto [vi, inserted]{s.taken_branches_reg_states.insert({addr, {}})};
   vi->second.push_back(p.rs);
   return true;
 }
@@ -148,7 +148,7 @@ bool table_branch(u32 addr, u32 sz, u32 base, u32 ofs, path_state& path, func_st
   unsigned const src_off{fs.func_ofs + (addr - fs.func_start) + 4};
   auto const *src{reinterpret_cast<unsigned char const *>(&fs.e.bytes[src_off])};
 
-  for (auto i = 0u; i < cmp_imm_lit; ++i) {
+  for (auto i{0u}; i < cmp_imm_lit; ++i) {
     u32 val{*src++};
     if (sz == 2) { val = u32(val | u32(*src++ << 8u)); }
     u32 const label{path.rs.regs[reg::PC] + 4 + (val << 1u)};
@@ -399,7 +399,7 @@ void process_log_call(inst const& pc_i,
   }
 
   u32 fmt_str_addr{path.rs.regs[reg::R0]};
-  auto [_, inserted] = fs.discovered_log_strs.insert(fmt_str_addr);
+  auto [_, inserted]{fs.discovered_log_strs.insert(fmt_str_addr)};
   if (!inserted) {
     NL_LOG_DBG("  Found log function, already discovered\n");
     return;
@@ -453,8 +453,8 @@ bool thumb2_analyze_func(elf const& e,
       }
 
       inst pc_i;
-      bool const decode_ok = inst_decode(&e.bytes[s.func_ofs], s.func_start,
-        path.rs.regs[reg::PC] - s.func_start, pc_i);
+      bool const decode_ok{inst_decode(&e.bytes[s.func_ofs], s.func_start,
+        path.rs.regs[reg::PC] - s.func_start, pc_i)};
 
       ++out_stats.decoded_insts;
 
@@ -470,7 +470,7 @@ bool thumb2_analyze_func(elf const& e,
 
       if (inst_is_log_call(pc_i, log_funcs)) { process_log_call(pc_i, path, s, out_lca); }
 
-      simulate_results const sr = simulate(pc_i, s, path);
+      simulate_results const sr{simulate(pc_i, s, path)};
       if (sr == simulate_results::FAILURE) { return false; }
       if (sr == simulate_results::TERMINATE_PATH) {
         NL_LOG_DBG("  Stopping path: terminal pattern\n");
