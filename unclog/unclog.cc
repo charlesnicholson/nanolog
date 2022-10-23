@@ -24,12 +24,6 @@ using imm_addr_pq_t = std::priority_queue<u32, u32_vec_t, std::greater<u32>>;
 using sym_addr_map_t = std::unordered_map<u32, std::vector<elf_symbol32 const*>>;
 using str_addr_map_t = std::unordered_map<u32, char const *>;
 
-struct nl_str_desc {
-  unsigned guid = 0;
-  std::vector<npf_format_spec_t> args;
-  char const *str = nullptr;
-};
-
 struct state {
   elf elf;
   elf_section_hdr32 const *nl_hdr;
@@ -100,30 +94,6 @@ bool load(state& s, char const *filename) {
   }
 
   return true;
-}
-
-void print(nl_str_desc const &d) {
-  printf("Log string descriptor:\n");
-  printf("  guid: %d\n", d.guid);
-  printf("  str: \"%s\"\n", d.str);
-  if (!d.args.empty()) {
-    printf("  args:\n");
-    for (auto const& arg : d.args) {
-      printf("    conv: %d lenmod: %d prec: %d precopt: %d fw: %d fwopt: %d lj: %c"
-                " lzp: %c af: %c pp: %c uc: %c\n",
-             arg.conv_spec,
-             arg.length_modifier,
-             arg.prec,
-             arg.prec_opt,
-             arg.field_width,
-             arg.field_width_opt,
-             arg.left_justified ? arg.left_justified : ' ',
-             arg.leading_zero_pad ? arg.leading_zero_pad : ' ',
-             arg.alt_form ? arg.alt_form : ' ',
-             arg.prepend ? arg.prepend : ' ',
-             arg.case_adjust ? arg.case_adjust : ' ');
-    }
-  }
 }
 
 void convert_strings_to_bins(std::vector<char const *> const& fmt_strs,
