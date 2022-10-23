@@ -22,8 +22,6 @@ extern "C" {
 
 // Public API
 
-typedef void (*nanolog_log_handler_cb_t)(int sev, char const *fmt, va_list args);
-typedef void (*nanolog_binary_field_handler_cb_t)(void *ctx, void const *p, unsigned len);
 
 typedef enum {
   NANOLOG_RET_SUCCESS = 0,
@@ -31,12 +29,15 @@ typedef enum {
   NANOLOG_RET_INVALID_PAYLOAD,
 } nanolog_ret_t;
 
+// Install a handler to be called on every log macro invocation.
+typedef void (*nanolog_log_handler_cb_t)(int sev, char const *fmt, va_list args);
 nanolog_ret_t nanolog_set_log_handler(nanolog_log_handler_cb_t handler);
 
 // Writes 1 to |out_is_binary| if fmt is a rewritten binary spec, 0 if ASCII.
 nanolog_ret_t nanolog_log_is_binary(char const *fmt, int *out_is_binary);
 
-// Calls |cb| with |ctx| for every
+// Calls |cb| with |ctx| with every extracted vararg.
+typedef void (*nanolog_binary_field_handler_cb_t)(void *ctx, void const *p, unsigned len);
 nanolog_ret_t nanolog_parse_binary_log(nanolog_binary_field_handler_cb_t cb,
                                        void *ctx,
                                        char const *fmt,
@@ -58,56 +59,76 @@ nanolog_ret_t nanolog_parse_binary_log(nanolog_binary_field_handler_cb_t cb,
 #if NL_LOG_SEVERITY_THRESHOLD > NL_SEV_DBG
 #define NL_LOG_DBG(FMT, ...) (void)sizeof((FMT, ##__VA_ARGS__))
 #else
-#define NL_LOG_DBG(FMT, ...) do { static char const NL_ATTR_SEC(DBG) s_fmt[] = FMT; \
-  nanolog_log_dbg(s_fmt, ##__VA_ARGS__); } while(0)
+#define NL_LOG_DBG(FMT, ...) do { \
+    static char const NL_ATTR_SEC(DBG) s_nanolog_fmt_str[] = FMT; \
+    nanolog_log_dbg(s_nanolog_fmt_str, ##__VA_ARGS__); \
+  } while(0)
 #endif
 
 #if NL_LOG_SEVERITY_THRESHOLD > NL_SEV_INFO
 #define NL_LOG_INFO(FMT, ...) (void)sizeof((void)(FMT, ##__VA_ARGS__))
 #else
-#define NL_LOG_INFO(FMT, ...) do { static char const NL_ATTR_SEC(INFO) s_fmt[] = FMT; \
-  nanolog_log_inf(s_fmt, ##__VA_ARGS__); } while(0)
+#define NL_LOG_INFO(FMT, ...) do { \
+    static char const NL_ATTR_SEC(INFO) s_nanolog_fmt_str[] = FMT; \
+    nanolog_log_inf(s_nanolog_fmt_str, ##__VA_ARGS__); \
+  } while(0)
 #endif
 
 #if NL_LOG_SEVERITY_THRESHOLD > NL_SEV_WARN
 #define NL_LOG_WARN(FMT, ...) (void)sizeof((void)(FMT, ##__VA_ARGS__))
 #else
-#define NL_LOG_WARN(FMT, ...) do { static char const NL_ATTR_SEC(WARN) s_fmt[] = FMT; \
-  nanolog_log_warn(s_fmt, ##__VA_ARGS__); } while(0)
+#define NL_LOG_WARN(FMT, ...) do { \
+    static char const NL_ATTR_SEC(WARN) s_nanolog_fmt_str[] = FMT; \
+    nanolog_log_warn(s_nanolog_fmt_str, ##__VA_ARGS__); \
+  } while(0)
 #endif
 
 #if NL_LOG_SEVERITY_THRESHOLD > NL_SEV_ERR
 #define NL_LOG_ERR(FMT, ...) (void)sizeof((void)(FMT, ##__VA_ARGS__))
 #else
-#define NL_LOG_ERR(FMT, ...) do { static char const NL_ATTR_SEC(ERR) s_fmt[] = FMT; \
-  nanolog_log_err(s_fmt, ##__VA_ARGS__); } while(0)
+#define NL_LOG_ERR(FMT, ...) do { \
+    static char const NL_ATTR_SEC(ERR) s_nanolog_fmt_str[] = FMT; \
+    nanolog_log_err(s_nanolog_fmt_str, ##__VA_ARGS__); \
+  } while(0)
 #endif
 
 #if NL_LOG_SEVERITY_THRESHOLD > NL_SEV_CRIT
 #define NL_LOG_CRIT(FMT, ...) (void)sizeof((void)(FMT, ##__VA_ARGS__))
 #else
-#define NL_LOG_CRIT(FMT, ...) do { static char const NL_ATTR_SEC(CRIT) s_fmt[] = FMT; \
-  nanolog_log_crit(s_fmt, ##__VA_ARGS__); } while(0)
+#define NL_LOG_CRIT(FMT, ...) do { \
+    static char const NL_ATTR_SEC(CRIT) s_nanolog_fmt_str[] = FMT; \
+    nanolog_log_crit(s_nanolog_fmt_str, ##__VA_ARGS__); \
+  } while(0)
 #endif
 
 #ifdef NANOLOG_ASSERTS_ENABLED
-#define NL_ASSERT(COND) do { if (!(COND)) { \
-  static char const NL_ATTR_SEC(ASSERT) s_fmt[] = \
-    __FILE__ "(" NL_STR(__LINE__) "): \"" #COND "\"";
-  nanolog_log_assert(s_fmt); } } while(0)
+#define NL_ASSERT(COND) do { \
+    if (!(COND)) { \
+      static char const NL_ATTR_SEC(ASSERT) s_nanolog_fmt_str[] = \
+        __FILE__ "(" NL_STR(__LINE__) "): \"" #COND "\""; \
+      nanolog_log_assert(s_nanolog_fmt_str); \
+    } \
+  } while(0)
 
-#define NL_ASSERT_MSG(COND, FMT, ...) do { if (!(COND)) { \
-  static char const NL_ATTR_SEC(ASSERT) s_fmt[] = \
-    __FILE__ "(" NL_STR(__LINE__) "): \"" #COND "\" " FMT;
-  nanolog_log_assert(s_fmt, ##__VA_ARGS__); } } while(0)
+#define NL_ASSERT_MSG(COND, FMT, ...) do { \
+    if (!(COND)) { \
+      static char const NL_ATTR_SEC(ASSERT) s_nanolog_fmt_str[] = \
+        __FILE__ "(" NL_STR(__LINE__) "): \"" #COND "\" " FMT; \
+      nanolog_log_assert(s_nanolog_fmt_str, ##__VA_ARGS__); \
+    } \
+  } while(0)
 
-#define NL_ASSERT_FAIL() do { static char const NL_ATTR_SEC(ASSERT) s_fmt[] = \
-  __FILE__ "(" NL_STR(__LINE__) "): ASSERT FAIL"; \
-  nanolog_log_assert(s_fmt); } while(0)
+#define NL_ASSERT_FAIL() do { \
+    static char const NL_ATTR_SEC(ASSERT) s_nanolog_fmt_str[] = \
+      __FILE__ "(" NL_STR(__LINE__) "): ASSERT FAIL"; \
+    nanolog_log_assert(s_nanolog_fmt_str); \
+  } while(0)
 
-#define NL_ASSERT_FAIL_MSG(FMT, ...) do { static char const NL_ATTR_SEC(ASSERT) s_fmt[] = \
-  __FILE__ "(" NL_STR(__LINE__) "): " FMT; \
-  nanolog_log_assert(s_fmt, ##__VA_ARGS__); } while(0)
+#define NL_ASSERT_FAIL_MSG(FMT, ...) do { \
+    static char const NL_ATTR_SEC(ASSERT) s_nanolog_fmt_str[] = \
+      __FILE__ "(" NL_STR(__LINE__) "): " FMT; \
+    nanolog_log_assert(s_nanolog_fmt_str, ##__VA_ARGS__); \
+  } while(0)
 #endif
 
 // Private logging API (use the macros, not these)
@@ -119,7 +140,7 @@ void nanolog_log_err(char const *fmt, ...);
 void nanolog_log_crit(char const *fmt, ...);
 void nanolog_log_assert(char const *fmt, ...);
 
-// Private binary log vararg extraction types (from printf specification)
+// Private binary log vararg extraction types
 
 typedef enum {
   NL_VARARG_TYPE_SCALAR_1_BYTE = 0,
