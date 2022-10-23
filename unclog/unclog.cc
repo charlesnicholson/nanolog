@@ -19,8 +19,6 @@
 #define NANOPRINTF_USE_WRITEBACK_FORMAT_SPECIFIERS 1
 #include "nanoprintf.h"
 
-using u32_vec_t = std::vector<uint32_t>;
-using imm_addr_pq_t = std::priority_queue<u32, u32_vec_t, std::greater<u32>>;
 using sym_addr_map_t = std::unordered_map<u32, std::vector<elf_symbol32 const*>>;
 using str_addr_map_t = std::unordered_map<u32, char const *>;
 
