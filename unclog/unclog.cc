@@ -87,6 +87,7 @@ bytes_ptr patch_elf(state const& s,
   auto *patched_nl_hdr{
     (elf_section_hdr32 *)(&pe[0] + (uintptr_t(s.nl_hdr) - uintptr_t(&s.elf.bytes[0])))};
   patched_nl_hdr->sh_size = u32(fmt_bin_mem.size());
+  thumb2_patch_fmt_strs(s.elf, *s.nl_hdr, &pe[0], log_call_funcs, fmt_bin_addrs);
   return pe;
 }
 

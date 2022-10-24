@@ -1,5 +1,5 @@
 build
-disasm.txt
+disasm*.txt
 unclog.txt
 *.elf
 

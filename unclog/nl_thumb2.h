@@ -6,6 +6,7 @@
 #include <vector>
 
 struct elf;
+struct elf_section_hdr32;
 struct elf_symbol32;
 
 #define FMT_STR_STRAT_LIST() \
@@ -44,3 +45,8 @@ bool thumb2_analyze_func(elf const& e,
                          func_log_call_analysis& out_lca,
                          analysis_stats& out_stats);
 
+bool thumb2_patch_fmt_strs(elf const& e,
+                           elf_section_hdr32 const& nl_sec_hdr,
+                           byte* patched_elf,
+                           std::vector<func_log_call_analysis> const& log_call_funcs,
+                           std::vector<u32> fmt_bin_addrs);

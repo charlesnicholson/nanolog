@@ -3,6 +3,7 @@
 #include "nl_elf.h"
 
 #include <cassert>
+#include <cstring>
 #include <stack>
 #include <unordered_set>
 #include <vector>
@@ -425,6 +426,12 @@ void process_log_call(inst const& pc_i,
 
 }
 
+char const *fmt_str_strat_name(fmt_str_strat s) {
+#define X(NAME) case fmt_str_strat::NAME: return #NAME;
+  switch (s) { FMT_STR_STRAT_LIST() default: return "unknown"; }
+#undef X
+}
+
 bool thumb2_analyze_func(elf const& e,
                          elf_symbol32 const& func,
                          std::vector<elf_symbol32 const*> const& log_funcs,
@@ -482,9 +489,34 @@ bool thumb2_analyze_func(elf const& e,
   return true;
 }
 
-char const *fmt_str_strat_name(fmt_str_strat s) {
-#define X(NAME) case fmt_str_strat::NAME: return #NAME;
-  switch (s) { FMT_STR_STRAT_LIST() default: return "unknown"; }
-#undef X
+bool thumb2_patch_fmt_strs(elf const& e,
+                           elf_section_hdr32 const& nl_sec_hdr,
+                           byte* patched_elf,
+                           std::vector<func_log_call_analysis> const& log_call_funcs,
+                           std::vector<u32> fmt_bin_addrs) {
+  for (u32 i{0}; auto const &func : log_call_funcs) {
+    u32 const func_ofs{e.sec_hdrs[func.func.st_shndx].sh_offset},
+      func_addr{e.sec_hdrs[func.func.st_shndx].sh_addr};
+
+    for (auto const &log_call : func.log_calls) {
+      reg_mut_node const& r0_mut = func.reg_muts[log_call.node_idx];
+      switch (log_call.s) {
+        case fmt_str_strat::DIRECT_LOAD:
+        case fmt_str_strat::MOV_FROM_DIRECT_LOAD: {
+          u32 addr{fmt_bin_addrs[i] + nl_sec_hdr.sh_addr};
+          memcpy(&patched_elf[func_ofs + (r0_mut.i.i.load_lit.addr - func_addr)],
+                 &addr,
+                 sizeof(u32));
+        } break;
+
+        case fmt_str_strat::ADD_IMM_FROM_BASE_REG:
+          printf("Strategy ADD_IMM_FROM_BASE_REG not supported yet.\n");
+          return false;
+      }
+      ++i;
+    }
+  }
+
+  return true;
 }
 
