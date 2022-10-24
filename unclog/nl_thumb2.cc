@@ -451,7 +451,7 @@ bool thumb2_analyze_func(elf const& e,
                          func_log_call_analysis& out_lca,
                          analysis_stats& out_stats) {
   func_state s{func, e, e.sec_hdrs[func.st_shndx], out_lca};
-  out_lca.reg_muts.reserve(256);
+  out_lca.reg_muts.reserve(1024);
 
   NL_LOG_DBG("\nScanning %s: addr %x, len %x, range %x-%x, offset %x:\n",
     &e.strtab[func.st_name], func.st_value, func.st_size, s.func_start, s.func_end,
