@@ -41,6 +41,7 @@ struct func_log_call_analysis {
 
 bool thumb2_analyze_func(elf const& e,
                          elf_symbol32 const& func,
+                         elf_section_hdr32 const& nl_sec_hdr,
                          std::vector<elf_symbol32 const*> const& log_funcs,
                          func_log_call_analysis& out_lca,
                          analysis_stats& out_stats);

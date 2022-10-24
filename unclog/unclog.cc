@@ -130,7 +130,11 @@ int main(int argc, char const *argv[]) {
   std::vector<func_log_call_analysis> log_call_funcs;
   for (auto const& [_, syms] : s.non_nl_funcs_sym_map) {
     func_log_call_analysis lca{*syms[0]};
-    thumb2_analyze_func(s.elf, lca.func, s.nl_funcs, lca, stats);
+    if (!thumb2_analyze_func(s.elf, lca.func, *s.nl_hdr, s.nl_funcs, lca, stats)) {
+      NL_LOG_ERR("thumb2_analyze_func failed, aborting");
+      return 1;
+    }
+
     if (!lca.log_calls.empty()) { log_call_funcs.push_back(lca); }
   }
 

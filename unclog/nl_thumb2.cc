@@ -20,7 +20,7 @@ struct reg_state {
 
 struct path_state {
   reg_state rs;
-  std::unordered_set<u32> taken_branches;
+  std::vector<bool> taken_branches;
   u8 it_flags, it_rem;
 };
 
@@ -111,7 +111,10 @@ void cmp_imm_lit_set(reg_state& rs, u8 index, u32 lit) {
 }
 
 bool branch(u32 addr, path_state& p, func_state& s) {
-  if (p.taken_branches.contains(addr)) { return false; }
+  auto const idx{unsigned((addr - s.func_start) / 2)};
+  if (idx >= p.taken_branches.size()) { p.taken_branches.resize((idx + 1) * 10); }
+  if (p.taken_branches[idx]) { return false; }
+
   auto const it{s.taken_branches_reg_states.find(addr)};
   if (it != s.taken_branches_reg_states.end()) {
     auto const& reg_states{it->second};
@@ -123,7 +126,7 @@ bool branch(u32 addr, path_state& p, func_state& s) {
     }
   }
 
-  p.taken_branches.insert(addr);
+  p.taken_branches[idx] = true;
   auto [vi, inserted]{s.taken_branches_reg_states.insert({addr, {}})};
   vi->second.push_back(p.rs);
   return true;
@@ -390,20 +393,28 @@ simulate_results simulate(inst const& i, func_state& fs, path_state& path) {
   return simulate_results::SUCCESS;
 }
 
-void process_log_call(inst const& pc_i,
+bool process_log_call(inst const& pc_i,
                       path_state const& path,
+                      elf_section_hdr32 const& nl_sec_hdr,
                       func_state& fs,
                       func_log_call_analysis& lca) {
   if (!test_reg_known(path.rs.known, reg::R0)) {
     NL_LOG_DBG("  Found log function, R0 is unknown\n");
-    return;
+    return false;
   }
 
-  u32 fmt_str_addr{path.rs.regs[reg::R0]};
+  u32 const fmt_str_addr{path.rs.regs[reg::R0]};
+  if (nl_sec_hdr.sh_size &&
+      ((fmt_str_addr < nl_sec_hdr.sh_addr) ||
+       (fmt_str_addr > (nl_sec_hdr.sh_addr + nl_sec_hdr.sh_size)))) {
+    NL_LOG_ERR("  Found log function, R0 is invalid: 0x%08x\n", fmt_str_addr);
+    return false;
+  }
+
   auto [_, inserted]{fs.discovered_log_strs.insert(fmt_str_addr)};
   if (!inserted) {
     NL_LOG_DBG("  Found log function, already discovered\n");
-    return;
+    return true;
   }
 
   lca.log_calls.emplace_back(log_call{ .fmt_str_addr = path.rs.regs[reg::R0],
@@ -420,10 +431,11 @@ void process_log_call(inst const& pc_i,
       NL_LOG_DBG("Unrecognized pattern!\n***\n");
       inst_print(r0_i);
       NL_LOG_DBG("\n***\n");
-      break;
+      return false;
   }
-}
 
+  return true;
+}
 }
 
 char const *fmt_str_strat_name(fmt_str_strat s) {
@@ -434,6 +446,7 @@ char const *fmt_str_strat_name(fmt_str_strat s) {
 
 bool thumb2_analyze_func(elf const& e,
                          elf_symbol32 const& func,
+                         elf_section_hdr32 const& nl_sec_hdr,
                          std::vector<elf_symbol32 const*> const& log_funcs,
                          func_log_call_analysis& out_lca,
                          analysis_stats& out_stats) {
@@ -444,9 +457,13 @@ bool thumb2_analyze_func(elf const& e,
     &e.strtab[func.st_name], func.st_value, func.st_size, s.func_start, s.func_end,
     s.func_ofs);
 
-  s.paths.push(path_state{.rs{.regs[reg::PC] = s.func_start}});
+  { // set up the function entry point on the path stack
+    path_state entry{.rs{.regs[reg::PC] = s.func_start}};
+    entry.taken_branches.resize((s.func_end - s.func_start) / 2);
+    s.paths.push(entry);
+  }
 
-  while (!s.paths.empty()) {
+  while (!s.paths.empty()) { // recurse through the function
     path_state path{s.paths.top()};
     s.paths.pop();
 
@@ -475,7 +492,9 @@ bool thumb2_analyze_func(elf const& e,
         break;
       }
 
-      if (inst_is_log_call(pc_i, log_funcs)) { process_log_call(pc_i, path, s, out_lca); }
+      if (inst_is_log_call(pc_i, log_funcs)) {
+        if (!process_log_call(pc_i, path, nl_sec_hdr, s, out_lca)) { return false; }
+      }
 
       simulate_results const sr{simulate(pc_i, s, path)};
       if (sr == simulate_results::FAILURE) { return false; }
@@ -500,19 +519,25 @@ bool thumb2_patch_fmt_strs(elf const& e,
 
     for (auto const &log_call : func.log_calls) {
       reg_mut_node const& r0_mut = func.reg_muts[log_call.node_idx];
+      u32 bin_addr{fmt_bin_addrs[i] + nl_sec_hdr.sh_addr};
+
       switch (log_call.s) {
-        case fmt_str_strat::DIRECT_LOAD:
+        case fmt_str_strat::DIRECT_LOAD: {
+          unsigned dst_ofs{func_ofs + (r0_mut.i.i.load_lit.addr - func_addr)};
+          memcpy(&patched_elf[dst_ofs], &bin_addr, sizeof(u32));
+        } break;
+
         case fmt_str_strat::MOV_FROM_DIRECT_LOAD: {
-          u32 addr{fmt_bin_addrs[i] + nl_sec_hdr.sh_addr};
-          memcpy(&patched_elf[func_ofs + (r0_mut.i.i.load_lit.addr - func_addr)],
-                 &addr,
-                 sizeof(u32));
+          reg_mut_node const& rn_mut = func.reg_muts[r0_mut.par_idxs[0]];
+          unsigned const dst_ofs{func_ofs + (rn_mut.i.i.load_lit.addr - func_addr)};
+          memcpy(&patched_elf[dst_ofs], &bin_addr, sizeof(u32));
         } break;
 
         case fmt_str_strat::ADD_IMM_FROM_BASE_REG:
           printf("Strategy ADD_IMM_FROM_BASE_REG not supported yet.\n");
           return false;
       }
+
       ++i;
     }
   }

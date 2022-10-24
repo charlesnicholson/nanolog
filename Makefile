@@ -26,6 +26,7 @@ CFLAGS = --std=c17
 CXXFLAGS = --std=c++20
 
 CPPFLAGS += -MMD -MP -Os -flto -g
+#CPPFLAGS += -MMD -MP -O0 -g
 CPPFLAGS += -Werror -Wall -Wextra
 
 ifeq ($(OS),Darwin)
