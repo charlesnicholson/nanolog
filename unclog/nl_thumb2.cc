@@ -5,8 +5,7 @@
 #include <cassert>
 #include <cstring>
 #include <stack>
-#include <unordered_set>
-#include <vector>
+#include <unordered_map>
 
 namespace {
 
@@ -78,14 +77,8 @@ void print(reg_state const& r) {
   NL_LOG_DBG("\n");
 }
 
-void print(std::unordered_set<u32> const& b) {
-  NL_LOG_DBG("taken_branches: ");
-  for (auto const i: b) { NL_LOG_DBG("%x ", i); }
-  NL_LOG_DBG("\n");
-}
-
 bool address_in_func(u32 addr, func_state const& s) {
-  return !s.f.st_size || ((addr >= s.func_start) && (addr <= s.func_end));
+  return !s.f.st_size || ((addr >= s.func_start) && (addr < s.func_end));
 }
 
 bool test_reg_known(u16 regs, u8 idx) { return (regs >> idx) & 1u; }
@@ -118,10 +111,8 @@ bool branch(u32 addr, path_state& p, func_state& s) {
   auto const it{s.taken_branches_reg_states.find(addr)};
   if (it != s.taken_branches_reg_states.end()) {
     auto const& reg_states{it->second};
-    auto const b{reg_states.begin()}, e{reg_states.end()};
-    if (std::find_if(b,
-                     e,
-                     [&](auto const& rs) { return reg_states_equal(p.rs, rs); }) != e) {
+    auto const b{std::begin(reg_states)}, e{std::end(reg_states)};
+    if (std::find_if(b, e, [&](auto& rs) { return reg_states_equal(p.rs, rs); }) != e) {
       return false;
     }
   }
@@ -213,7 +204,10 @@ simulate_results process_ldr_pc_jump_table(inst const& i, path_state& p, func_st
   return simulate_results::TERMINATE_PATH;
 }
 
-simulate_results simulate(inst const& i, func_state& fs, path_state& path) {
+simulate_results simulate(inst const& i,
+                          std::unordered_set<u32> const& noreturn_func_addrs,
+                          func_state& fs,
+                          path_state& path) {
   bool const it_skip{path.it_rem && !(path.it_flags & 1)};
   if (path.it_rem) { --path.it_rem; path.it_flags >>= 1u; }
   if (it_skip) { path.rs.regs[reg::PC] += i.len; return simulate_results::SUCCESS; }
@@ -250,10 +244,6 @@ simulate_results simulate(inst const& i, func_state& fs, path_state& path) {
       path.rs.mut_node_idxs[adr.d] = u16(reg_muts.size() - 1u);
     } break;
 
-    case inst_type::CMP_IMM:
-      cmp_imm_lit_set(path.rs, i.i.cmp_imm.n, i.i.cmp_imm.imm);
-      break;
-
     case inst_type::BRANCH: {
       auto const& b{i.i.branch};
       bool const addr_in_func{address_in_func(b.addr, fs)}, cond{!cond_code_is_always(b.cc)};
@@ -262,9 +252,9 @@ simulate_results simulate(inst const& i, func_state& fs, path_state& path) {
           NL_LOG_DBG("  Stopping Path: Unconditional branch out of function\n");
           return simulate_results::TERMINATE_PATH;
         }
-        if (!branch(i.addr, path, fs)) {
-          return simulate_results::TERMINATE_PATH;
-        }
+
+        if (!branch(i.addr, path, fs)) { return simulate_results::TERMINATE_PATH; }
+
         path.rs.regs[reg::PC] = b.addr;
         return simulate_results::SUCCESS;
       } else {
@@ -276,6 +266,13 @@ simulate_results simulate(inst const& i, func_state& fs, path_state& path) {
         }
       }
     } break;
+
+    case inst_type::BRANCH_LINK:
+      if (noreturn_func_addrs.contains(i.i.branch_link.addr)) {
+        NL_LOG_DBG("  Stopping path: noreturn call\n");
+        return simulate_results::TERMINATE_PATH;
+      }
+      break;
 
     case inst_type::BRANCH_XCHG: return simulate_results::TERMINATE_PATH; // tail call
 
@@ -291,6 +288,10 @@ simulate_results simulate(inst const& i, func_state& fs, path_state& path) {
         NL_LOG_DBG("  Internal branch, pushing state\n");
         fs.paths.push(path_state_branch(path, i.i.cmp_branch_z.addr));
       }
+      break;
+
+    case inst_type::CMP_IMM:
+      cmp_imm_lit_set(path.rs, i.i.cmp_imm.n, i.i.cmp_imm.imm);
       break;
 
     case inst_type::IF_THEN:
@@ -448,6 +449,7 @@ bool thumb2_analyze_func(elf const& e,
                          elf_symbol32 const& func,
                          elf_section_hdr32 const& nl_sec_hdr,
                          std::vector<elf_symbol32 const*> const& log_funcs,
+                         std::unordered_set<u32> const& noreturn_func_addrs,
                          func_log_call_analysis& out_lca,
                          analysis_stats& out_stats) {
   func_state s{func, e, e.sec_hdrs[func.st_shndx], out_lca};
@@ -473,7 +475,7 @@ bool thumb2_analyze_func(elf const& e,
     for (;;) {
       if (func.st_size && (path.rs.regs[reg::PC] >= s.func_end)) {
         NL_LOG_DBG("  Stopping path: Ran off the end!\n");
-        break;
+        return false;
       }
 
       inst pc_i;
@@ -496,7 +498,7 @@ bool thumb2_analyze_func(elf const& e,
         if (!process_log_call(pc_i, path, nl_sec_hdr, s, out_lca)) { return false; }
       }
 
-      simulate_results const sr{simulate(pc_i, s, path)};
+      simulate_results const sr{simulate(pc_i, noreturn_func_addrs, s, path)};
       if (sr == simulate_results::FAILURE) { return false; }
       if (sr == simulate_results::TERMINATE_PATH) {
         NL_LOG_DBG("  Stopping path: terminal pattern\n");

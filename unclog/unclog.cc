@@ -21,6 +21,7 @@ struct state {
   std::vector<elf_symbol32 const*> nl_funcs;
   sym_addr_map_t non_nl_funcs_sym_map;
   std::unordered_map<u32, char const *> missed_nl_strs_map;
+  std::unordered_set<u32> noreturn_func_addrs;
 };
 
 elf_section_hdr32 const *find_nl_hdr(elf_section_hdr32 const *sec_hdrs,
@@ -31,20 +32,19 @@ elf_section_hdr32 const *find_nl_hdr(elf_section_hdr32 const *sec_hdrs,
   return (it == &sec_hdrs[sec_n]) ? nullptr : &*it;
 }
 
-bool load(state& s, char const *filename) {
+bool load(state& s, std::vector<char const *> const& noreturn_funcs, char const *filename) {
   if (!nl_elf_load(s.elf, filename)) { return false; }
 
-  // nanolog section
   s.nl_hdr = find_nl_hdr(s.elf.sec_hdrs, s.elf.sec_names, (int)s.elf.elf_hdr->e_shnum);
-  assert(s.nl_hdr);
+  if (!s.nl_hdr) { NL_LOG_ERR("%s has no .nanolog section\n", filename); return false; }
 
   {  // populate the "missed strings" map
     auto const nl_str_off{s.nl_hdr->sh_offset}, nl_str_addr{s.nl_hdr->sh_addr};
-    auto const *src{(char const *)&s.elf.bytes[nl_str_off]}, *b{src};
+    auto const *src{(char const *)&s.elf.bytes[nl_str_off]}, *base{src};
     u32 rem{s.nl_hdr->sh_size};
-    auto& m{s.missed_nl_strs_map};
     while (rem) {
-      auto [iter, inserted] = m.insert({u32(uintptr_t(src - b) + nl_str_addr), src});
+      auto [iter, inserted]{
+        s.missed_nl_strs_map.insert({u32(uintptr_t(src - base) + nl_str_addr), src})};
       assert(inserted);
       u32 const n{u32(strlen(src) + 1)};
       rem -= n; src += n;
@@ -52,22 +52,32 @@ bool load(state& s, char const *filename) {
     }
   }
 
-  // nanolog functions, and non-nanolog-function-addr-to-symbol-map
   auto const n{s.elf.symtab_hdr->sh_size / s.elf.symtab_hdr->sh_entsize};
   for (auto i{0u}; i < n; ++i) {
     elf_symbol32 const& sym{s.elf.symtab[i]};
     if ((sym.st_info & 0xF) != ELF_SYM_TYPE_FUNC) { continue; }
+    char const *name{&s.elf.strtab[sym.st_name]};
 
-    if (strstr(&s.elf.strtab[sym.st_name], "nanolog_") == &s.elf.strtab[sym.st_name]) {
+    if (strstr(name, "nanolog_") == name) {
       s.nl_funcs.push_back(&sym);
     } else {
-      auto found{s.non_nl_funcs_sym_map.find(sym.st_value)};
-      if (found == s.non_nl_funcs_sym_map.end()) {
-        bool ok;
-        std::tie(found, ok) = s.non_nl_funcs_sym_map.insert({sym.st_value, {}});
-        assert(ok);
+      { // noreturn functions
+        auto found{std::find_if(std::begin(noreturn_funcs), std::end(noreturn_funcs),
+          [name](char const *f) { return !strcmp(f, name); })};
+        if (found != std::end(noreturn_funcs)) {
+          s.noreturn_func_addrs.insert({u32(sym.st_value & ~1u)});
+        }
       }
-      found->second.push_back(&sym);
+
+      { // non-nanolog-function-address to symbol map
+        auto found{s.non_nl_funcs_sym_map.find(sym.st_value)};
+        if (found == std::end(s.non_nl_funcs_sym_map)) {
+          bool ok;
+          std::tie(found, ok) = s.non_nl_funcs_sym_map.insert({sym.st_value, {}});
+          assert(ok);
+        }
+        found->second.push_back(&sym);
+      }
     }
   }
 
@@ -115,9 +125,13 @@ int main(int argc, char const *argv[]) {
 
   args cmd_args;
   if (!args_parse(argv, argc, cmd_args)) { return 1; }
+  cmd_args.noreturn_funcs.push_back("exit");
+  cmd_args.noreturn_funcs.push_back("_exit");
+  cmd_args.noreturn_funcs.push_back("_mainCRTStartup");
+  cmd_args.noreturn_funcs.push_back("handle_failed_assert");
 
   state s;
-  load(s, cmd_args.input_file);
+  load(s, cmd_args.noreturn_funcs, cmd_args.input_file);
 
   printf("Nanolog public functions:\n");
   for (auto const& nl_func : s.nl_funcs) {
@@ -130,7 +144,13 @@ int main(int argc, char const *argv[]) {
   std::vector<func_log_call_analysis> log_call_funcs;
   for (auto const& [_, syms] : s.non_nl_funcs_sym_map) {
     func_log_call_analysis lca{*syms[0]};
-    if (!thumb2_analyze_func(s.elf, lca.func, *s.nl_hdr, s.nl_funcs, lca, stats)) {
+    if (!thumb2_analyze_func(s.elf,
+                             lca.func,
+                             *s.nl_hdr,
+                             s.nl_funcs,
+                             s.noreturn_func_addrs,
+                             lca,
+                             stats)) {
       NL_LOG_ERR("thumb2_analyze_func failed, aborting");
       return 1;
     }

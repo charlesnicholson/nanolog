@@ -1,14 +1,17 @@
 #include "nl_args.h"
-#include <cstdio>
+#include "../nanolog.h"
 #include <cstring>
 
 namespace {
-void print_usage() { printf("Usage: unclog <input-file> <-o output-file>\n"); }
+void print_usage() {
+  NL_LOG_INFO("Usage: unclog <input-file> <-o output-file> [--noreturn-func foo]\n");
+}
 }
 
 enum next_token {
   ANYTHING,
   OUTPUT_FILE,
+  NORETURN_FUNC,
 };
 
 bool args_parse(char const *argv[], int const argc, args& out_args) {
@@ -24,10 +27,21 @@ bool args_parse(char const *argv[], int const argc, args& out_args) {
         nt = ANYTHING;
         break;
 
+      case NORETURN_FUNC:
+        if (argv[i][0] == '-') { ok = false; break; }
+        out_args.noreturn_funcs.push_back(argv[i]);
+        nt = ANYTHING;
+        break;
+
       case ANYTHING:
         if (!strcmp(argv[i], "-o") || !strcmp(argv[i], "--output-file")) {
           if (out_args.output_file) { ok = false; break; }
           nt = OUTPUT_FILE;
+          break;
+        }
+
+        if (!strcmp(argv[i], "--noreturn-func")) {
+          nt = NORETURN_FUNC;
           break;
         }
 
@@ -38,6 +52,7 @@ bool args_parse(char const *argv[], int const argc, args& out_args) {
     }
   }
 
-  if (!ok || (nt != ANYTHING)) { print_usage(); }
+  ok = ok && (nt == ANYTHING) && out_args.input_file && out_args.output_file;
+  if (!ok) { print_usage(); }
   return ok;
 }

@@ -2,7 +2,7 @@
 
 #include "nl_stats.h"
 #include "nl_thumb2_inst.h"
-#include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 struct elf;
@@ -43,6 +43,7 @@ bool thumb2_analyze_func(elf const& e,
                          elf_symbol32 const& func,
                          elf_section_hdr32 const& nl_sec_hdr,
                          std::vector<elf_symbol32 const*> const& log_funcs,
+                         std::unordered_set<u32> const& noreturn_func_addrs,
                          func_log_call_analysis& out_lca,
                          analysis_stats& out_stats);
 

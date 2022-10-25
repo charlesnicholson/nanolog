@@ -70,7 +70,7 @@ nanolog_ret_t nanolog_parse_binary_log(nanolog_binary_field_handler_cb_t cb,
 #else
 #define NL_LOG_INFO(FMT, ...) do { \
     static char const NL_ATTR_SEC(INFO) s_nanolog_fmt_str[] = FMT; \
-    nanolog_log_inf(s_nanolog_fmt_str, ##__VA_ARGS__); \
+    nanolog_log_info(s_nanolog_fmt_str, ##__VA_ARGS__); \
   } while(0)
 #endif
 
