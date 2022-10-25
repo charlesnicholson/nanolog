@@ -2,6 +2,7 @@ build
 disasm*.txt
 unclog.txt
 *.elf
+*.json
 
 # Prerequisites
 *.dSYM

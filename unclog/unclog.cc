@@ -1,6 +1,7 @@
 #include "nl_args.h"
 #include "nl_bin_strings.h"
 #include "nl_elf.h"
+#include "nl_json.h"
 #include "nl_thumb2.h"
 #include "nl_stats.h"
 #include "../nanolog.h"
@@ -131,7 +132,7 @@ int main(int argc, char const *argv[]) {
   cmd_args.noreturn_funcs.push_back("handle_failed_assert");
 
   state s;
-  load(s, cmd_args.noreturn_funcs, cmd_args.input_file);
+  load(s, cmd_args.noreturn_funcs, cmd_args.input_elf);
 
   NL_LOG_DBG("Nanolog public functions:\n");
   for (auto const& nl_func : s.nl_funcs) {
@@ -235,6 +236,7 @@ int main(int argc, char const *argv[]) {
   }
 
   bytes_ptr patched_elf{patch_elf(s, log_call_funcs, fmt_bin_addrs, fmt_bin_mem)};
-  if (!write_file(&patched_elf[0], s.elf.len, cmd_args.output_file)) { return 1; }
+  if (!write_file(&patched_elf[0], s.elf.len, cmd_args.output_elf)) { return 1; }
+  if (!json_write_manifest(fmt_strs, cmd_args.output_json)) { return 2; }
   return 0;
 }

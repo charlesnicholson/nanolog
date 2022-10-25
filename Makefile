@@ -5,6 +5,7 @@ UNCLOG_SRCS := unclog/unclog.cc \
 			   unclog/nl_args.cc \
 			   unclog/nl_bin_strings.cc \
 			   unclog/nl_elf.cc \
+			   unclog/nl_json.cc \
 			   unclog/nl_thumb2.cc \
 			   unclog/nl_thumb2_inst.cc \
 			   nanolog.c
