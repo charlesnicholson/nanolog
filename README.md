@@ -11,3 +11,7 @@ Build with
 ```
 NANOLOG_VERBOSE=1 make -j
 ```
+
+If you get the runtime error "Ran off the end", it might mean you need to tell unclog about a function of yours that doesn't return: `--noreturn-func your_function`.
+
+If you get the runtime error "Unknown instruction, it means I've missed decoding a few instructions :).
