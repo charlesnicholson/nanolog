@@ -175,22 +175,22 @@ simulate_results process_ldr_pc_jump_table(inst const& i, path_state& p, func_st
   auto const& ldr{i.i.load_reg};
 
   if (!test_reg_known(p.rs.known, ldr.n)) {
-    printf("  Unknown PC-rel load, stopping\n");
+    NL_LOG_ERR("  Unknown PC-rel load, stopping\n");
     return simulate_results::FAILURE;
   }
 
   u32 cmp_lit;
   if (!cmp_imm_lit_get(p.rs, ldr.m, cmp_lit)) {
-    printf("  PC-rel load, haven't seen CMP for offset reg %s\n", reg_name(ldr.m));
+    NL_LOG_ERR("  PC-rel load, haven't seen CMP for offset reg %s\n", reg_name(ldr.m));
     return simulate_results::FAILURE;
   }
 
   if (ldr.shift.n != 2) {
-    printf("  PC-rel load, %s shift is %d (expected 2)\n", reg_name(ldr.m),
+    NL_LOG_ERR("  PC-rel load, %s shift is %d (expected 2)\n", reg_name(ldr.m),
       int(ldr.shift.n));
     return simulate_results::FAILURE;
   }
-  printf("  Known PC-rel load: %s: %x, %d entries\n", reg_name(ldr.n),
+  NL_LOG_DBG("  Known PC-rel load: %s: %x, %d entries\n", reg_name(ldr.n),
     unsigned(p.rs.regs[ldr.n]), cmp_lit);
 
   unsigned char const *src{&fs.e.bytes[fs.func_ofs + (p.rs.regs[ldr.n] - fs.func_start)]};
@@ -372,7 +372,7 @@ simulate_results simulate(inst const& i,
     case inst_type::TABLE_BRANCH_HALF: {
       auto const& tbh{i.i.table_branch_half};
       if (!table_branch(i.addr, 2, tbh.n, tbh.m, path, fs)) {
-        printf("TBH failure\n");
+        NL_LOG_ERR("  TBH failure\n");
         return simulate_results::FAILURE;
       }
       return simulate_results::TERMINATE_PATH;
@@ -381,7 +381,7 @@ simulate_results simulate(inst const& i,
     case inst_type::TABLE_BRANCH_BYTE: {
       auto const& tbb{i.i.table_branch_byte};
       if (!table_branch(i.addr, 1, tbb.n, tbb.m, path, fs)) {
-        printf("TBB failure\n");
+        NL_LOG_ERR("  TBB failure\n");
         return simulate_results::FAILURE;
       }
       return simulate_results::TERMINATE_PATH;
@@ -536,7 +536,7 @@ bool thumb2_patch_fmt_strs(elf const& e,
         } break;
 
         case fmt_str_strat::ADD_IMM_FROM_BASE_REG:
-          printf("Strategy ADD_IMM_FROM_BASE_REG not supported yet.\n");
+          NL_LOG_ERR("Strategy ADD_IMM_FROM_BASE_REG not supported yet.\n");
           return false;
       }
 
