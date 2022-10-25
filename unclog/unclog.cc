@@ -133,11 +133,11 @@ int main(int argc, char const *argv[]) {
   state s;
   load(s, cmd_args.noreturn_funcs, cmd_args.input_file);
 
-  printf("Nanolog public functions:\n");
+  NL_LOG_DBG("Nanolog public functions:\n");
   for (auto const& nl_func : s.nl_funcs) {
-    printf("  0x%08x %s\n", nl_func->st_value & ~1u, &s.elf.strtab[nl_func->st_name]);
+    NL_LOG_DBG("  0x%08x %s\n", nl_func->st_value & ~1u, &s.elf.strtab[nl_func->st_name]);
   }
-  printf("\n");
+  NL_LOG_DBG("\n");
 
   analysis_stats stats;
 
@@ -158,7 +158,7 @@ int main(int argc, char const *argv[]) {
     if (!lca.log_calls.empty()) { log_call_funcs.push_back(lca); }
   }
 
-  printf("\n%u instructions decoded, %u paths analyzed\n\n",
+  NL_LOG_INFO("\n%u instructions decoded, %u paths analyzed\n\n",
     stats.decoded_insts, stats.analyzed_paths);
 
   printf("\nLog calls:\n");
