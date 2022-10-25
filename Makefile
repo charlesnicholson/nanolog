@@ -18,15 +18,14 @@ else
 CPPFLAGS += -DNL_LOG_SEVERITY_THRESHOLD=NL_SEV_INFO
 endif
 
-ifdef NANOLOG_HOST_TOOL
 CPPFLAGS += -DNANOLOG_HOST_TOOL
-endif
 
 CFLAGS = --std=c17
 CXXFLAGS = --std=c++20
 
-CPPFLAGS += -MMD -MP -Os -flto -g
-#CPPFLAGS += -MMD -MP -O0 -g
+CPPFLAGS += -MMD -MP -g
+CPPFLAGS += -Os -flto
+#CPPFLAGS += -O0
 CPPFLAGS += -Werror -Wall -Wextra
 
 ifeq ($(OS),Darwin)
