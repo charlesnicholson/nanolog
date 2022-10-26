@@ -1,6 +1,11 @@
 #include "nanolog.h"
 #include <stddef.h>
 
+#ifndef NANOLOG_HOST_TOOL
+#include <stdint.h>
+#include <wchar.h>
+#endif
+
 static nanolog_log_handler_cb_t s_log_handler = NULL;
 
 nanolog_ret_t nanolog_set_log_handler(nanolog_log_handler_cb_t handler) {
@@ -21,13 +26,9 @@ STAMP_NL_FUNC(warn, WARN)
 STAMP_NL_FUNC(err, ERR)
 STAMP_NL_FUNC(crit, CRIT)
 STAMP_NL_FUNC(assert, ASSERT)
-
 #undef STAMP_NL_FUNC
 
 #ifndef NANOLOG_HOST_TOOL // Only target code uses binary extraction runtime
-
-#include <stdint.h>
-#include <wchar.h>
 
 nanolog_ret_t nanolog_log_is_binary(char const *fmt, int *out_is_binary) {
   if (!fmt || !out_is_binary) { return NANOLOG_RET_ERR_BAD_ARG; }
@@ -85,7 +86,7 @@ static void nanolog_extract_and_dispatch(nanolog_binary_field_handler_cb_t cb,
       wint_t const w = va_arg(args, wint_t); cb(ctx, type, &w, sizeof(w));
     } break;
     case NL_ARG_TYPE_END_OF_LIST: cb(ctx, type, NULL, 0); break;
-    case NL_ARG_TYPE_GUID: break;
+    case NL_ARG_TYPE_GUID: break; // never happens
   }
 }
 
