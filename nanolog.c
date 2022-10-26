@@ -104,11 +104,11 @@ nanolog_ret_t nanolog_parse_binary_log(nanolog_binary_field_handler_cb_t cb,
 
   for (nl_vararg_type_t type; ; ++src) {
     type = (nl_vararg_type_t)(*src & 0xFu);
-    if (type == NL_VARARG_TYPE_END_OF_LIST) { break; }
     nanolog_extract_and_dispatch(cb, ctx, type, args);
+    if (type == NL_VARARG_TYPE_END_OF_LIST) { break; }
     type = (nl_vararg_type_t)(*src >> 4u);
-    if (type == NL_VARARG_TYPE_END_OF_LIST) { break; }
     nanolog_extract_and_dispatch(cb, ctx, type, args);
+    if (type == NL_VARARG_TYPE_END_OF_LIST) { break; }
   }
 
   return NANOLOG_RET_SUCCESS;
