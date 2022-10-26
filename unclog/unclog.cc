@@ -9,6 +9,7 @@
 #include <cassert>
 #include <cstdio>
 #include <cstdint>
+#include <cstring>
 #include <queue>
 #include <unordered_map>
 
@@ -17,7 +18,7 @@ namespace {
 using sym_addr_map_t = std::unordered_map<u32, std::vector<elf_symbol32 const*>>;
 
 struct state {
-  elf elf;
+  elf e;
   elf_section_hdr32 const *nl_hdr;
   std::vector<elf_symbol32 const*> nl_funcs;
   sym_addr_map_t non_nl_funcs_sym_map;
@@ -34,14 +35,14 @@ elf_section_hdr32 const *find_nl_hdr(elf_section_hdr32 const *sec_hdrs,
 }
 
 bool load(state& s, std::vector<char const *> const& noreturn_funcs, char const *filename) {
-  if (!nl_elf_load(s.elf, filename)) { return false; }
+  if (!nl_elf_load(s.e, filename)) { return false; }
 
-  s.nl_hdr = find_nl_hdr(s.elf.sec_hdrs, s.elf.sec_names, (int)s.elf.elf_hdr->e_shnum);
+  s.nl_hdr = find_nl_hdr(s.e.sec_hdrs, s.e.sec_names, (int)s.e.elf_hdr->e_shnum);
   if (!s.nl_hdr) { NL_LOG_ERR("%s has no .nanolog section\n", filename); return false; }
 
   {  // populate the "missed strings" map
     auto const nl_str_off{s.nl_hdr->sh_offset}, nl_str_addr{s.nl_hdr->sh_addr};
-    auto const *src{(char const *)&s.elf.bytes[nl_str_off]}, *base{src};
+    auto const *src{(char const *)&s.e.bytes[nl_str_off]}, *base{src};
     u32 rem{s.nl_hdr->sh_size};
     while (rem) {
       auto [iter, inserted]{
@@ -53,11 +54,11 @@ bool load(state& s, std::vector<char const *> const& noreturn_funcs, char const 
     }
   }
 
-  auto const n{s.elf.symtab_hdr->sh_size / s.elf.symtab_hdr->sh_entsize};
+  auto const n{s.e.symtab_hdr->sh_size / s.e.symtab_hdr->sh_entsize};
   for (auto i{0u}; i < n; ++i) {
-    elf_symbol32 const& sym{s.elf.symtab[i]};
+    elf_symbol32 const& sym{s.e.symtab[i]};
     if ((sym.st_info & 0xF) != ELF_SYM_TYPE_FUNC) { continue; }
-    char const *name{&s.elf.strtab[sym.st_name]};
+    char const *name{&s.e.strtab[sym.st_name]};
 
     if (strstr(name, "nanolog_") == name) {
       s.nl_funcs.push_back(&sym);
@@ -91,14 +92,14 @@ bytes_ptr patch_elf(state const& s,
                     byte_vec const& fmt_bin_mem) {
   (void)log_call_funcs;
   (void)fmt_bin_addrs;
-  bytes_ptr pe{new (std::align_val_t{16}) byte[s.elf.len]};
-  memcpy(&pe[0], &s.elf.bytes[0], s.elf.len);
+  bytes_ptr pe{new (std::align_val_t{16}) byte[s.e.len]};
+  memcpy(&pe[0], &s.e.bytes[0], s.e.len);
   memset(&pe[s.nl_hdr->sh_offset], 0, s.nl_hdr->sh_size);
   memcpy(&pe[s.nl_hdr->sh_offset], fmt_bin_mem.data(), fmt_bin_mem.size());
   auto *patched_nl_hdr{
-    (elf_section_hdr32 *)(&pe[0] + (uintptr_t(s.nl_hdr) - uintptr_t(&s.elf.bytes[0])))};
+    (elf_section_hdr32 *)(&pe[0] + (uintptr_t(s.nl_hdr) - uintptr_t(&s.e.bytes[0])))};
   patched_nl_hdr->sh_size = u32(fmt_bin_mem.size());
-  thumb2_patch_fmt_strs(s.elf, *s.nl_hdr, &pe[0], log_call_funcs, fmt_bin_addrs);
+  thumb2_patch_fmt_strs(s.e, *s.nl_hdr, &pe[0], log_call_funcs, fmt_bin_addrs);
   return pe;
 }
 
@@ -136,7 +137,7 @@ int main(int argc, char const *argv[]) {
 
   NL_LOG_DBG("Nanolog public functions:\n");
   for (auto const& nl_func : s.nl_funcs) {
-    NL_LOG_DBG("  0x%08x %s\n", nl_func->st_value & ~1u, &s.elf.strtab[nl_func->st_name]);
+    NL_LOG_DBG("  0x%08x %s\n", nl_func->st_value & ~1u, &s.e.strtab[nl_func->st_name]);
   }
   NL_LOG_DBG("\n");
 
@@ -145,7 +146,7 @@ int main(int argc, char const *argv[]) {
   std::vector<func_log_call_analysis> log_call_funcs;
   for (auto const& [_, syms] : s.non_nl_funcs_sym_map) {
     func_log_call_analysis lca{*syms[0]};
-    if (!thumb2_analyze_func(s.elf,
+    if (!thumb2_analyze_func(s.e,
                              lca.func,
                              *s.nl_hdr,
                              s.nl_funcs,
@@ -164,7 +165,7 @@ int main(int argc, char const *argv[]) {
 
   printf("\nLog calls:\n");
   for (auto const& func: log_call_funcs) {
-    printf("  %s\n", &s.elf.strtab[func.func.st_name]);
+    printf("  %s\n", &s.e.strtab[func.func.st_name]);
     for (auto const& call: func.log_calls) {
       reg_mut_node const& r0_mut = func.reg_muts[call.node_idx];
 
@@ -189,7 +190,7 @@ int main(int argc, char const *argv[]) {
       }
 
       printf("\"%s\"\n",
-        &s.elf.bytes[s.nl_hdr->sh_offset + (call.fmt_str_addr - s.nl_hdr->sh_addr)]);
+        &s.e.bytes[s.nl_hdr->sh_offset + (call.fmt_str_addr - s.nl_hdr->sh_addr)]);
 
       s.missed_nl_strs_map.erase(call.fmt_str_addr);
     }
@@ -203,7 +204,7 @@ int main(int argc, char const *argv[]) {
   }
 
   std::vector<char const *> fmt_strs;
-  for (auto const *ofs{&s.elf.bytes[s.nl_hdr->sh_offset]};
+  for (auto const *ofs{&s.e.bytes[s.nl_hdr->sh_offset]};
        auto const& func: log_call_funcs) {
     for (auto const& log_call: func.log_calls) {
       fmt_strs.push_back((char const *)(ofs + (log_call.fmt_str_addr - s.nl_hdr->sh_addr)));
@@ -236,7 +237,7 @@ int main(int argc, char const *argv[]) {
   }
 
   bytes_ptr patched_elf{patch_elf(s, log_call_funcs, fmt_bin_addrs, fmt_bin_mem)};
-  if (!write_file(&patched_elf[0], s.elf.len, cmd_args.output_elf)) { return 1; }
+  if (!write_file(&patched_elf[0], s.e.len, cmd_args.output_elf)) { return 1; }
   if (!json_write_manifest(fmt_strs, cmd_args.output_json)) { return 2; }
   return 0;
 }

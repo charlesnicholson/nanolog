@@ -33,7 +33,7 @@ ifeq ($(OS),Darwin)
 CPPFLAGS += -Weverything
 endif
 
-CPPFLAGS += -Wno-c++98-compat -Wno-padded
+CPPFLAGS += -Wno-padded
 
 ifeq ($(OS),Darwin)
 CPPFLAGS += -Wno-poison-system-directories -Wno-format-pedantic
@@ -44,7 +44,8 @@ CXXFLAGS += -Wno-c++98-compat-pedantic \
 			-Wno-covered-switch-default \
 			-Wno-switch-enum \
 			-Wno-cast-align \
-			-Wno-unused-function
+			-Wno-unused-function \
+			-Wno-c++98-compat
 endif
 
 LDFLAGS = -flto

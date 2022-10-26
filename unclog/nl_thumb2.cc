@@ -70,13 +70,6 @@ bool reg_states_equal(reg_state const& r1, reg_state const& r2) {
   return true;
 }
 
-void print(reg_state const& r) {
-  for (auto i{0u}; i < 16; ++i) {
-    if (r.known & (1u << i)) { NL_LOG_DBG("  R%d: %x ", int(i), r.regs[i]); }
-  }
-  NL_LOG_DBG("\n");
-}
-
 bool address_in_func(u32 addr, func_state const& s) {
   return !s.f.st_size || ((addr >= s.func_start) && (addr < s.func_end));
 }
