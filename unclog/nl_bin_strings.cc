@@ -51,8 +51,10 @@ void convert_strings_to_bins(std::vector<char const *> const& fmt_strs,
           } break;
 
         case NPF_FMT_SPEC_CONV_POINTER:
-        case NPF_FMT_SPEC_CONV_STRING:
           field = char(NL_VARARG_TYPE_POINTER); added_field = true; break;
+
+        case NPF_FMT_SPEC_CONV_STRING:
+          field = char(NL_VARARG_TYPE_STRING); added_field = true; break;
 
         case NPF_FMT_SPEC_CONV_BINARY:
         case NPF_FMT_SPEC_CONV_OCTAL:

@@ -22,12 +22,24 @@ extern "C" {
 
 // Public API
 
-
 typedef enum {
   NANOLOG_RET_SUCCESS = 0,
   NANOLOG_RET_ERR_BAD_ARG,
   NANOLOG_RET_INVALID_PAYLOAD,
 } nanolog_ret_t;
+
+typedef enum {
+  NL_VARARG_TYPE_SCALAR_1_BYTE = 0,
+  NL_VARARG_TYPE_SCALAR_2_BYTE = 1,
+  NL_VARARG_TYPE_SCALAR_4_BYTE = 2,
+  NL_VARARG_TYPE_SCALAR_8_BYTE = 3,
+  NL_VARARG_TYPE_STRING = 4,
+  NL_VARARG_TYPE_POINTER = 5,
+  NL_VARARG_TYPE_DOUBLE = 6,
+  NL_VARARG_TYPE_LONG_DOUBLE = 7,
+  NL_VARARG_TYPE_WINT_T = 8,
+  NL_VARARG_TYPE_END_OF_LIST = 0xF,
+} nl_vararg_type_t;
 
 // Install a handler to be called on every log macro invocation.
 typedef void (*nanolog_log_handler_cb_t)(int sev, char const *fmt, va_list args);
@@ -37,7 +49,11 @@ nanolog_ret_t nanolog_set_log_handler(nanolog_log_handler_cb_t handler);
 nanolog_ret_t nanolog_log_is_binary(char const *fmt, int *out_is_binary);
 
 // Calls |cb| with |ctx| with every extracted vararg.
-typedef void (*nanolog_binary_field_handler_cb_t)(void *ctx, void const *p, unsigned len);
+typedef void (*nanolog_binary_field_handler_cb_t)(void *ctx,
+                                                  nl_vararg_type_t type,
+                                                  void const *p,
+                                                  unsigned len);
+
 nanolog_ret_t nanolog_parse_binary_log(nanolog_binary_field_handler_cb_t cb,
                                        void *ctx,
                                        char const *fmt,
@@ -139,20 +155,6 @@ void nanolog_log_warn(char const *fmt, ...);
 void nanolog_log_err(char const *fmt, ...);
 void nanolog_log_crit(char const *fmt, ...);
 void nanolog_log_assert(char const *fmt, ...);
-
-// Private binary log vararg extraction types
-
-typedef enum {
-  NL_VARARG_TYPE_SCALAR_1_BYTE = 0,
-  NL_VARARG_TYPE_SCALAR_2_BYTE = 1,
-  NL_VARARG_TYPE_SCALAR_4_BYTE = 2,
-  NL_VARARG_TYPE_SCALAR_8_BYTE = 3,
-  NL_VARARG_TYPE_POINTER = 4,
-  NL_VARARG_TYPE_DOUBLE = 5,
-  NL_VARARG_TYPE_LONG_DOUBLE = 6,
-  NL_VARARG_TYPE_WINT_T = 7,
-  NL_VARARG_TYPE_END_OF_LIST = 0xF,
-} nl_vararg_type_t;
 
 // Rewritten elf file format payloads start with this byte instead of printable ascii.
 
