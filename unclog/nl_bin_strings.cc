@@ -44,17 +44,17 @@ void convert_strings_to_bins(std::vector<char const *> const& fmt_strs,
         case NPF_FMT_SPEC_CONV_CHAR:
           switch (fs.length_modifier) {
             case NPF_FMT_SPEC_LEN_MOD_NONE:
-              field = char(NL_VARARG_TYPE_SCALAR_1_BYTE); added_field = true; break;
+              field = char(NL_ARG_TYPE_SCALAR_1_BYTE); added_field = true; break;
             case NPF_FMT_SPEC_LEN_MOD_LONG:
-              field = char(NL_VARARG_TYPE_WINT_T); added_field = true; break;
+              field = char(NL_ARG_TYPE_WINT_T); added_field = true; break;
             default: break;
           } break;
 
         case NPF_FMT_SPEC_CONV_POINTER:
-          field = char(NL_VARARG_TYPE_POINTER); added_field = true; break;
+          field = char(NL_ARG_TYPE_POINTER); added_field = true; break;
 
         case NPF_FMT_SPEC_CONV_STRING:
-          field = char(NL_VARARG_TYPE_STRING); added_field = true; break;
+          field = char(NL_ARG_TYPE_STRING); added_field = true; break;
 
         case NPF_FMT_SPEC_CONV_BINARY:
         case NPF_FMT_SPEC_CONV_OCTAL:
@@ -63,17 +63,17 @@ void convert_strings_to_bins(std::vector<char const *> const& fmt_strs,
         case NPF_FMT_SPEC_CONV_SIGNED_INT:
           switch (fs.length_modifier) {
             case NPF_FMT_SPEC_LEN_MOD_CHAR:
-              field = char(NL_VARARG_TYPE_SCALAR_1_BYTE); added_field = true; break;
+              field = char(NL_ARG_TYPE_SCALAR_1_BYTE); added_field = true; break;
             case NPF_FMT_SPEC_LEN_MOD_SHORT:
-              field = char(NL_VARARG_TYPE_SCALAR_2_BYTE); added_field = true; break;
+              field = char(NL_ARG_TYPE_SCALAR_2_BYTE); added_field = true; break;
             case NPF_FMT_SPEC_LEN_MOD_NONE:
             case NPF_FMT_SPEC_LEN_MOD_LONG:
             case NPF_FMT_SPEC_LEN_MOD_LARGE_SIZET:
             case NPF_FMT_SPEC_LEN_MOD_LARGE_PTRDIFFT:
-              field = char(NL_VARARG_TYPE_SCALAR_4_BYTE); added_field = true; break;
+              field = char(NL_ARG_TYPE_SCALAR_4_BYTE); added_field = true; break;
             case NPF_FMT_SPEC_LEN_MOD_LARGE_LONG_LONG:
             case NPF_FMT_SPEC_LEN_MOD_LARGE_INTMAX:
-              field = char(NL_VARARG_TYPE_SCALAR_8_BYTE); added_field = true; break;
+              field = char(NL_ARG_TYPE_SCALAR_8_BYTE); added_field = true; break;
             default: break;
           } break;
 
@@ -83,9 +83,9 @@ void convert_strings_to_bins(std::vector<char const *> const& fmt_strs,
         case NPF_FMT_SPEC_CONV_FLOAT_HEX:
           switch (fs.length_modifier) {
             case NPF_FMT_SPEC_LEN_MOD_NONE:
-              field = char(NL_VARARG_TYPE_DOUBLE); added_field = true; break;
+              field = char(NL_ARG_TYPE_DOUBLE); added_field = true; break;
             case NPF_FMT_SPEC_LEN_MOD_LONG:
-              field = char(NL_VARARG_TYPE_LONG_DOUBLE); added_field = true; break;
+              field = char(NL_ARG_TYPE_LONG_DOUBLE); added_field = true; break;
             default: break;
           } break;
       }
@@ -101,9 +101,9 @@ void convert_strings_to_bins(std::vector<char const *> const& fmt_strs,
 
     if (field_count & 1) {
       fmt_bin_mem[fmt_bin_mem.size() - 1] |=
-        (unsigned char)(NL_VARARG_TYPE_END_OF_LIST << 4u);
+        (unsigned char)(NL_ARG_TYPE_END_OF_LIST << 4u);
     } else {
-      fmt_bin_mem.push_back(NL_VARARG_TYPE_END_OF_LIST);
+      fmt_bin_mem.push_back(NL_ARG_TYPE_END_OF_LIST);
     }
   }
 }

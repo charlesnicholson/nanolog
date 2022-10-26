@@ -229,8 +229,8 @@ int main(int argc, char const *argv[]) {
 
     do {
       printf("%02hhX ", *++src);
-    } while (((*src & 0xFu) != NL_VARARG_TYPE_END_OF_LIST) &&
-             ((*src >> 4u) != NL_VARARG_TYPE_END_OF_LIST));
+    } while (((*src & 0xFu) != NL_ARG_TYPE_END_OF_LIST) &&
+             ((*src >> 4u) != NL_ARG_TYPE_END_OF_LIST));
 
     printf("\n");
   }

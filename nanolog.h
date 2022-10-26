@@ -29,17 +29,18 @@ typedef enum {
 } nanolog_ret_t;
 
 typedef enum {
-  NL_VARARG_TYPE_SCALAR_1_BYTE = 0,
-  NL_VARARG_TYPE_SCALAR_2_BYTE = 1,
-  NL_VARARG_TYPE_SCALAR_4_BYTE = 2,
-  NL_VARARG_TYPE_SCALAR_8_BYTE = 3,
-  NL_VARARG_TYPE_STRING = 4,
-  NL_VARARG_TYPE_POINTER = 5,
-  NL_VARARG_TYPE_DOUBLE = 6,
-  NL_VARARG_TYPE_LONG_DOUBLE = 7,
-  NL_VARARG_TYPE_WINT_T = 8,
-  NL_VARARG_TYPE_END_OF_LIST = 0xF,
-} nl_vararg_type_t;
+  NL_ARG_TYPE_SCALAR_1_BYTE = 0,
+  NL_ARG_TYPE_SCALAR_2_BYTE = 1,
+  NL_ARG_TYPE_SCALAR_4_BYTE = 2,
+  NL_ARG_TYPE_SCALAR_8_BYTE = 3,
+  NL_ARG_TYPE_STRING = 4,
+  NL_ARG_TYPE_POINTER = 5,
+  NL_ARG_TYPE_DOUBLE = 6,
+  NL_ARG_TYPE_LONG_DOUBLE = 7,
+  NL_ARG_TYPE_WINT_T = 8,
+  NL_ARG_TYPE_END_OF_LIST = 0xF,
+  NL_ARG_TYPE_GUID = 0xAA, // synthetic, not packed into binary
+} nl_arg_type_t;
 
 // Install a handler to be called on every log macro invocation.
 typedef void (*nanolog_log_handler_cb_t)(int sev, char const *fmt, va_list args);
@@ -48,9 +49,9 @@ nanolog_ret_t nanolog_set_log_handler(nanolog_log_handler_cb_t handler);
 // Writes 1 to |out_is_binary| if fmt is a rewritten binary spec, 0 if ASCII.
 nanolog_ret_t nanolog_log_is_binary(char const *fmt, int *out_is_binary);
 
-// Calls |cb| with |ctx| with every extracted vararg.
+// Calls |cb| with |ctx| with every arg.
 typedef void (*nanolog_binary_field_handler_cb_t)(void *ctx,
-                                                  nl_vararg_type_t type,
+                                                  nl_arg_type_t type,
                                                   void const *p,
                                                   unsigned len);
 

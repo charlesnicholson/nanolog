@@ -52,39 +52,40 @@ _Static_assert(sizeof(uintmax_t) == 8, "");
 
 static void nanolog_extract_and_dispatch(nanolog_binary_field_handler_cb_t cb,
                                          void *ctx,
-                                         nl_vararg_type_t type,
+                                         nl_arg_type_t type,
                                          va_list args) {
   switch (type) {
-    case NL_VARARG_TYPE_END_OF_LIST: cb(ctx, type, NULL, 0); break;
-    case NL_VARARG_TYPE_SCALAR_1_BYTE: {
+    case NL_ARG_TYPE_SCALAR_1_BYTE: {
       char const c = (char)va_arg(args, int); cb(ctx, type, &c, sizeof(c));
     } break;
-    case NL_VARARG_TYPE_SCALAR_2_BYTE: {
+    case NL_ARG_TYPE_SCALAR_2_BYTE: {
       short const s = (short)va_arg(args, int); cb(ctx, type, &s, sizeof(s));
     } break;
-    case NL_VARARG_TYPE_SCALAR_4_BYTE: {
+    case NL_ARG_TYPE_SCALAR_4_BYTE: {
       int const i = va_arg(args, int); cb(ctx, type, &i, sizeof(i));
     } break;
-    case NL_VARARG_TYPE_SCALAR_8_BYTE: {
+    case NL_ARG_TYPE_SCALAR_8_BYTE: {
       long long const ll = va_arg(args, long long); cb(ctx, type, &ll, sizeof(ll));
     } break;
-    case NL_VARARG_TYPE_STRING: {
+    case NL_ARG_TYPE_STRING: {
       char const *s = va_arg(args, char const *);
       unsigned len = 1; while (*s++) { ++len; }
       cb(ctx, type, s, len);
     } break;
-    case NL_VARARG_TYPE_POINTER: {
+    case NL_ARG_TYPE_POINTER: {
       void *const v = va_arg(args, void *); cb(ctx, type, &v, sizeof(v));
     } break;
-    case NL_VARARG_TYPE_DOUBLE: {
+    case NL_ARG_TYPE_DOUBLE: {
       double const d = va_arg(args, double); cb(ctx, type, &d, sizeof(d));
     } break;
-    case NL_VARARG_TYPE_LONG_DOUBLE: {
+    case NL_ARG_TYPE_LONG_DOUBLE: {
       long double const ld = va_arg(args, long double); cb(ctx, type, &ld, sizeof(ld));
     } break;
-    case NL_VARARG_TYPE_WINT_T: {
+    case NL_ARG_TYPE_WINT_T: {
       wint_t const w = va_arg(args, wint_t); cb(ctx, type, &w, sizeof(w));
     } break;
+    case NL_ARG_TYPE_END_OF_LIST: cb(ctx, type, NULL, 0); break;
+    case NL_ARG_TYPE_GUID: break;
   }
 }
 
@@ -95,20 +96,23 @@ nanolog_ret_t nanolog_parse_binary_log(nanolog_binary_field_handler_cb_t cb,
   if (!cb || !fmt) { return NANOLOG_RET_ERR_BAD_ARG; }
 
   unsigned char const *src = (unsigned char const*)fmt;
-  if (*src != NL_BINARY_PREFIX_MARKER) { return NANOLOG_RET_INVALID_PAYLOAD; }
+  if (*src++ != NL_BINARY_PREFIX_MARKER) { return NANOLOG_RET_INVALID_PAYLOAD; }
 
-  uint32_t guid = 0; {
-    unsigned ofs = 0;
-    do { ++src; guid |= ((*src & 0x7Fu) << ofs); ofs += 7; } while (*src & 0x80u);
+  { // GUID is varint-encoded, ends at first byte w/o a high "continuation" bit (0x80)
+    unsigned char const *guid = src;
+    while (*src & 0x80) { ++src; }
+    ++src;
+    cb(ctx, NL_ARG_TYPE_GUID, guid, (unsigned)(src - guid));
   }
 
-  for (nl_vararg_type_t type; ; ++src) {
-    type = (nl_vararg_type_t)(*src & 0xFu);
+  // Types are packed, two per byte, low nibble first.
+  for (nl_arg_type_t type; ; ++src) {
+    type = (nl_arg_type_t)(*src & 0xFu);
     nanolog_extract_and_dispatch(cb, ctx, type, args);
-    if (type == NL_VARARG_TYPE_END_OF_LIST) { break; }
-    type = (nl_vararg_type_t)(*src >> 4u);
+    if (type == NL_ARG_TYPE_END_OF_LIST) { break; }
+    type = (nl_arg_type_t)(*src >> 4u);
     nanolog_extract_and_dispatch(cb, ctx, type, args);
-    if (type == NL_VARARG_TYPE_END_OF_LIST) { break; }
+    if (type == NL_ARG_TYPE_END_OF_LIST) { break; }
   }
 
   return NANOLOG_RET_SUCCESS;
