@@ -20,10 +20,10 @@ void convert_strings_to_bins(std::vector<char const *> const& fmt_strs,
     fmt_bin_mem.push_back(NL_BINARY_PREFIX_MARKER);
 
     do { // varint encode
-      u8 b{u8(guid & 0x7Fu)};
-      if (guid >>= 7u) { b |= 0x80; }
-      fmt_bin_mem.push_back(b);
+      fmt_bin_mem.push_back(u8((guid & 0x7Fu) | 0x80));
+      guid >>= 7u;
     } while (guid);
+    fmt_bin_mem[fmt_bin_mem.size() - 1] &= ~0x80;
 
     int field_count{0};
     char const *cur{str};
@@ -100,8 +100,7 @@ void convert_strings_to_bins(std::vector<char const *> const& fmt_strs,
     }
 
     if (field_count & 1) {
-      fmt_bin_mem[fmt_bin_mem.size() - 1] |=
-        (unsigned char)(NL_ARG_TYPE_END_OF_LIST << 4u);
+      fmt_bin_mem[fmt_bin_mem.size() - 1] |= (unsigned char)(NL_ARG_TYPE_END_OF_LIST << 4u);
     } else {
       fmt_bin_mem.push_back(NL_ARG_TYPE_END_OF_LIST);
     }

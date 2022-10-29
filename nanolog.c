@@ -79,9 +79,8 @@ static void nanolog_extract_and_dispatch(nanolog_binary_field_handler_cb_t cb,
       char const *s = va_arg(args, char const *);
       unsigned sl = 0, vil = 0;
       for (char const *c = s; *c; ++c, ++sl);
-      for (unsigned sl_vi = sl; sl_vi; ++vil) {
+      for (unsigned sl_vi = sl; sl_vi; ++vil, sl_vi >>= 7u) {
         vi[vil] = (unsigned char)((sl_vi & 0x7Fu) | 0x80u);
-        sl >>= 7u;
       }
       vi[vil++] &= ~0x80u;
       cb(ctx, NL_ARG_TYPE_STRING_LEN_VARINT, vi, vil);
