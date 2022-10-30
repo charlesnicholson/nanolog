@@ -78,7 +78,7 @@ static void nanolog_extract_and_dispatch(nanolog_binary_field_handler_cb_t cb,
       unsigned char vi[8];
       char const *s = va_arg(args, char const *);
       unsigned sl = 0, vil = 0;
-      for (char const *c = s; *c; ++c, ++sl);
+      for (char const *c = s; *c; ++c, ++sl); // gcc recognizes this as strlen
       for (unsigned sl_vi = sl; sl_vi; ++vil, sl_vi >>= 7u) {
         vi[vil] = (unsigned char)((sl_vi & 0x7Fu) | 0x80u);
       }
