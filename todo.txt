@@ -1,7 +1,7 @@
 * strategy: base + offset
 * track r0 usage after log call, ensure it's dead or clobbered before next use.
 * json exporting
-* runtime api for "is this binary or ascii"
-* runtime api for "serialize call to a binary buffer"
 * TBB/TBH logic is janky; looking at the last cmp_imm of the offset reg is gross
-* BL targeting known noreturn functions should terminate (exit, assert, etc)
+* Better logging around "ran off the end" (show last BL target)
+* encode log severity in the manifest
+* runtime: think through asserts
