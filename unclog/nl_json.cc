@@ -42,18 +42,12 @@ std::string& to_json(char const *s, std::string& out) {
 
 std::string& to_python(char const *s, std::string& out) {
   out.clear();
-
   while (*s) {
     npf_format_spec_t fs;
     int const n{(*s != '%') ? 0 : npf_parse_format_spec(s, &fs)};
     if (!n) { out += *s++; continue; }
     s += n;
-    out += "{}";
-
-    //switch (fs.conv_spec) {
-    //  case NPF_FMT_SPEC_CONV_WRITEBACK:
-    //  case NPF_FMT_SPEC_CONV_PERCENT:
-    //    break;
+    out += "{}"; // TODO: switch on fs.conv_type
   }
   return out;
 }
@@ -73,18 +67,19 @@ bool json_write_manifest(std::vector<char const *> const& fmt_strs, char const *
 
   std::fprintf(f.get(), "[\n");
   for (auto i{0u}, n{unsigned(fmt_strs.size())}; i < n; ++i) {
-    fputs("  {\n", f.get());
-    fprintf(f.get(), "    \"guid\": %u,\n", i);
+    std::fprintf(f.get(), "  {\n");
+    std::fprintf(f.get(), "    \"guid\": %u,\n", i);
 
-    fprintf(f.get(), "    \"c_printf\": \"");
-    fputs(to_json(fmt_strs[i], json).c_str(), f.get());
-    fputs("\",\n", f.get());
+    std::fprintf(f.get(), "    \"c_printf\": \"%s\",\n",
+      to_json(fmt_strs[i], json).c_str());
 
-    fprintf(f.get(), "    \"python_format\": \"");
-    fputs(to_json(to_python(fmt_strs[i], lang).c_str(), json).c_str(), f.get());
-    fputs("\"\n", f.get());
+    std::fprintf(f.get(), "    \"python\": \"%s\",\n",
+      to_json(to_python(fmt_strs[i], lang).c_str(), json).c_str());
 
-    fprintf(f.get(), "  }%s\n", (i < (n - 1)) ? "," : "");
+    std::fprintf(f.get(), "    \"format_specifiers\": [\n");
+    std::fprintf(f.get(), "    ]\n");
+
+    std::fprintf(f.get(), "  }%s\n", (i < (n - 1)) ? "," : "");
   }
   std::fprintf(f.get(), "]\n");
   return true;

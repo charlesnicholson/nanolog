@@ -36,7 +36,7 @@ def main():
   payload = payload[vi_len:]
   print(payload)
 
-  format_str = manifest[guid]['python_format']
+  format_str = manifest[guid]['python']
   pack = ['Hello', 1234567, 'Doggos']
   print(format_str.format(*pack))
   return 0
