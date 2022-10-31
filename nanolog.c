@@ -102,9 +102,10 @@ static void nanolog_extract_and_dispatch(nanolog_binary_field_handler_cb_t cb,
       wint_t const w = va_arg(args, wint_t); cb(ctx, type, &w, sizeof(w));
     } break;
 
-    case NL_ARG_TYPE_END_OF_LIST: cb(ctx, type, NULL, 0); break;
+    case NL_ARG_TYPE_LOG_END: cb(ctx, type, NULL, 0); break;
 
     // never happens
+    case NL_ARG_TYPE_LOG_START:
     case NL_ARG_TYPE_GUID:
     case NL_ARG_TYPE_STRING_LEN_VARINT:
       break;
@@ -133,10 +134,10 @@ nanolog_ret_t nanolog_parse_binary_log(nanolog_binary_field_handler_cb_t cb,
   for (nl_arg_type_t type; ; ++src) {
     type = (nl_arg_type_t)(*src & 0xFu);
     nanolog_extract_and_dispatch(cb, ctx, type, args);
-    if (type == NL_ARG_TYPE_END_OF_LIST) { break; }
+    if (type == NL_ARG_TYPE_LOG_END) { break; }
     type = (nl_arg_type_t)(*src >> 4u);
     nanolog_extract_and_dispatch(cb, ctx, type, args);
-    if (type == NL_ARG_TYPE_END_OF_LIST) { break; }
+    if (type == NL_ARG_TYPE_LOG_END) { break; }
   }
 
   return NANOLOG_RET_SUCCESS;
