@@ -3,6 +3,7 @@
 #include "../nanolog.h"
 
 #include <cstdint>
+#include <cstdio>
 #include <memory>
 #include <vector>
 
@@ -18,3 +19,4 @@ using bytes_ptr = std::unique_ptr<byte[]>;
 
 template <typename ...Args> void unused(Args&& ...args) { (void)sizeof...(args); }
 
+using file_ptr = std::unique_ptr<FILE, decltype(&fclose)>;

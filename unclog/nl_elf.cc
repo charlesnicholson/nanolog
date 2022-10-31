@@ -7,14 +7,13 @@
 
 namespace {
 bytes_ptr load_file(char const *fn, unsigned& out_len) {
-  FILE *f{fopen(fn, "rb")};
-  if (!f) { return bytes_ptr{}; }
-  fseek(f, 0, SEEK_END);
-  unsigned const len{unsigned(ftell(f))};
+  file_ptr f{std::fopen(fn, "rb"), [](FILE *fp) { return fp ? std::fclose(fp) : 0; }};
+  if (!f.get()) { return bytes_ptr{}; }
+  std::fseek(f.get(), 0, SEEK_END);
+  unsigned const len{unsigned(std::ftell(f.get()))};
   bytes_ptr contents{new (std::align_val_t{16}) byte[len]};
-  rewind(f);
-  auto const r{fread(&contents[0], 1, len, f)};
-  fclose(f);
+  std::rewind(f.get());
+  auto const r{std::fread(&contents[0], 1, len, f.get())};
   assert(r == len);
   out_len = len;
   return contents;

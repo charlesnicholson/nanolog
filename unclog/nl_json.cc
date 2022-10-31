@@ -3,62 +3,89 @@
 #include <string>
 #include <memory>
 
+#define NANOPRINTF_IMPLEMENTATION
+#define NANOPRINTF_VISIBILITY_STATIC
+#define NANOPRINTF_USE_FIELD_WIDTH_FORMAT_SPECIFIERS 1
+#define NANOPRINTF_USE_PRECISION_FORMAT_SPECIFIERS 1
+#define NANOPRINTF_USE_FLOAT_FORMAT_SPECIFIERS 1
+#define NANOPRINTF_USE_LARGE_FORMAT_SPECIFIERS 1
+#define NANOPRINTF_USE_BINARY_FORMAT_SPECIFIERS 1
+#define NANOPRINTF_USE_WRITEBACK_FORMAT_SPECIFIERS 1
+#include "nanoprintf.h"
+
 namespace {
 
-std::string& print_c_printf(char const *s, std::string& out_line) {
+std::string& to_json(char const *s, std::string& out) {
   char hex_str[16];
-  out_line.clear();
+  out.clear();
   while (*s) {
     switch (*s) {
-      case '"': out_line += "\\\""; break;
-      case '\\': out_line += "\\\\"; break;
-      case '\b': out_line += "\\b"; break;
-      case '\f': out_line += "\\f"; break;
-      case '\n': out_line += "\\n"; break;
-      case '\r': out_line += "\\r"; break;
-      case '\t': out_line += "\\t"; break;
+      case '"': out += "\\\""; break;
+      case '\\': out += "\\\\"; break;
+      case '\b': out += "\\b"; break;
+      case '\f': out += "\\f"; break;
+      case '\n': out += "\\n"; break;
+      case '\r': out += "\\r"; break;
+      case '\t': out += "\\t"; break;
       default:
         if (*s <= 0x1F) {
           snprintf(hex_str, sizeof(hex_str), "\\u%04hhx", *s);
-          out_line += hex_str;
+          out = hex_str;
         } else {
-          out_line += *s;
+          out += *s;
         }
     }
     ++s;
   }
-  return out_line;
+  return out;
 }
 
+std::string& to_python(char const *s, std::string& out) {
+  out.clear();
+
+  while (*s) {
+    npf_format_spec_t fs;
+    int const n{(*s != '%') ? 0 : npf_parse_format_spec(s, &fs)};
+    if (!n) { out += *s++; continue; }
+    s += n;
+    out += "{}";
+
+    //switch (fs.conv_spec) {
+    //  case NPF_FMT_SPEC_CONV_WRITEBACK:
+    //  case NPF_FMT_SPEC_CONV_PERCENT:
+    //    break;
+  }
+  return out;
+}
 }
 
-bool json_write_manifest(std::vector<char const *> const& fmt_strs,
-                         char const *json_filename) {
-  std::unique_ptr<FILE, int(*)(FILE*)> fp(std::fopen(json_filename, "wt"),
-    [](FILE *f)->int{ return f ? std::fclose(f) : 0; });
+bool json_write_manifest(std::vector<char const *> const& fmt_strs, char const *fn) {
+  file_ptr f{std::fopen(fn, "wt"), [](FILE *fp) { return fp ? std::fclose(fp) : 0; }};
 
-  if (!fp.get()) {
-    NL_LOG_ERR("Unable to open output json file %s", json_filename);
+  if (!f.get()) {
+    NL_LOG_ERR("Unable to open output json file %s", fn);
     return false;
   }
 
-  std::string line;
-  line.reserve(16384);
+  std::string lang, json;
+  lang.reserve(2048);
+  json.reserve(2048);
 
-  std::fprintf(fp.get(), "[\n");
+  std::fprintf(f.get(), "[\n");
   for (auto i{0u}, n{unsigned(fmt_strs.size())}; i < n; ++i) {
-    fputs("  {\n", fp.get());
-    fprintf(fp.get(), "    \"guid\": %u,\n", i);
+    fputs("  {\n", f.get());
+    fprintf(f.get(), "    \"guid\": %u,\n", i);
 
-    fprintf(fp.get(), "    \"c_printf\": \"");
-    fputs(print_c_printf(fmt_strs[i], line).c_str(), fp.get());
-    fputs("\",\n", fp.get());
+    fprintf(f.get(), "    \"c_printf\": \"");
+    fputs(to_json(fmt_strs[i], json).c_str(), f.get());
+    fputs("\",\n", f.get());
 
-    fprintf(fp.get(), "    \"python_format\": \"");
-    fputs("\"\n", fp.get());
+    fprintf(f.get(), "    \"python_format\": \"");
+    fputs(to_json(to_python(fmt_strs[i], lang).c_str(), json).c_str(), f.get());
+    fputs("\"\n", f.get());
 
-    fprintf(fp.get(), "  }%s\n", (i < n - 1) ? "," : "");
+    fprintf(f.get(), "  }%s\n", (i < (n - 1)) ? "," : "");
   }
-  std::fprintf(fp.get(), "]\n");
+  std::fprintf(f.get(), "]\n");
   return true;
 }
