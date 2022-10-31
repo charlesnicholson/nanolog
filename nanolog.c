@@ -120,6 +120,9 @@ nanolog_ret_t nanolog_parse_binary_log(nanolog_binary_field_handler_cb_t cb,
   unsigned char const *src = (unsigned char const*)fmt;
   if (*src++ != NL_BINARY_PREFIX_MARKER) { return NANOLOG_RET_INVALID_PAYLOAD; }
 
+  // About to log, tell user so they can transmit timestamp etc
+  cb(ctx, NL_ARG_TYPE_LOG_START, NULL, 0);
+
   { // GUID is varint-encoded, ends at first byte w/o a high "continuation" bit (0x80)
     unsigned char const *guid = src;
     while (*src & 0x80) { ++src; }

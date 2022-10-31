@@ -38,10 +38,11 @@ typedef enum {
   NL_ARG_TYPE_DOUBLE = 6,
   NL_ARG_TYPE_LONG_DOUBLE = 7,
   NL_ARG_TYPE_WINT_T = 8,
-  NL_ARG_TYPE_END_OF_LIST = 0xF,
+  NL_ARG_TYPE_LOG_END = 0xF,
   // Following values are synthetic and emitted by runtime, not packed into binary
-  NL_ARG_TYPE_GUID = 0xAA,
-  NL_ARG_TYPE_STRING_LEN_VARINT = 0xAB,
+  NL_ARG_TYPE_LOG_START = 0xAA,
+  NL_ARG_TYPE_GUID = 0xAB,
+  NL_ARG_TYPE_STRING_LEN_VARINT = 0xAC,
 } nl_arg_type_t;
 
 // Install a handler to be called on every log macro invocation.

@@ -100,9 +100,9 @@ void convert_strings_to_bins(std::vector<char const *> const& fmt_strs,
     }
 
     if (field_count & 1) {
-      fmt_bin_mem[fmt_bin_mem.size() - 1] |= (unsigned char)(NL_ARG_TYPE_END_OF_LIST << 4u);
+      fmt_bin_mem[fmt_bin_mem.size() - 1] |= (unsigned char)(NL_ARG_TYPE_LOG_END << 4u);
     } else {
-      fmt_bin_mem.push_back(NL_ARG_TYPE_END_OF_LIST);
+      fmt_bin_mem.push_back(NL_ARG_TYPE_LOG_END);
     }
   }
 }
