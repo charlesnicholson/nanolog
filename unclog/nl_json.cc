@@ -60,6 +60,7 @@ std::string& to_python(char const *s, std::string& out) {
     int const n{(*s != '%') ? 0 : npf_parse_format_spec(s, &fs)};
     if (!n) { out += *s++; continue; }
     s += n;
+    if (fs.conv_spec == NPF_FMT_SPEC_CONV_PERCENT) { out += '%'; continue; }
     out += "{}"; // TODO: switch on fs.conv_type
   }
   return out;
