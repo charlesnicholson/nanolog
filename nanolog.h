@@ -14,7 +14,7 @@ extern "C" {
 #define NL_SEV_CRIT 4
 #define NL_SEV_ASSERT 5
 
-// Configure the log threshold, log calls below this level will expand to nothing.
+// Configure log threshold, function-like log macros below this will expand to nothing.
 
 #ifndef NL_LOG_SEVERITY_THRESHOLD
 #define NL_LOG_SEVERITY_THRESHOLD NL_SEV_DBG

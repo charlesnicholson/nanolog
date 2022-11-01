@@ -5,6 +5,7 @@
 #include <cassert>
 #include <cstring>
 #include <stack>
+#include <string_view>
 #include <unordered_map>
 
 namespace {
@@ -116,12 +117,24 @@ bool branch(u32 addr, path_state& p, func_state& s) {
   return true;
 }
 
-bool inst_is_log_call(inst const& i, std::vector<elf_symbol32 const*> const& log_funcs) {
+int inst_is_log_call(inst const& i,
+                     std::vector<elf_symbol32 const*> const& log_funcs,
+                     char const *strtab) {
   u32 label;
-  if (!inst_is_unconditional_branch(i, label)) { return false; }
-  return std::find_if(std::begin(log_funcs), std::end(log_funcs),
-    [=](elf_symbol32 const *cand) { return (cand->st_value & ~1u) == label; })
-    != std::end(log_funcs);
+  if (!inst_is_unconditional_branch(i, label)) { return -1; }
+
+  auto const found = std::find_if(std::begin(log_funcs), std::end(log_funcs),
+    [=](elf_symbol32 const *cand) { return (cand->st_value & ~1u) == label; });
+  if (found == std::end(log_funcs)) { return -1; }
+
+  std::string_view const name{&strtab[(*found)->st_name]};
+  if (name.ends_with("_dbg")) { return NL_SEV_DBG; }
+  if (name.ends_with("_info")) { return NL_SEV_INFO; }
+  if (name.ends_with("_warn")) { return NL_SEV_WARN; }
+  if (name.ends_with("_err")) { return NL_SEV_ERR; }
+  if (name.ends_with("_crit")) { return NL_SEV_CRIT; }
+  if (name.ends_with("_assert")) { return NL_SEV_ASSERT; }
+  return -1;
 }
 
 bool table_branch(u32 addr, u32 sz, u32 base, u32 ofs, path_state& path, func_state& fs) {
@@ -390,6 +403,7 @@ simulate_results simulate(inst const& i,
 bool process_log_call(inst const& pc_i,
                       path_state const& path,
                       elf_section_hdr32 const& nl_sec_hdr,
+                      int sev,
                       func_state& fs,
                       func_log_call_analysis& lca) {
   if (!test_reg_known(path.rs.known, reg::R0)) {
@@ -412,7 +426,8 @@ bool process_log_call(inst const& pc_i,
   }
 
   lca.log_calls.emplace_back(log_call{ .fmt_str_addr = path.rs.regs[reg::R0],
-    .log_func_call_addr = pc_i.addr, .node_idx = path.rs.mut_node_idxs[reg::R0]});
+    .log_func_call_addr = pc_i.addr, .node_idx = path.rs.mut_node_idxs[reg::R0],
+    .severity = u8(sev)});
   auto& log_call{lca.log_calls[lca.log_calls.size() - 1]};
 
   NL_LOG_DBG("  Found log function, format string 0x%08x\n", path.rs.regs[reg::R0]);
@@ -487,8 +502,9 @@ bool thumb2_analyze_func(elf const& e,
         break;
       }
 
-      if (inst_is_log_call(pc_i, log_funcs)) {
-        if (!process_log_call(pc_i, path, nl_sec_hdr, s, out_lca)) { return false; }
+      int const sev{inst_is_log_call(pc_i, log_funcs, e.strtab)};
+      if (sev != -1) {
+        if (!process_log_call(pc_i, path, nl_sec_hdr, sev, s, out_lca)) { return false; }
       }
 
       simulate_results const sr{simulate(pc_i, noreturn_func_addrs, s, path)};

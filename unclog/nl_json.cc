@@ -40,6 +40,19 @@ std::string& to_json(char const *s, std::string& out) {
   return out;
 }
 
+std::string& to_severity(unsigned sev, std::string& out) {
+  switch (sev) {
+    case NL_SEV_DBG: out = "debug"; break;
+    case NL_SEV_INFO: out = "info"; break;
+    case NL_SEV_WARN: out = "warning"; break;
+    case NL_SEV_ERR: out = "error"; break;
+    case NL_SEV_CRIT: out = "critical"; break;
+    case NL_SEV_ASSERT: out = "assert"; break;
+    default: out = "unknown"; break;
+  }
+  return out;
+}
+
 std::string& to_python(char const *s, std::string& out) {
   out.clear();
   while (*s) {
@@ -53,7 +66,9 @@ std::string& to_python(char const *s, std::string& out) {
 }
 }
 
-bool json_write_manifest(std::vector<char const *> const& fmt_strs, char const *fn) {
+bool json_write_manifest(std::vector<char const *> const& fmt_strs,
+                         std::vector<u8> const& fmt_str_sevs,
+                         char const *fn) {
   file_ptr f{std::fopen(fn, "wt"), [](FILE *fp) { return fp ? std::fclose(fp) : 0; }};
 
   if (!f.get()) {
@@ -69,6 +84,9 @@ bool json_write_manifest(std::vector<char const *> const& fmt_strs, char const *
   for (auto i{0u}, n{unsigned(fmt_strs.size())}; i < n; ++i) {
     std::fprintf(f.get(), "  {\n");
     std::fprintf(f.get(), "    \"guid\": %u,\n", i);
+
+    std::fprintf(f.get(), "    \"severity\": \"%s\",\n",
+      to_severity(fmt_str_sevs[i], json).c_str());
 
     std::fprintf(f.get(), "    \"c_printf\": \"%s\",\n",
       to_json(fmt_strs[i], json).c_str());

@@ -25,6 +25,7 @@ struct log_call {
   u32 log_func_call_addr;
   u16 node_idx;
   fmt_str_strat s;
+  u8 severity;
 };
 
 struct reg_mut_node {

@@ -204,10 +204,12 @@ int main(int argc, char const *argv[]) {
   }
 
   std::vector<char const *> fmt_strs;
+  std::vector<u8> fmt_str_sevs;
   for (auto const *ofs{&s.e.bytes[s.nl_hdr->sh_offset]};
        auto const& func: log_call_funcs) {
     for (auto const& log_call: func.log_calls) {
       fmt_strs.push_back((char const *)(ofs + (log_call.fmt_str_addr - s.nl_hdr->sh_addr)));
+      fmt_str_sevs.push_back(log_call.severity);
     }
   }
 
@@ -238,6 +240,6 @@ int main(int argc, char const *argv[]) {
 
   bytes_ptr patched_elf{patch_elf(s, log_call_funcs, fmt_bin_addrs, fmt_bin_mem)};
   if (!write_file(&patched_elf[0], s.e.len, cmd_args.output_elf)) { return 1; }
-  if (!json_write_manifest(fmt_strs, cmd_args.output_json)) { return 2; }
+  if (!json_write_manifest(fmt_strs, fmt_str_sevs, cmd_args.output_json)) { return 2; }
   return 0;
 }
