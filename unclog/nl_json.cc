@@ -40,17 +40,17 @@ std::string& to_json(char const *s, std::string& out) {
   return out;
 }
 
-std::string& to_severity(unsigned sev, std::string& out) {
+char const *to_severity(unsigned sev) {
   switch (sev) {
-    case NL_SEV_DBG: out = "debug"; break;
-    case NL_SEV_INFO: out = "info"; break;
-    case NL_SEV_WARN: out = "warning"; break;
-    case NL_SEV_ERR: out = "error"; break;
-    case NL_SEV_CRIT: out = "critical"; break;
-    case NL_SEV_ASSERT: out = "assert"; break;
-    default: out = "unknown"; break;
+    case NL_SEV_DBG: return "debug";
+    case NL_SEV_INFO: return "info";
+    case NL_SEV_WARN: return "warning";
+    case NL_SEV_ERR: return "error";
+    case NL_SEV_CRIT: return "critical";
+    case NL_SEV_ASSERT: return "assert";
+    default: break;
   }
-  return out;
+  return "unknown";
 }
 
 std::string& to_python(char const *s, std::string& out) {
@@ -84,9 +84,7 @@ bool json_write_manifest(std::vector<char const *> const& fmt_strs,
   for (auto i{0u}, n{unsigned(fmt_strs.size())}; i < n; ++i) {
     std::fprintf(f.get(), "  {\n");
     std::fprintf(f.get(), "    \"guid\": %u,\n", i);
-
-    std::fprintf(f.get(), "    \"severity\": \"%s\",\n",
-      to_severity(fmt_str_sevs[i], json).c_str());
+    std::fprintf(f.get(), "    \"severity\": \"%s\",\n", to_severity(fmt_str_sevs[i]));
 
     std::fprintf(f.get(), "    \"c_printf\": \"%s\",\n",
       to_json(fmt_strs[i], json).c_str());
