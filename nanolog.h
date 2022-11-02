@@ -28,7 +28,10 @@ typedef enum {
   NANOLOG_RET_INVALID_PAYLOAD,
 } nanolog_ret_t;
 
+enum { NL_BINARY_PREFIX_MARKER = 0x1F };  // starts replacement binary payloads
+
 typedef enum {
+  // Values bit-packed into binary string replacements.
   NL_ARG_TYPE_SCALAR_1_BYTE = 0,
   NL_ARG_TYPE_SCALAR_2_BYTE = 1,
   NL_ARG_TYPE_SCALAR_4_BYTE = 2,
@@ -39,7 +42,7 @@ typedef enum {
   NL_ARG_TYPE_LONG_DOUBLE = 7,
   NL_ARG_TYPE_WINT_T = 8,
   NL_ARG_TYPE_LOG_END = 0xF,
-  // Following values are synthetic and emitted by runtime, not packed into binary
+  // Synthetic values emitted by runtime, not packed into binary
   NL_ARG_TYPE_LOG_START = 0xAA,
   NL_ARG_TYPE_GUID = 0xAB,
   NL_ARG_TYPE_STRING_LEN_VARINT = 0xAC,
@@ -68,8 +71,8 @@ nanolog_ret_t nanolog_parse_binary_log(nanolog_binary_field_handler_cb_t cb,
 #ifdef NANOLOG_HOST_TOOL
 #define NL_ATTR_SEC(SEV)
 #else
-#define NL_STR_PASTE(X) #X
-#define NL_STR(X) NL_STR_PASTE(X)
+#define NL_STR_EVAL(X) #X
+#define NL_STR(X) NL_STR_EVAL(X)
 #define NL_ATTR_SEC(SEV) \
   __attribute__((section(".nanolog." #SEV "." NL_STR(__LINE__) "." NL_STR(__COUNTER__))))
 #endif
@@ -121,34 +124,27 @@ nanolog_ret_t nanolog_parse_binary_log(nanolog_binary_field_handler_cb_t cb,
   } while(0)
 #endif
 
+#define NL_LOG_ASSERT(FMT, ...) do { \
+    static char const NL_ATTR_SEC(ASSERT) s_nanolog_fmt_str[] = FMT; \
+    nanolog_log_assert(s_nanolog_fmt_str, ##__VA_ARGS__); \
+  } while(0)
+
+// Optional top-level assert macros
+
 #ifdef NANOLOG_ASSERTS_ENABLED
 #define NL_ASSERT(COND) do { \
-    if (!(COND)) { \
-      static char const NL_ATTR_SEC(ASSERT) s_nanolog_fmt_str[] = \
-        __FILE__ "(" NL_STR(__LINE__) "): \"" #COND "\""; \
-      nanolog_log_assert(s_nanolog_fmt_str); \
-    } \
+    if (!(COND)) { NL_LOG_ASSERT(__FILE__ "(" NL_STR(__LINE__) "): \"" #COND "\""); } \
   } while(0)
 
 #define NL_ASSERT_MSG(COND, FMT, ...) do { \
     if (!(COND)) { \
-      static char const NL_ATTR_SEC(ASSERT) s_nanolog_fmt_str[] = \
-        __FILE__ "(" NL_STR(__LINE__) "): \"" #COND "\" " FMT; \
-      nanolog_log_assert(s_nanolog_fmt_str, ##__VA_ARGS__); \
+      NL_LOG_ASSERT(__FILE__ "(" NL_STR(__LINE__) "): \"" #COND "\" " FMT, ##__VA_ARGS__); \
     } \
   } while(0)
 
-#define NL_ASSERT_FAIL() do { \
-    static char const NL_ATTR_SEC(ASSERT) s_nanolog_fmt_str[] = \
-      __FILE__ "(" NL_STR(__LINE__) "): ASSERT FAIL"; \
-    nanolog_log_assert(s_nanolog_fmt_str); \
-  } while(0)
-
-#define NL_ASSERT_FAIL_MSG(FMT, ...) do { \
-    static char const NL_ATTR_SEC(ASSERT) s_nanolog_fmt_str[] = \
-      __FILE__ "(" NL_STR(__LINE__) "): " FMT; \
-    nanolog_log_assert(s_nanolog_fmt_str, ##__VA_ARGS__); \
-  } while(0)
+#define NL_ASSERT_FAIL() NL_LOG_ASSERT(__FILE__ "(" NL_STR(__LINE__) "): ASSERT FAIL")
+#define NL_ASSERT_FAIL_MSG(FMT, ...) \
+    NL_LOG_ASSERT(__FILE__ "(" NL_STR(__LINE__) "): " FMT, ##__VA_ARGS__);
 #endif
 
 // Private logging API (use the macros, not these)
@@ -159,10 +155,6 @@ void nanolog_log_warn(char const *fmt, ...);
 void nanolog_log_err(char const *fmt, ...);
 void nanolog_log_crit(char const *fmt, ...);
 void nanolog_log_assert(char const *fmt, ...);
-
-// Rewritten elf file format payloads start with this byte instead of printable ascii.
-
-enum { NL_BINARY_PREFIX_MARKER = 0x1F };
 
 #ifdef __cplusplus
 }
