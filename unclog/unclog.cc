@@ -1,7 +1,6 @@
 #include "nl_args.h"
-#include "nl_bin_strings.h"
+#include "nl_emit.h"
 #include "nl_elf.h"
-#include "nl_json.h"
 #include "nl_thumb2.h"
 #include "nl_stats.h"
 #include "../nanolog.h"
@@ -217,7 +216,7 @@ int main(int argc, char const *argv[]) {
   fmt_bin_addrs.reserve(fmt_strs.size());
   byte_vec fmt_bin_mem;
   fmt_bin_mem.reserve(s.nl_hdr->sh_size);
-  convert_strings_to_bins(fmt_strs, fmt_bin_addrs, fmt_bin_mem);
+  emit_bin_fmt_strs(fmt_strs, fmt_bin_addrs, fmt_bin_mem);
 
   printf("\n%u strings, %u addrs, %u string size, %u bin size\n\n",
     unsigned(fmt_strs.size()), unsigned(fmt_bin_addrs.size()),
@@ -240,6 +239,6 @@ int main(int argc, char const *argv[]) {
 
   bytes_ptr patched_elf{patch_elf(s, log_call_funcs, fmt_bin_addrs, fmt_bin_mem)};
   if (!write_file(&patched_elf[0], s.e.len, cmd_args.output_elf)) { return 1; }
-  if (!json_write_manifest(fmt_strs, fmt_str_sevs, cmd_args.output_json)) { return 2; }
+  if (!emit_json_manifest(fmt_strs, fmt_str_sevs, cmd_args.output_json)) { return 2; }
   return 0;
 }
