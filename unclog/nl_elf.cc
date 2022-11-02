@@ -7,7 +7,7 @@
 
 namespace {
 bytes_ptr load_file(char const *fn, unsigned& out_len) {
-  file_ptr f{std::fopen(fn, "rb"), [](FILE *fp) { return fp ? std::fclose(fp) : 0; }};
+  file_ptr f{open_file(fn, "rb")};
   if (!f.get()) { return bytes_ptr{}; }
   std::fseek(f.get(), 0, SEEK_END);
   unsigned const len{unsigned(std::ftell(f.get()))};

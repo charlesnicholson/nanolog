@@ -66,8 +66,7 @@ std::string& to_python(char const *s, std::string& out) {
 bool emit_json_manifest(std::vector<char const *> const& fmt_strs,
                         std::vector<u8> const& fmt_str_sevs,
                         char const *json_filename) {
-  file_ptr f{std::fopen(json_filename, "wt"),
-    [](FILE *fp) { return fp ? std::fclose(fp) : 0; }};
+  file_ptr f{open_file(json_filename, "wt")};
 
   if (!f.get()) {
     NL_LOG_ERR("Unable to open output json file %s", json_filename);

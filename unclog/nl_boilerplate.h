@@ -21,3 +21,8 @@ using bytes_ptr = std::unique_ptr<byte[]>;
 template <typename ...Args> void unused(Args&& ...args) { (void)sizeof...(args); }
 
 using file_ptr = std::unique_ptr<FILE, decltype(&fclose)>;
+
+inline file_ptr open_file(char const *fn, char const *mode) {
+  auto file_ptr_close = [](FILE *fp) { return fp ? std::fclose(fp) : 0; };
+  return file_ptr{std::fopen(fn, mode), file_ptr_close};
+}
