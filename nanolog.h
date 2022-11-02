@@ -28,26 +28,6 @@ typedef enum {
   NANOLOG_RET_INVALID_PAYLOAD,
 } nanolog_ret_t;
 
-enum { NL_BINARY_LOG_MARKER = 0x1F };  // starts replacement binary payloads
-
-typedef enum {
-  // Values bit-packed into binary string replacements.
-  NL_ARG_TYPE_SCALAR_1_BYTE = 0,
-  NL_ARG_TYPE_SCALAR_2_BYTE = 1,
-  NL_ARG_TYPE_SCALAR_4_BYTE = 2,
-  NL_ARG_TYPE_SCALAR_8_BYTE = 3,
-  NL_ARG_TYPE_STRING = 4,
-  NL_ARG_TYPE_POINTER = 5,
-  NL_ARG_TYPE_DOUBLE = 6,
-  NL_ARG_TYPE_LONG_DOUBLE = 7,
-  NL_ARG_TYPE_WINT_T = 8,
-  NL_ARG_TYPE_LOG_END = 0xF,
-  // Synthetic values emitted by runtime, not packed into binary
-  NL_ARG_TYPE_LOG_START = 0xAA,
-  NL_ARG_TYPE_GUID = 0xAB,
-  NL_ARG_TYPE_STRING_LEN_VARINT = 0xAC,
-} nl_arg_type_t;
-
 typedef void (*nanolog_log_handler_cb_t)(void *ctx, int sev, char const *fmt, va_list args);
 
 // Install a handler to be called on every log macro invocation.
@@ -184,6 +164,28 @@ nanolog_ret_t nanolog_parse_binary_log(nanolog_binary_field_handler_cb_t cb,
 #define NL_ASSERT_FAIL_MSG(FMT, ...) \
   NL_LOG_ASSERT(__FILE__ "(" NL_STR(__LINE__) "): " FMT, ##__VA_ARGS__);
 #endif
+
+// Implementation details
+
+enum { NL_BINARY_LOG_MARKER = 0x1F };  // starts replacement binary payloads
+
+typedef enum {
+  // Values bit-packed into binary string replacements.
+  NL_ARG_TYPE_SCALAR_1_BYTE = 0,
+  NL_ARG_TYPE_SCALAR_2_BYTE = 1,
+  NL_ARG_TYPE_SCALAR_4_BYTE = 2,
+  NL_ARG_TYPE_SCALAR_8_BYTE = 3,
+  NL_ARG_TYPE_STRING = 4,
+  NL_ARG_TYPE_POINTER = 5,
+  NL_ARG_TYPE_DOUBLE = 6,
+  NL_ARG_TYPE_LONG_DOUBLE = 7,
+  NL_ARG_TYPE_WINT_T = 8,
+  NL_ARG_TYPE_LOG_END = 0xF,
+  // Synthetic values emitted by runtime, not packed into binary
+  NL_ARG_TYPE_LOG_START = 0xAA,
+  NL_ARG_TYPE_GUID = 0xAB,
+  NL_ARG_TYPE_STRING_LEN_VARINT = 0xAC,
+} nl_arg_type_t;
 
 // Private logging API (use the macros, not these)
 
