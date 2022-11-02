@@ -105,7 +105,7 @@ void emit_bin_fmt_strs(std::vector<char const *> const& fmt_strs,
     fmt_bin_addrs.push_back(unsigned(fmt_bin_mem.size()));
     auto guid{fmt_bin_addrs.empty() ? 0 : unsigned(fmt_bin_addrs.size() - 1)};
 
-    fmt_bin_mem.push_back(NL_BINARY_PREFIX_MARKER);
+    fmt_bin_mem.push_back(NL_BINARY_LOG_MARKER);
 
     do { // varint encode
       fmt_bin_mem.push_back(u8((guid & 0x7Fu) | 0x80));

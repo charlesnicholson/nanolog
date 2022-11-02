@@ -77,7 +77,7 @@ void nanolog_log_assert_ctx(void *ctx, char const *fmt, ...) {
 
 nanolog_ret_t nanolog_log_is_binary(char const *fmt, int *out_is_binary) {
   if (!fmt || !out_is_binary) { return NANOLOG_RET_ERR_BAD_ARG; }
-  *out_is_binary = (fmt[0] == NL_BINARY_PREFIX_MARKER);
+  *out_is_binary = (fmt[0] == NL_BINARY_LOG_MARKER);
   return NANOLOG_RET_SUCCESS;
 }
 
@@ -147,7 +147,7 @@ nanolog_ret_t nanolog_parse_binary_log(nanolog_binary_field_handler_cb_t cb,
   if (!cb || !fmt) { return NANOLOG_RET_ERR_BAD_ARG; }
 
   unsigned char const *src = (unsigned char const*)fmt;
-  if (*src++ != NL_BINARY_PREFIX_MARKER) { return NANOLOG_RET_INVALID_PAYLOAD; }
+  if (*src++ != NL_BINARY_LOG_MARKER) { return NANOLOG_RET_INVALID_PAYLOAD; }
 
   // About to log, tell user so they can transmit timestamp etc
   cb(ctx, NL_ARG_TYPE_LOG_START, NULL, 0);
