@@ -1,6 +1,5 @@
 #pragma once
-
-#include <vector>
+#include "nl_boilerplate.h"
 
 struct args {
   char const *input_elf = nullptr;

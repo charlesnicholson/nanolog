@@ -3,13 +3,7 @@
 #include "nl_elf.h"
 #include "nl_thumb2.h"
 #include "nl_stats.h"
-#include "../nanolog.h"
 
-#include <cassert>
-#include <cstdio>
-#include <cstdint>
-#include <cstring>
-#include <queue>
 #include <unordered_map>
 
 namespace {
@@ -51,8 +45,7 @@ bool load(state& s, std::vector<char const *> const& noreturn_funcs, char const 
     }
   }
 
-  auto const n{s.e.symtab_hdr->sh_size / s.e.symtab_hdr->sh_entsize};
-  for (auto i{0u}; i < n; ++i) {
+  for (auto i{0u}, n{s.e.symtab_hdr->sh_size / s.e.symtab_hdr->sh_entsize}; i < n; ++i) {
     elf_symbol32 const& sym{s.e.symtab[i]};
     if ((sym.st_info & 0xF) != ELF_SYM_TYPE_FUNC) { continue; }
     char const *name{&s.e.strtab[sym.st_name]};

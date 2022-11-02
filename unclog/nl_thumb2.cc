@@ -2,10 +2,7 @@
 #include "nl_thumb2_inst.h"
 #include "nl_elf.h"
 
-#include <cassert>
-#include <cstring>
 #include <stack>
-#include <string_view>
 #include <unordered_map>
 
 namespace {
@@ -127,13 +124,13 @@ int inst_is_log_call(inst const& i,
     [=](elf_symbol32 const *cand) { return (cand->st_value & ~1u) == label; });
   if (found == std::end(log_funcs)) { return -1; }
 
-  std::string_view const name{&strtab[(*found)->st_name]};
-  if (name.ends_with("_debug")) { return NL_SEV_DEBUG; }
-  if (name.ends_with("_info")) { return NL_SEV_INFO; }
-  if (name.ends_with("_warning")) { return NL_SEV_WARNING; }
-  if (name.ends_with("_error")) { return NL_SEV_ERROR; }
-  if (name.ends_with("_critical")) { return NL_SEV_CRITICAL; }
-  if (name.ends_with("_assert")) { return NL_SEV_ASSERT; }
+  char const *name{&strtab[(*found)->st_name]};
+  if (strstr(name, "_debug")) { return NL_SEV_DEBUG; }
+  if (strstr(name, "_info")) { return NL_SEV_INFO; }
+  if (strstr(name, "_warning")) { return NL_SEV_WARNING; }
+  if (strstr(name, "_error")) { return NL_SEV_ERROR; }
+  if (strstr(name, "_critical")) { return NL_SEV_CRITICAL; }
+  if (strstr(name, "_assert")) { return NL_SEV_ASSERT; }
   return -1;
 }
 

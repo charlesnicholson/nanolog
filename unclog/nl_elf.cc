@@ -1,10 +1,5 @@
 #include "nl_elf.h"
 
-#include <cassert>
-#include <cstdio>
-#include <cstdlib>
-#include <cstring>
-
 namespace {
 bytes_ptr load_file(char const *fn, unsigned& out_len) {
   file_ptr f{open_file(fn, "rb")};

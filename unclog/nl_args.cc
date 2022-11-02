@@ -1,6 +1,4 @@
 #include "nl_args.h"
-#include "../nanolog.h"
-#include <cstring>
 
 namespace {
 void print_usage() {

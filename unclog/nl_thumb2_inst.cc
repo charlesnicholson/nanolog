@@ -1,9 +1,5 @@
 #include "nl_thumb2_inst.h"
 
-#include <cassert>
-#include <cstdio>
-#include <cstring>
-
 namespace {
 
 char const *cond_code_name(cond_code cc) {
