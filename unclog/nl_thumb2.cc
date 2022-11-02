@@ -128,11 +128,11 @@ int inst_is_log_call(inst const& i,
   if (found == std::end(log_funcs)) { return -1; }
 
   std::string_view const name{&strtab[(*found)->st_name]};
-  if (name.ends_with("_dbg")) { return NL_SEV_DBG; }
+  if (name.ends_with("_debug")) { return NL_SEV_DEBUG; }
   if (name.ends_with("_info")) { return NL_SEV_INFO; }
-  if (name.ends_with("_warn")) { return NL_SEV_WARN; }
-  if (name.ends_with("_err")) { return NL_SEV_ERR; }
-  if (name.ends_with("_crit")) { return NL_SEV_CRIT; }
+  if (name.ends_with("_warning")) { return NL_SEV_WARNING; }
+  if (name.ends_with("_error")) { return NL_SEV_ERROR; }
+  if (name.ends_with("_critical")) { return NL_SEV_CRITICAL; }
   if (name.ends_with("_assert")) { return NL_SEV_ASSERT; }
   return -1;
 }

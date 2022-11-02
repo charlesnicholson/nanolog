@@ -38,11 +38,11 @@ std::string& to_json(char const *s, std::string& out) {
 
 char const *to_severity(unsigned sev) {
   switch (sev) {
-    case NL_SEV_DBG: return "debug";
+    case NL_SEV_DEBUG: return "debug";
     case NL_SEV_INFO: return "info";
-    case NL_SEV_WARN: return "warning";
-    case NL_SEV_ERR: return "error";
-    case NL_SEV_CRIT: return "critical";
+    case NL_SEV_WARNING: return "warning";
+    case NL_SEV_ERROR: return "error";
+    case NL_SEV_CRITICAL: return "critical";
     case NL_SEV_ASSERT: return "assert";
     default: break;
   }

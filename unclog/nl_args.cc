@@ -4,10 +4,10 @@
 
 namespace {
 void print_usage() {
-  NL_LOG_INFO("Usage: unclog <input-file> "
-              "<-o output-elf> "
-              "<-j output-json> "
-              "[--noreturn-func foo]\n");
+  NL_LOG_INF("Usage: unclog <input-file> "
+             "<-o output-elf> "
+             "<-j output-json> "
+             "[--noreturn-func foo]\n");
 }
 }
 

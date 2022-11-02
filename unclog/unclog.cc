@@ -109,8 +109,7 @@ bool write_file(void const* buf, unsigned len, char const *output_file) {
   return ok;
 }
 
-void on_log(int sev, char const *fmt, va_list args) {
-  (void)sev;
+void on_log(void *, int, char const *fmt, va_list args) {
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wformat-nonliteral"
   vprintf(fmt, args);
@@ -156,7 +155,7 @@ int main(int argc, char const *argv[]) {
     if (!lca.log_calls.empty()) { log_call_funcs.push_back(lca); }
   }
 
-  NL_LOG_INFO("\n%u instructions decoded, %u paths analyzed\n\n",
+  NL_LOG_INF("\n%u instructions decoded, %u paths analyzed\n\n",
     stats.decoded_insts, stats.analyzed_paths);
 
   printf("\nLog calls:\n");

@@ -13,20 +13,65 @@ nanolog_ret_t nanolog_set_log_handler(nanolog_log_handler_cb_t handler) {
   return NANOLOG_RET_SUCCESS;
 }
 
-#define STAMP_NL_FUNC(sev, SEV) \
-  void nanolog_log_##sev(char const *fmt, ...) { \
-    va_list args; va_start(args, fmt); \
-    if (s_log_handler) { s_log_handler(NL_SEV_##SEV, fmt, args); } \
-    va_end(args); \
-  }
+void nanolog_log_debug(char const *fmt, ...) {
+  if (!s_log_handler) { return; }
+  va_list a; va_start(a, fmt); s_log_handler(NULL, NL_SEV_DEBUG, fmt, a); va_end(a);
+}
 
-STAMP_NL_FUNC(dbg, DBG)
-STAMP_NL_FUNC(info, INFO)
-STAMP_NL_FUNC(warn, WARN)
-STAMP_NL_FUNC(err, ERR)
-STAMP_NL_FUNC(crit, CRIT)
-STAMP_NL_FUNC(assert, ASSERT)
-#undef STAMP_NL_FUNC
+void nanolog_log_debug_ctx(void *ctx, char const *fmt, ...) {
+  if (!s_log_handler) { return; }
+  va_list a; va_start(a, fmt); s_log_handler(ctx, NL_SEV_DEBUG, fmt, a); va_end(a);
+}
+
+void nanolog_log_info(char const *fmt, ...) {
+  if (!s_log_handler) { return; }
+  va_list a; va_start(a, fmt); s_log_handler(NULL, NL_SEV_INFO, fmt, a); va_end(a);
+}
+
+void nanolog_log_info_ctx(void *ctx, char const *fmt, ...) {
+  if (!s_log_handler) { return; }
+  va_list a; va_start(a, fmt); s_log_handler(ctx, NL_SEV_INFO, fmt, a); va_end(a);
+}
+
+void nanolog_log_warning(char const *fmt, ...) {
+  if (!s_log_handler) { return; }
+  va_list a; va_start(a, fmt); s_log_handler(NULL, NL_SEV_WARNING, fmt, a); va_end(a);
+}
+
+void nanolog_log_warning_ctx(void *ctx, char const *fmt, ...) {
+  if (!s_log_handler) { return; }
+  va_list a; va_start(a, fmt); s_log_handler(ctx, NL_SEV_WARNING, fmt, a); va_end(a);
+}
+
+void nanolog_log_error(char const *fmt, ...) {
+  if (!s_log_handler) { return; }
+  va_list a; va_start(a, fmt); s_log_handler(NULL, NL_SEV_ERROR, fmt, a); va_end(a);
+}
+
+void nanolog_log_error_ctx(void *ctx, char const *fmt, ...) {
+  if (!s_log_handler) { return; }
+  va_list a; va_start(a, fmt); s_log_handler(ctx, NL_SEV_ERROR, fmt, a); va_end(a);
+}
+
+void nanolog_log_critical(char const *fmt, ...) {
+  if (!s_log_handler) { return; }
+  va_list a; va_start(a, fmt); s_log_handler(NULL, NL_SEV_CRITICAL, fmt, a); va_end(a);
+}
+
+void nanolog_log_critical_ctx(void *ctx, char const *fmt, ...) {
+  if (!s_log_handler) { return; }
+  va_list a; va_start(a, fmt); s_log_handler(ctx, NL_SEV_CRITICAL, fmt, a); va_end(a);
+}
+
+void nanolog_log_assert(char const *fmt, ...) {
+  if (!s_log_handler) { return; }
+  va_list a; va_start(a, fmt); s_log_handler(NULL, NL_SEV_ASSERT, fmt, a); va_end(a);
+}
+
+void nanolog_log_assert_ctx(void *ctx, char const *fmt, ...) {
+  if (!s_log_handler) { return; }
+  va_list a; va_start(a, fmt); s_log_handler(ctx, NL_SEV_ASSERT, fmt, a); va_end(a);
+}
 
 #ifndef NANOLOG_HOST_TOOL // Only target code uses binary extraction runtime
 
@@ -35,23 +80,6 @@ nanolog_ret_t nanolog_log_is_binary(char const *fmt, int *out_is_binary) {
   *out_is_binary = (fmt[0] == NL_BINARY_PREFIX_MARKER);
   return NANOLOG_RET_SUCCESS;
 }
-
-// ARMv7 conventions
-
-_Static_assert(sizeof(signed char) == 1, "");
-_Static_assert(sizeof(unsigned char) == 1, "");
-_Static_assert(sizeof(signed short) == 2, "");
-_Static_assert(sizeof(unsigned short) == 2, "");
-_Static_assert(sizeof(int) == 4, "");
-_Static_assert(sizeof(unsigned) == 4, "");
-_Static_assert(sizeof(long) == 4, "");
-_Static_assert(sizeof(unsigned long) == 4, "");
-_Static_assert(sizeof(size_t) == 4, "");
-_Static_assert(sizeof(ptrdiff_t) == 4, "");
-_Static_assert(sizeof(long long) == 8, "");
-_Static_assert(sizeof(unsigned long long) == 8, "");
-_Static_assert(sizeof(intmax_t) == 8, "");
-_Static_assert(sizeof(uintmax_t) == 8, "");
 
 static void nanolog_extract_and_dispatch(nanolog_binary_field_handler_cb_t cb,
                                          void *ctx,
@@ -142,6 +170,23 @@ nanolog_ret_t nanolog_parse_binary_log(nanolog_binary_field_handler_cb_t cb,
 
   return NANOLOG_RET_SUCCESS;
 }
+
+// ARMv7-M conventions
+
+_Static_assert(sizeof(signed char) == 1, "");
+_Static_assert(sizeof(unsigned char) == 1, "");
+_Static_assert(sizeof(signed short) == 2, "");
+_Static_assert(sizeof(unsigned short) == 2, "");
+_Static_assert(sizeof(int) == 4, "");
+_Static_assert(sizeof(unsigned) == 4, "");
+_Static_assert(sizeof(long) == 4, "");
+_Static_assert(sizeof(unsigned long) == 4, "");
+_Static_assert(sizeof(size_t) == 4, "");
+_Static_assert(sizeof(ptrdiff_t) == 4, "");
+_Static_assert(sizeof(long long) == 8, "");
+_Static_assert(sizeof(unsigned long long) == 8, "");
+_Static_assert(sizeof(intmax_t) == 8, "");
+_Static_assert(sizeof(uintmax_t) == 8, "");
 
 #endif // NANOLOG_HOST_TOOL
 
