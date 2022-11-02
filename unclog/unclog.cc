@@ -14,13 +14,11 @@
 
 namespace {
 
-using sym_addr_map_t = std::unordered_map<u32, std::vector<elf_symbol32 const*>>;
-
 struct state {
   elf e;
   elf_section_hdr32 const *nl_hdr;
   std::vector<elf_symbol32 const*> nl_funcs;
-  sym_addr_map_t non_nl_funcs_sym_map;
+  std::unordered_map<u32, std::vector<elf_symbol32 const*>> non_nl_funcs_sym_map;
   std::unordered_map<u32, char const *> missed_nl_strs_map;
   std::unordered_set<u32> noreturn_func_addrs;
 };
@@ -129,7 +127,6 @@ int main(int argc, char const *argv[]) {
   cmd_args.noreturn_funcs.push_back("exit");
   cmd_args.noreturn_funcs.push_back("_exit");
   cmd_args.noreturn_funcs.push_back("_mainCRTStartup");
-  cmd_args.noreturn_funcs.push_back("handle_failed_assert");
 
   state s;
   load(s, cmd_args.noreturn_funcs, cmd_args.input_elf);
@@ -204,8 +201,7 @@ int main(int argc, char const *argv[]) {
 
   std::vector<char const *> fmt_strs;
   std::vector<u8> fmt_str_sevs;
-  for (auto const *ofs{&s.e.bytes[s.nl_hdr->sh_offset]};
-       auto const& func: log_call_funcs) {
+  for (auto const *ofs{&s.e.bytes[s.nl_hdr->sh_offset]}; auto const& func: log_call_funcs) {
     for (auto const& log_call: func.log_calls) {
       fmt_strs.push_back((char const *)(ofs + (log_call.fmt_str_addr - s.nl_hdr->sh_addr)));
       fmt_str_sevs.push_back(log_call.severity);
