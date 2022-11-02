@@ -58,7 +58,8 @@ typedef void (*nanolog_binary_field_handler_cb_t)(void *ctx,
                                                   nl_arg_type_t type,
                                                   void const *p,
                                                   unsigned len);
-// Calls |cb| with |ctx| with every arg.
+
+// Calls |cb| with every arg. Serialize all non-NULL payloads as-is to your target.
 nanolog_ret_t nanolog_parse_binary_log(nanolog_binary_field_handler_cb_t cb,
                                        void *ctx,
                                        char const *fmt,
