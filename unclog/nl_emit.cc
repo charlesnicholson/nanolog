@@ -11,7 +11,7 @@
 #include "nanoprintf.h"
 
 namespace {
-std::string& to_json(char const *s, std::string& out) {
+std::string& emit_escaped_json(char const *s, std::string& out) {
   char hex_str[16];
   out.clear();
   while (*s) {
@@ -36,7 +36,7 @@ std::string& to_json(char const *s, std::string& out) {
   return out;
 }
 
-char const *to_severity(unsigned sev) {
+char const *emit_severity(unsigned sev) {
   switch (sev) {
     case NL_SEV_DEBUG: return "debug";
     case NL_SEV_INFO: return "info";
@@ -49,14 +49,13 @@ char const *to_severity(unsigned sev) {
   return "unknown";
 }
 
-std::string& to_python(char const *s, std::string& out) {
+std::string& emit_python(char const *s, std::string& out) {
   out.clear();
   while (*s) {
     npf_format_spec_t fs;
     int const n{(*s != '%') ? 0 : npf_parse_format_spec(s, &fs)};
     if (!n) { out += *s++; continue; }
     s += n;
-    if (fs.conv_spec == NPF_FMT_SPEC_CONV_PERCENT) { out += '%'; continue; }
     out += "{}"; // TODO: switch on fs.conv_type
   }
   return out;
@@ -81,13 +80,13 @@ bool emit_json_manifest(std::vector<char const *> const& fmt_strs,
   for (auto i{0u}, n{unsigned(fmt_strs.size())}; i < n; ++i) {
     std::fprintf(f.get(), "  {\n");
     std::fprintf(f.get(), "    \"guid\": %u,\n", i);
-    std::fprintf(f.get(), "    \"severity\": \"%s\",\n", to_severity(fmt_str_sevs[i]));
+    std::fprintf(f.get(), "    \"severity\": \"%s\",\n", emit_severity(fmt_str_sevs[i]));
 
     std::fprintf(f.get(), "    \"c_printf\": \"%s\",\n",
-      to_json(fmt_strs[i], json).c_str());
+      emit_escaped_json(fmt_strs[i], json).c_str());
 
     std::fprintf(f.get(), "    \"python\": \"%s\",\n",
-      to_json(to_python(fmt_strs[i], lang).c_str(), json).c_str());
+      emit_escaped_json(emit_python(fmt_strs[i], lang).c_str(), json).c_str());
 
     std::fprintf(f.get(), "    \"format_specifiers\": [\n");
     std::fprintf(f.get(), "    ]\n");
