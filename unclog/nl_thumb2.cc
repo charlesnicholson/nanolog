@@ -15,6 +15,12 @@ struct reg_state {
   u16 cmp_imm_present = 0;
 };
 
+void print(reg_state const& rs) {
+  for (auto i = 0u; i < 16; ++i) {
+    NL_LOG_DBG("R%u %u %x\n", unsigned(i), unsigned((rs.known >> i) & 1), rs.regs[i]);
+  }
+}
+
 struct path_state {
   reg_state rs;
   std::vector<bool> taken_branches;
@@ -323,7 +329,7 @@ simulate_results simulate(inst const& i,
         return process_ldr_pc_jump_table(i, path, fs);
       } else {
         bool const known{union_reg_known(path.rs.known, ldr.t, ldr.n, ldr.m)};
-        u32 const addr{u32(ldr.n + (ldr.m << ldr.shift.n))};
+        u32 const addr{u32(path.rs.regs[ldr.n] + (path.rs.regs[ldr.m] << ldr.shift.n))};
         if (known && address_in_func(addr, fs)) {
           unsigned const ofs{fs.func_ofs + (addr - fs.func_start)};
           memcpy(&path.rs.regs[ldr.t], &fs.e.bytes[ofs], 4);
