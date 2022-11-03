@@ -135,11 +135,11 @@ nanolog_ret_t nanolog_parse_binary_log(nanolog_binary_field_handler_cb_t cb,
 #endif
 
 #if NL_LOG_SEVERITY_THRESHOLD <= NL_SEV_CRITICAL
-#define NL_LOG_CRIT(FMT, ...) do { \
+#define NL_LOG_CRT(FMT, ...) do { \
     static char const NL_ATTR_SEC(CRITICAL) s_nanolog_fmt_str[] = FMT; \
     nanolog_log_critical(s_nanolog_fmt_str, ##__VA_ARGS__); \
   } while(0)
-#define NL_LOG_CRIT_CTX(CTX, FMT, ...) do { \
+#define NL_LOG_CRT_CTX(CTX, FMT, ...) do { \
     static char const NL_ATTR_SEC(CRITICAL) s_nanolog_fmt_str[] = FMT; \
     nanolog_log_critical(s_nanolog_fmt_str, (void *)(CTX), ##__VA_ARGS__); \
   } while(0)
