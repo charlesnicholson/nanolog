@@ -152,9 +152,9 @@ int main(int argc, char const *argv[]) {
     stats.decoded_insts, stats.analyzed_paths);
 
   printf("\nLog calls:\n");
-  for (auto const& func: log_call_funcs) {
+  for (auto const& func : log_call_funcs) {
     printf("  %s\n", &s.e.strtab[func.func.st_name]);
-    for (auto const& call: func.log_calls) {
+    for (auto const& call : func.log_calls) {
       reg_mut_node const& r0_mut = func.reg_muts[call.node_idx];
 
       printf("    %x: %s r0 at %x: ", call.log_func_call_addr, fmt_str_strat_name(call.s),
@@ -186,15 +186,15 @@ int main(int argc, char const *argv[]) {
 
   if (!s.missed_nl_strs_map.empty()) {
     printf("\nMissed format strings:\n");
-    for (auto const& [addr, str]: s.missed_nl_strs_map) {
+    for (auto const& [addr, str] : s.missed_nl_strs_map) {
       printf("  %x: \"%s\"\n", addr, str);
     }
   }
 
   std::vector<char const *> fmt_strs;
   std::vector<u8> fmt_str_sevs;
-  for (auto const *ofs{&s.e.bytes[s.nl_hdr->sh_offset]}; auto const& func: log_call_funcs) {
-    for (auto const& log_call: func.log_calls) {
+  for (auto const *ofs{&s.e.bytes[s.nl_hdr->sh_offset]}; auto const& func : log_call_funcs) {
+    for (auto const& log_call : func.log_calls) {
       fmt_strs.push_back((char const *)(ofs + (log_call.fmt_str_addr - s.nl_hdr->sh_addr)));
       fmt_str_sevs.push_back(log_call.severity);
     }

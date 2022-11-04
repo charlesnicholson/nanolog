@@ -100,7 +100,7 @@ bool emit_json_manifest(std::vector<char const *> const& fmt_strs,
 void emit_bin_fmt_strs(std::vector<char const *> const& fmt_strs,
                        std::vector<u32>& fmt_bin_addrs,
                        std::vector<unsigned char>& fmt_bin_mem) {
-  for (auto str: fmt_strs) {
+  for (auto str : fmt_strs) {
     fmt_bin_addrs.push_back(unsigned(fmt_bin_mem.size()));
     auto guid{fmt_bin_addrs.empty() ? 0 : unsigned(fmt_bin_addrs.size() - 1)};
 

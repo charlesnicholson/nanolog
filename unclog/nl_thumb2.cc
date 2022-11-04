@@ -532,8 +532,8 @@ bool thumb2_patch_fmt_strs(elf const& e,
       func_addr{e.sec_hdrs[func.func.st_shndx].sh_addr};
 
     for (auto const &log_call : func.log_calls) {
-      reg_mut_node const& r0_mut = func.reg_muts[log_call.node_idx];
-      u32 bin_addr{fmt_bin_addrs[i] + nl_sec_hdr.sh_addr};
+      reg_mut_node const& r0_mut{func.reg_muts[log_call.node_idx]};
+      u32 const bin_addr{fmt_bin_addrs[i] + nl_sec_hdr.sh_addr};
 
       switch (log_call.s) {
         case fmt_str_strat::DIRECT_LOAD: {
@@ -542,7 +542,7 @@ bool thumb2_patch_fmt_strs(elf const& e,
         } break;
 
         case fmt_str_strat::MOV_FROM_DIRECT_LOAD: {
-          reg_mut_node const& rn_mut = func.reg_muts[r0_mut.par_idxs[0]];
+          reg_mut_node const& rn_mut{func.reg_muts[r0_mut.par_idxs[0]]};
           unsigned const dst_ofs{func_ofs + (rn_mut.i.i.load_lit.addr - func_addr)};
           memcpy(&patched_elf[dst_ofs], &bin_addr, sizeof(u32));
         } break;
