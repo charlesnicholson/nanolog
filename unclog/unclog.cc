@@ -121,7 +121,7 @@ int main(int argc, char const *argv[]) {
   cmd_args.noreturn_funcs.push_back("_mainCRTStartup");
 
   state s;
-  load(s, cmd_args.noreturn_funcs, cmd_args.input_elf);
+  if (!load(s, cmd_args.noreturn_funcs, cmd_args.input_elf)) { return 1; }
 
   NL_LOG_DBG("Nanolog public functions:\n");
   for (auto const& nl_func : s.nl_funcs) {
