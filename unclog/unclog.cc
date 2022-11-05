@@ -87,8 +87,9 @@ bytes_ptr patch_elf(state const& s,
   auto *patched_nl_hdr{
     (elf_section_hdr32 *)(&pe[0] + (uintptr_t(s.nl_hdr) - uintptr_t(&s.e.bytes[0])))};
   patched_nl_hdr->sh_size = u32(fmt_bin_mem.size());
-  thumb2_patch_fmt_strs(s.e, *s.nl_hdr, &pe[0], log_call_funcs, fmt_bin_addrs);
-  return pe;
+
+  return thumb2_patch_fmt_strs(s.e, *s.nl_hdr, &pe[0], log_call_funcs, fmt_bin_addrs) ?
+    std::move(pe) : bytes_ptr{};
 }
 
 bool write_file(void const* buf, unsigned len, char const *output_file) {
@@ -118,7 +119,7 @@ int main(int argc, char const *argv[]) {
   cmd_args.noreturn_funcs.push_back("_exit");
   cmd_args.noreturn_funcs.push_back("_mainCRTStartup");
 
-  if (!cmd_args.verbose) { nanolog_set_log_threshold(NL_SEV_INFO); }
+  nanolog_set_log_threshold(cmd_args.log_threshold);
 
   state s;
   if (!load(s, cmd_args.noreturn_funcs, cmd_args.input_elf)) { return 1; }
@@ -227,6 +228,7 @@ int main(int argc, char const *argv[]) {
   }
 
   bytes_ptr patched_elf{patch_elf(s, log_call_funcs, fmt_bin_addrs, fmt_bin_mem)};
+  if (!patched_elf) { return 3; }
   if (!write_file(&patched_elf[0], s.e.len, cmd_args.output_elf)) { return 1; }
   if (!emit_json_manifest(fmt_strs, fmt_str_sevs, cmd_args.output_json)) { return 2; }
   return 0;

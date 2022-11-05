@@ -5,7 +5,7 @@ void print_usage() {
   NL_LOG_INF("Usage: unclog <input-file> "
              "<-o output-elf> "
              "<-j output-json> "
-             "[-v] "
+             "[-v|-vv] "
              "[--noreturn-func foo]\n");
 }
 }
@@ -59,7 +59,17 @@ bool args_parse(char const *argv[], int const argc, args& out_args) {
           break;
         }
 
-        if (!strcmp(argv[i], "-v")) { out_args.verbose = true; break; }
+        if (!strcmp(argv[i], "-v")) {
+          --out_args.log_threshold;
+          if (out_args.log_threshold < 0) { ok = false; }
+          break;
+        }
+
+        if (!strcmp(argv[i], "-vv")) {
+          out_args.log_threshold -= 2;
+          if (out_args.log_threshold < 0) { ok = false; }
+          break;
+        }
 
         if (argv[i][0] == '-') { ok = false; break; }
         if (out_args.input_elf) { ok = false; break; }
