@@ -46,6 +46,9 @@ typedef enum {
   NL_ARG_TYPE_STRING_LEN_VARINT = 0xAC,
 } nl_arg_type_t;
 
+// Set the runtime log threshold for enabled log calls
+nanolog_ret_t nanolog_set_log_threshold(int severity);
+
 typedef void (*nanolog_log_handler_cb_t)(void *ctx, int sev, char const *fmt, va_list args);
 
 // Install a handler to be called on every log macro invocation.

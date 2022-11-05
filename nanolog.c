@@ -7,6 +7,15 @@
 #endif
 
 static nanolog_log_handler_cb_t s_log_handler = NULL;
+static int s_log_threshold = NL_SEV_DEBUG;
+
+nanolog_ret_t nanolog_set_log_threshold(int severity) {
+  if ((severity < NL_SEV_DEBUG) || (severity > NL_SEV_ASSERT)) {
+    return NANOLOG_RET_ERR_BAD_ARG;
+  }
+  s_log_threshold = severity;
+  return NANOLOG_RET_SUCCESS;
+}
 
 nanolog_ret_t nanolog_set_log_handler(nanolog_log_handler_cb_t handler) {
   s_log_handler = handler;
@@ -14,52 +23,52 @@ nanolog_ret_t nanolog_set_log_handler(nanolog_log_handler_cb_t handler) {
 }
 
 void nanolog_log_debug(char const *fmt, ...) {
-  if (!s_log_handler) { return; }
+  if (!s_log_handler || (s_log_threshold > NL_SEV_DEBUG)) { return; }
   va_list a; va_start(a, fmt); s_log_handler(NULL, NL_SEV_DEBUG, fmt, a); va_end(a);
 }
 
 void nanolog_log_debug_ctx(char const *fmt, void *ctx, ...) {
-  if (!s_log_handler) { return; }
+  if (!s_log_handler || (s_log_threshold > NL_SEV_DEBUG)) { return; }
   va_list a; va_start(a, ctx); s_log_handler(ctx, NL_SEV_DEBUG, fmt, a); va_end(a);
 }
 
 void nanolog_log_info(char const *fmt, ...) {
-  if (!s_log_handler) { return; }
+  if (!s_log_handler || (s_log_threshold > NL_SEV_INFO)) { return; }
   va_list a; va_start(a, fmt); s_log_handler(NULL, NL_SEV_INFO, fmt, a); va_end(a);
 }
 
 void nanolog_log_info_ctx(char const *fmt, void *ctx, ...) {
-  if (!s_log_handler) { return; }
+  if (!s_log_handler || (s_log_threshold > NL_SEV_INFO)) { return; }
   va_list a; va_start(a, ctx); s_log_handler(ctx, NL_SEV_INFO, fmt, a); va_end(a);
 }
 
 void nanolog_log_warning(char const *fmt, ...) {
-  if (!s_log_handler) { return; }
+  if (!s_log_handler || (s_log_threshold > NL_SEV_WARNING)) { return; }
   va_list a; va_start(a, fmt); s_log_handler(NULL, NL_SEV_WARNING, fmt, a); va_end(a);
 }
 
 void nanolog_log_warning_ctx(char const *fmt, void *ctx, ...) {
-  if (!s_log_handler) { return; }
+  if (!s_log_handler || (s_log_threshold > NL_SEV_WARNING)) { return; }
   va_list a; va_start(a, ctx); s_log_handler(ctx, NL_SEV_WARNING, fmt, a); va_end(a);
 }
 
 void nanolog_log_error(char const *fmt, ...) {
-  if (!s_log_handler) { return; }
+  if (!s_log_handler || (s_log_threshold > NL_SEV_ERROR)) { return; }
   va_list a; va_start(a, fmt); s_log_handler(NULL, NL_SEV_ERROR, fmt, a); va_end(a);
 }
 
 void nanolog_log_error_ctx(char const *fmt, void *ctx, ...) {
-  if (!s_log_handler) { return; }
+  if (!s_log_handler || (s_log_threshold > NL_SEV_ERROR)) { return; }
   va_list a; va_start(a, ctx); s_log_handler(ctx, NL_SEV_ERROR, fmt, a); va_end(a);
 }
 
 void nanolog_log_critical(char const *fmt, ...) {
-  if (!s_log_handler) { return; }
+  if (!s_log_handler || (s_log_threshold > NL_SEV_CRITICAL)) { return; }
   va_list a; va_start(a, fmt); s_log_handler(NULL, NL_SEV_CRITICAL, fmt, a); va_end(a);
 }
 
 void nanolog_log_critical_ctx(char const *fmt, void *ctx, ...) {
-  if (!s_log_handler) { return; }
+  if (!s_log_handler || (s_log_threshold > NL_SEV_CRITICAL)) { return; }
   va_list a; va_start(a, ctx); s_log_handler(ctx, NL_SEV_CRITICAL, fmt, a); va_end(a);
 }
 

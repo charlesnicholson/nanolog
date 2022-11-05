@@ -118,6 +118,8 @@ int main(int argc, char const *argv[]) {
   cmd_args.noreturn_funcs.push_back("_exit");
   cmd_args.noreturn_funcs.push_back("_mainCRTStartup");
 
+  if (!cmd_args.verbose) { nanolog_set_log_threshold(NL_SEV_INFO); }
+
   state s;
   if (!load(s, cmd_args.noreturn_funcs, cmd_args.input_elf)) { return 1; }
 
@@ -146,36 +148,36 @@ int main(int argc, char const *argv[]) {
     if (!lca.log_calls.empty()) { log_call_funcs.push_back(lca); }
   }
 
-  NL_LOG_INF("\n%u instructions decoded, %u paths analyzed\n\n",
+  NL_LOG_DBG("\n%u instructions decoded, %u paths analyzed\n\n",
     stats.decoded_insts, stats.analyzed_paths);
 
-  printf("\nLog calls:\n");
+  NL_LOG_DBG("\nLog calls:\n");
   for (auto const& func : log_call_funcs) {
-    printf("  %s\n", &s.e.strtab[func.func.st_name]);
+    NL_LOG_DBG("  %s\n", &s.e.strtab[func.func.st_name]);
     for (auto const& call : func.log_calls) {
       reg_mut_node const& r0_mut = func.reg_muts[call.node_idx];
 
-      printf("    %x: %s r0 at %x: ", call.log_func_call_addr, fmt_str_strat_name(call.s),
+      NL_LOG_DBG("    %x: %s r0 at %x: ", call.log_func_call_addr, fmt_str_strat_name(call.s),
         r0_mut.i.addr);
 
       switch (call.s) {
         case fmt_str_strat::DIRECT_LOAD:
-          printf("literal at %x: ", r0_mut.i.i.load_lit.addr);
+          NL_LOG_DBG("literal at %x: ", r0_mut.i.i.load_lit.addr);
           break;
 
         case fmt_str_strat::MOV_FROM_DIRECT_LOAD:
-          printf("from r%u at %x, literal at %x: ",
+          NL_LOG_DBG("from r%u at %x, literal at %x: ",
             r0_mut.i.i.mov_reg.m,
             func.reg_muts[r0_mut.par_idxs[0]].i.addr,
             func.reg_muts[r0_mut.par_idxs[0]].i.i.load_lit.addr);
           break;
 
         case fmt_str_strat::ADD_IMM_FROM_BASE_REG:
-          printf("add imm from base: ");
+          NL_LOG_DBG("add imm from base: ");
           break;
       }
 
-      printf("\"%s\"\n",
+      NL_LOG_DBG("\"%s\"\n",
         &s.e.bytes[s.nl_hdr->sh_offset + (call.fmt_str_addr - s.nl_hdr->sh_addr)]);
 
       s.missed_nl_strs_map.erase(call.fmt_str_addr);
@@ -183,10 +185,11 @@ int main(int argc, char const *argv[]) {
   }
 
   if (!s.missed_nl_strs_map.empty()) {
-    printf("\nMissed format strings:\n");
+    NL_LOG_ERR("\nMissed format strings:\n");
     for (auto const& [addr, str] : s.missed_nl_strs_map) {
-      printf("  %x: \"%s\"\n", addr, str);
+      NL_LOG_ERR("  %x: \"%s\"\n", addr, str);
     }
+    return 1;
   }
 
   std::vector<char const *> fmt_strs;
@@ -204,23 +207,23 @@ int main(int argc, char const *argv[]) {
   fmt_bin_mem.reserve(s.nl_hdr->sh_size);
   emit_bin_fmt_strs(fmt_strs, fmt_bin_addrs, fmt_bin_mem);
 
-  printf("\n%u strings, %u addrs, %u string size, %u bin size\n\n",
+  NL_LOG_INF("\n%u strings, %u addrs, %u string size, %u bin size\n\n",
     unsigned(fmt_strs.size()), unsigned(fmt_bin_addrs.size()),
     unsigned(s.nl_hdr->sh_size), unsigned(fmt_bin_mem.size()));
 
   for (auto i{0u}, n{unsigned(fmt_strs.size())}; i < n; ++i) {
     unsigned char const *src{&fmt_bin_mem[fmt_bin_addrs[i]]};
-    printf("  %s\n", fmt_strs[i]);
-    printf("    %02hhX ", *src);
+    NL_LOG_DBG("  %s\n", fmt_strs[i]);
+    NL_LOG_DBG("    %02hhX ", *src);
 
-    do { ++src; printf("%02hhX ", *src); } while (*src & 0x80);
+    do { ++src; NL_LOG_DBG("%02hhX ", *src); } while (*src & 0x80);
 
     do {
-      printf("%02hhX ", *++src);
+      NL_LOG_DBG("%02hhX ", *++src);
     } while (((*src & 0xFu) != NL_ARG_TYPE_LOG_END) &&
              ((*src >> 4u) != NL_ARG_TYPE_LOG_END));
 
-    printf("\n");
+    NL_LOG_DBG("\n");
   }
 
   bytes_ptr patched_elf{patch_elf(s, log_call_funcs, fmt_bin_addrs, fmt_bin_mem)};
