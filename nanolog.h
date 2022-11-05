@@ -70,11 +70,12 @@ nanolog_ret_t nanolog_parse_binary_log(nanolog_binary_field_handler_cb_t cb,
 
 // Boilerplate, has to be before the public logging macros
 
+#define NL_STR_EVAL(X) #X
+#define NL_STR(X) NL_STR_EVAL(X)
+
 #ifdef NANOLOG_HOST_TOOL
 #define NL_ATTR_SEC(SEV)
 #else
-#define NL_STR_EVAL(X) #X
-#define NL_STR(X) NL_STR_EVAL(X)
 #define NL_ATTR_SEC(SEV) \
   __attribute__((section(".nanolog." #SEV "." NL_STR(__LINE__) "." NL_STR(__COUNTER__))))
 #endif

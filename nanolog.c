@@ -168,8 +168,8 @@ nanolog_ret_t nanolog_parse_binary_log(nanolog_binary_field_handler_cb_t cb,
   }
 
   // Types are packed, two per byte, low nibble first.
-  for (nl_arg_type_t type; ; ++src) {
-    type = (nl_arg_type_t)(*src & 0xFu);
+  for (;; ++src) {
+    nl_arg_type_t type = (nl_arg_type_t)(*src & 0xFu);
     nanolog_extract_and_dispatch(cb, ctx, type, args);
     if (type == NL_ARG_TYPE_LOG_END) { break; }
     type = (nl_arg_type_t)(*src >> 4u);
