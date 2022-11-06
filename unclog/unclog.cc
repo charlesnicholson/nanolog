@@ -10,11 +10,12 @@ namespace {
 
 struct state {
   elf e;
-  elf_section_hdr32 const *nl_hdr;
+  elf_section_hdr32 const *nl_hdr = nullptr;
   std::vector<elf_symbol32 const*> nl_funcs;
   std::unordered_map<u32, std::vector<elf_symbol32 const*>> non_nl_funcs_sym_map;
   std::unordered_map<u32, char const *> missed_nl_strs_map;
   std::unordered_set<u32> noreturn_func_addrs;
+  int log_str_cnt = 0;
 };
 
 elf_section_hdr32 const *find_nl_hdr(elf_section_hdr32 const *sec_hdrs,
@@ -41,6 +42,7 @@ bool load(state& s, std::vector<char const *> const& noreturn_funcs, char const 
       rem -= n; src += n;
       while (rem && !*src) { --rem; ++src; } // arm-gcc aligns to even addresses
     }
+    s.log_str_cnt = s.missed_nl_strs_map.size();
   }
 
   for (auto i{0u}, n{s.e.symtab_hdr->sh_size / s.e.symtab_hdr->sh_entsize}; i < n; ++i) {
@@ -89,10 +91,9 @@ bytes_ptr patch_elf(state const& s,
 }
 
 bool write_file(void const* buf, unsigned len, char const *output_file) {
-  FILE *fp{std::fopen(output_file, "wb")};
-  if (!fp) { printf("Unable to open output file %s\n", output_file); return false; }
-  bool const ok{std::fwrite(buf, 1, len, fp) == len};
-  std::fclose(fp);
+  file_ptr f{open_file(output_file, "wb")};
+  if (!f.get()) { printf("Unable to open output file %s\n", output_file); return false; }
+  bool const ok{std::fwrite(buf, 1, len, f.get()) == len};
   if (!ok) { std::remove(output_file); }
   return ok;
 }
@@ -149,15 +150,15 @@ int main(int argc, char const *argv[]) {
     stats.decoded_insts, stats.analyzed_paths);
 
   NL_LOG_DBG("\nLog calls:\n");
-  for (auto const& func : log_call_funcs) {
-    NL_LOG_DBG("  %s\n", &s.e.strtab[func.func.st_name]);
-    for (auto const& call : func.log_calls) {
-      reg_mut_node const& r0_mut = func.reg_muts[call.node_idx];
+  for (auto const& f : log_call_funcs) {
+    NL_LOG_DBG("  %s\n", &s.e.strtab[f.func.st_name]);
+    for (auto const& lc : f.log_calls) {
+      reg_mut_node const& r0_mut = f.reg_muts[lc.node_idx];
 
-      NL_LOG_DBG("    %x: %s r0 at %x: ", call.log_func_call_addr, fmt_str_strat_name(call.s),
+      NL_LOG_DBG("    %x: %s r0 at %x: ", lc.log_func_call_addr, fmt_str_strat_name(lc.s),
         r0_mut.i.addr);
 
-      switch (call.s) {
+      switch (lc.s) {
         case fmt_str_strat::DIRECT_LOAD:
           NL_LOG_DBG("literal at %x: ", r0_mut.i.i.load_lit.addr);
           break;
@@ -165,8 +166,8 @@ int main(int argc, char const *argv[]) {
         case fmt_str_strat::MOV_FROM_DIRECT_LOAD:
           NL_LOG_DBG("from r%u at %x, literal at %x: ",
             r0_mut.i.i.mov_reg.m,
-            func.reg_muts[r0_mut.par_idxs[0]].i.addr,
-            func.reg_muts[r0_mut.par_idxs[0]].i.i.load_lit.addr);
+            f.reg_muts[r0_mut.par_idxs[0]].i.addr,
+            f.reg_muts[r0_mut.par_idxs[0]].i.i.load_lit.addr);
           break;
 
         case fmt_str_strat::ADD_IMM_FROM_BASE_REG:
@@ -175,9 +176,9 @@ int main(int argc, char const *argv[]) {
       }
 
       NL_LOG_DBG("\"%s\"\n",
-        &s.e.bytes[s.nl_hdr->sh_offset + (call.fmt_str_addr - s.nl_hdr->sh_addr)]);
+        &s.e.bytes[s.nl_hdr->sh_offset + (lc.fmt_str_addr - s.nl_hdr->sh_addr)]);
 
-      s.missed_nl_strs_map.erase(call.fmt_str_addr);
+      s.missed_nl_strs_map.erase(lc.fmt_str_addr);
     }
   }
 
@@ -191,10 +192,12 @@ int main(int argc, char const *argv[]) {
 
   std::vector<char const *> fmt_strs;
   std::vector<u8> fmt_str_sevs;
-  for (auto const *ofs{&s.e.bytes[s.nl_hdr->sh_offset]}; auto const& func : log_call_funcs) {
-    for (auto const& log_call : func.log_calls) {
-      fmt_strs.push_back((char const *)(ofs + (log_call.fmt_str_addr - s.nl_hdr->sh_addr)));
-      fmt_str_sevs.push_back(log_call.severity);
+  fmt_strs.reserve(s.log_str_cnt);
+  fmt_str_sevs.reserve(s.log_str_cnt);
+  for (auto const *ofs{&s.e.bytes[s.nl_hdr->sh_offset]}; auto const& f : log_call_funcs) {
+    for (auto const& lc : f.log_calls) {
+      fmt_strs.push_back((char const *)(ofs + (lc.fmt_str_addr - s.nl_hdr->sh_addr)));
+      fmt_str_sevs.push_back(lc.severity);
     }
   }
 
