@@ -120,8 +120,7 @@ void emit_bin_fmt_strs(std::vector<char const *> const& fmt_strs,
       if (!n) { ++cur; continue; }
       cur += n;
 
-      bool added_field{false};
-      unsigned char field{0};
+      unsigned char field{0xFF};
 
       switch (fs.conv_spec) {
         case NPF_FMT_SPEC_CONV_WRITEBACK:
@@ -131,17 +130,17 @@ void emit_bin_fmt_strs(std::vector<char const *> const& fmt_strs,
         case NPF_FMT_SPEC_CONV_CHAR:
           switch (fs.length_modifier) {
             case NPF_FMT_SPEC_LEN_MOD_NONE:
-              field = char(NL_ARG_TYPE_SCALAR_1_BYTE); added_field = true; break;
+              field = char(NL_ARG_TYPE_SCALAR_1_BYTE); break;
             case NPF_FMT_SPEC_LEN_MOD_LONG:
-              field = char(NL_ARG_TYPE_WINT_T); added_field = true; break;
+              field = char(NL_ARG_TYPE_WINT_T); break;
             default: break;
           } break;
 
         case NPF_FMT_SPEC_CONV_POINTER:
-          field = char(NL_ARG_TYPE_POINTER); added_field = true; break;
+          field = char(NL_ARG_TYPE_POINTER); break;
 
         case NPF_FMT_SPEC_CONV_STRING:
-          field = char(NL_ARG_TYPE_STRING); added_field = true; break;
+          field = char(NL_ARG_TYPE_STRING); break;
 
         case NPF_FMT_SPEC_CONV_BINARY:
         case NPF_FMT_SPEC_CONV_OCTAL:
@@ -150,17 +149,17 @@ void emit_bin_fmt_strs(std::vector<char const *> const& fmt_strs,
         case NPF_FMT_SPEC_CONV_SIGNED_INT:
           switch (fs.length_modifier) {
             case NPF_FMT_SPEC_LEN_MOD_CHAR:
-              field = char(NL_ARG_TYPE_SCALAR_1_BYTE); added_field = true; break;
+              field = char(NL_ARG_TYPE_SCALAR_1_BYTE); break;
             case NPF_FMT_SPEC_LEN_MOD_SHORT:
-              field = char(NL_ARG_TYPE_SCALAR_2_BYTE); added_field = true; break;
+              field = char(NL_ARG_TYPE_SCALAR_2_BYTE); break;
             case NPF_FMT_SPEC_LEN_MOD_NONE:
             case NPF_FMT_SPEC_LEN_MOD_LONG:
             case NPF_FMT_SPEC_LEN_MOD_LARGE_SIZET:
             case NPF_FMT_SPEC_LEN_MOD_LARGE_PTRDIFFT:
-              field = char(NL_ARG_TYPE_SCALAR_4_BYTE); added_field = true; break;
+              field = char(NL_ARG_TYPE_SCALAR_4_BYTE); break;
             case NPF_FMT_SPEC_LEN_MOD_LARGE_LONG_LONG:
             case NPF_FMT_SPEC_LEN_MOD_LARGE_INTMAX:
-              field = char(NL_ARG_TYPE_SCALAR_8_BYTE); added_field = true; break;
+              field = char(NL_ARG_TYPE_SCALAR_8_BYTE); break;
             default: break;
           } break;
 
@@ -170,14 +169,14 @@ void emit_bin_fmt_strs(std::vector<char const *> const& fmt_strs,
         case NPF_FMT_SPEC_CONV_FLOAT_HEX:
           switch (fs.length_modifier) {
             case NPF_FMT_SPEC_LEN_MOD_NONE:
-              field = char(NL_ARG_TYPE_DOUBLE); added_field = true; break;
+              field = char(NL_ARG_TYPE_DOUBLE); break;
             case NPF_FMT_SPEC_LEN_MOD_LONG:
-              field = char(NL_ARG_TYPE_LONG_DOUBLE); added_field = true; break;
+              field = char(NL_ARG_TYPE_LONG_DOUBLE); break;
             default: break;
           } break;
       }
 
-      if (added_field) {
+      if (field != 0xFF) {
         if (field_count++ & 1) {
           fmt_bin_mem[fmt_bin_mem.size() - 1] |= (unsigned char)(field << 4u);
         } else {

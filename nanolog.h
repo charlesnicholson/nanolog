@@ -206,7 +206,6 @@ nanolog_ret_t nanolog_parse_binary_log(nanolog_binary_field_handler_cb_t cb,
 
 #endif // NANOLOG_PROVIDE_ASSERT_MACROS
 
-
 // Implementation details
 
 enum { NL_BINARY_LOG_MARKER = 0x1F };  // starts replacement binary payloads
