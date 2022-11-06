@@ -4,3 +4,4 @@
 * TBB/TBH logic is janky; looking at the last cmp_imm of the offset reg is gross
 * Better logging around "ran off the end" (show last BL target)
 * runtime: log buffers
+* star args for field width and precision

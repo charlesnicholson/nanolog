@@ -56,8 +56,87 @@ std::string& emit_python(char const *s, std::string& out) {
     int const n{(*s != '%') ? 0 : npf_parse_format_spec(s, &fs)};
     if (!n) { out += *s++; continue; }
     s += n;
-    out += "{}"; // TODO: switch on fs.conv_type
+    switch (fs.conv_spec) {
+      case NPF_FMT_SPEC_CONV_PERCENT: out += '%'; break;
+      default: out += "{}"; break;
+    }
   }
+  return out;
+}
+
+std::string& emit_format_specifiers(char const *s, std::string& out) {
+  out.clear();
+  bool first = true;
+  while (*s) {
+    npf_format_spec_t fs;
+    int const n{(*s != '%') ? 0 : npf_parse_format_spec(s, &fs)};
+    s += n;
+    if (!n) { ++s; continue; }
+    if (fs.conv_spec == NPF_FMT_SPEC_CONV_PERCENT) { continue; }
+
+    out += ",\n";
+    if (first) {
+      out += "    \"format_specifiers\": [\n";
+    }
+    first = false;
+
+    out += "      {\n";
+    out += "        \"type\": ";
+    switch (fs.conv_spec) {
+      case NPF_FMT_SPEC_CONV_WRITEBACK: out += "\"writeback\""; break;
+      case NPF_FMT_SPEC_CONV_CHAR: out += "\"char\""; break;
+      case NPF_FMT_SPEC_CONV_POINTER: out += "\"pointer\""; break;
+      case NPF_FMT_SPEC_CONV_STRING: out += "\"string\""; break;
+      case NPF_FMT_SPEC_CONV_BINARY: out += "\"binary\""; break;
+      case NPF_FMT_SPEC_CONV_OCTAL: out += "\"octal\""; break;
+      case NPF_FMT_SPEC_CONV_HEX_INT: out += "\"hex\""; break;
+      case NPF_FMT_SPEC_CONV_UNSIGNED_INT: out += "\"unsigned\""; break;
+      case NPF_FMT_SPEC_CONV_SIGNED_INT: out += "\"int\""; break;
+      case NPF_FMT_SPEC_CONV_FLOAT_DEC: out += "\"float-decimal\""; break;
+      case NPF_FMT_SPEC_CONV_FLOAT_SCI: out += "\"float-scientific\""; break;
+      case NPF_FMT_SPEC_CONV_FLOAT_SHORTEST: out += "\"float-shortest\""; break;
+      case NPF_FMT_SPEC_CONV_FLOAT_HEX: out += "\"float-hex\""; break;
+      default: break;
+    }
+
+    if (fs.length_modifier != NPF_FMT_SPEC_LEN_MOD_NONE) {
+      out += ",\n        \"length\": ";
+      switch (fs.length_modifier) {
+        case NPF_FMT_SPEC_LEN_MOD_NONE: break;
+        case NPF_FMT_SPEC_LEN_MOD_SHORT: out += "\"short\""; break;
+        case NPF_FMT_SPEC_LEN_MOD_LONG_DOUBLE: out += "\"long-double\""; break;
+        case NPF_FMT_SPEC_LEN_MOD_CHAR: out += "\"char\""; break;
+        case NPF_FMT_SPEC_LEN_MOD_LONG: out += "\"long\""; break;
+        case NPF_FMT_SPEC_LEN_MOD_LARGE_LONG_LONG:
+        case NPF_FMT_SPEC_LEN_MOD_LARGE_INTMAX:
+        case NPF_FMT_SPEC_LEN_MOD_LARGE_SIZET:
+        case NPF_FMT_SPEC_LEN_MOD_LARGE_PTRDIFFT: out += "\"large\""; break;
+        default: break;
+      }
+    }
+
+    if (fs.alt_form) { out += ",\n        \"alternate-form\": true"; }
+    if (fs.leading_zero_pad) { out += ",\n        \"leading-zero-pad\": true"; }
+
+    switch (fs.conv_spec) {
+      case NPF_FMT_SPEC_CONV_BINARY:
+      case NPF_FMT_SPEC_CONV_POINTER:
+      case NPF_FMT_SPEC_CONV_HEX_INT:
+      case NPF_FMT_SPEC_CONV_FLOAT_DEC:
+      case NPF_FMT_SPEC_CONV_FLOAT_SCI:
+      case NPF_FMT_SPEC_CONV_FLOAT_SHORTEST:
+      case NPF_FMT_SPEC_CONV_FLOAT_HEX:
+        if (!fs.case_adjust) { out += ",\n        \"uppercase\": true"; }
+        break;
+      default: break;
+    }
+
+    out += "\n      }";
+  }
+
+  out += '\n';
+  if (!first) { out += "    ]\n"; }
+
   return out;
 }
 }
@@ -85,11 +164,10 @@ bool emit_json_manifest(std::vector<char const *> const& fmt_strs,
     std::fprintf(f.get(), "    \"c_printf\": \"%s\",\n",
       emit_escaped_json(fmt_strs[i], json).c_str());
 
-    std::fprintf(f.get(), "    \"python\": \"%s\",\n",
+    std::fprintf(f.get(), "    \"python\": \"%s\"",
       emit_escaped_json(emit_python(fmt_strs[i], lang).c_str(), json).c_str());
 
-    std::fprintf(f.get(), "    \"format_specifiers\": [\n");
-    std::fprintf(f.get(), "    ]\n");
+    std::fprintf(f.get(), "%s", emit_format_specifiers(fmt_strs[i], lang).c_str());
 
     std::fprintf(f.get(), "  }%s\n", (i < (n - 1)) ? "," : "");
   }
@@ -129,18 +207,13 @@ void emit_bin_fmt_strs(std::vector<char const *> const& fmt_strs,
 
         case NPF_FMT_SPEC_CONV_CHAR:
           switch (fs.length_modifier) {
-            case NPF_FMT_SPEC_LEN_MOD_NONE:
-              field = char(NL_ARG_TYPE_SCALAR_1_BYTE); break;
-            case NPF_FMT_SPEC_LEN_MOD_LONG:
-              field = char(NL_ARG_TYPE_WINT_T); break;
+            case NPF_FMT_SPEC_LEN_MOD_NONE: field = char(NL_ARG_TYPE_SCALAR_1_BYTE); break;
+            case NPF_FMT_SPEC_LEN_MOD_LONG: field = char(NL_ARG_TYPE_WINT_T); break;
             default: break;
           } break;
 
-        case NPF_FMT_SPEC_CONV_POINTER:
-          field = char(NL_ARG_TYPE_POINTER); break;
-
-        case NPF_FMT_SPEC_CONV_STRING:
-          field = char(NL_ARG_TYPE_STRING); break;
+        case NPF_FMT_SPEC_CONV_POINTER: field = char(NL_ARG_TYPE_POINTER); break;
+        case NPF_FMT_SPEC_CONV_STRING: field = char(NL_ARG_TYPE_STRING); break;
 
         case NPF_FMT_SPEC_CONV_BINARY:
         case NPF_FMT_SPEC_CONV_OCTAL:
@@ -148,10 +221,8 @@ void emit_bin_fmt_strs(std::vector<char const *> const& fmt_strs,
         case NPF_FMT_SPEC_CONV_UNSIGNED_INT:
         case NPF_FMT_SPEC_CONV_SIGNED_INT:
           switch (fs.length_modifier) {
-            case NPF_FMT_SPEC_LEN_MOD_CHAR:
-              field = char(NL_ARG_TYPE_SCALAR_1_BYTE); break;
-            case NPF_FMT_SPEC_LEN_MOD_SHORT:
-              field = char(NL_ARG_TYPE_SCALAR_2_BYTE); break;
+            case NPF_FMT_SPEC_LEN_MOD_CHAR: field = char(NL_ARG_TYPE_SCALAR_1_BYTE); break;
+            case NPF_FMT_SPEC_LEN_MOD_SHORT: field = char(NL_ARG_TYPE_SCALAR_2_BYTE); break;
             case NPF_FMT_SPEC_LEN_MOD_NONE:
             case NPF_FMT_SPEC_LEN_MOD_LONG:
             case NPF_FMT_SPEC_LEN_MOD_LARGE_SIZET:
@@ -168,10 +239,8 @@ void emit_bin_fmt_strs(std::vector<char const *> const& fmt_strs,
         case NPF_FMT_SPEC_CONV_FLOAT_SHORTEST:
         case NPF_FMT_SPEC_CONV_FLOAT_HEX:
           switch (fs.length_modifier) {
-            case NPF_FMT_SPEC_LEN_MOD_NONE:
-              field = char(NL_ARG_TYPE_DOUBLE); break;
-            case NPF_FMT_SPEC_LEN_MOD_LONG:
-              field = char(NL_ARG_TYPE_LONG_DOUBLE); break;
+            case NPF_FMT_SPEC_LEN_MOD_NONE: field = char(NL_ARG_TYPE_DOUBLE); break;
+            case NPF_FMT_SPEC_LEN_MOD_LONG: field = char(NL_ARG_TYPE_LONG_DOUBLE); break;
             default: break;
           } break;
       }
