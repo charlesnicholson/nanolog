@@ -24,9 +24,9 @@ std::string& emit_escaped_json(char const *s, std::string& out) {
       case '\t': out += "\\t"; break;
       default:
         if (*s <= 0x1F) {
-          char hex_str[16];
-          snprintf(hex_str, sizeof(hex_str), "\\u%04hhx", *s);
-          out = hex_str;
+          char buf[16];
+          std::snprintf(buf, sizeof(buf), "\\u%04hhx", *s);
+          out = buf;
         } else {
           out += *s;
         }
@@ -75,13 +75,10 @@ std::string& emit_format_specifiers(char const *s, std::string& out) {
     if (fs.conv_spec == NPF_FMT_SPEC_CONV_PERCENT) { continue; }
 
     out += ",\n";
-    if (first) {
-      out += "    \"format_specifiers\": [\n";
-    }
+    if (first) { out += "    \"format_specifiers\": [\n"; }
     first = false;
 
-    out += "      {\n";
-    out += "        \"type\": ";
+    out += "      {\n        \"type\": ";
     switch (fs.conv_spec) {
       case NPF_FMT_SPEC_CONV_WRITEBACK: out += "\"writeback\""; break;
       case NPF_FMT_SPEC_CONV_CHAR: out += "\"char\""; break;
@@ -115,20 +112,31 @@ std::string& emit_format_specifiers(char const *s, std::string& out) {
       }
     }
 
+    if (fs.field_width_opt != NPF_FMT_SPEC_OPT_NONE) {
+      out += ",\n        \"field-width\": ";
+      if (fs.field_width_opt == NPF_FMT_SPEC_OPT_STAR) {
+        out += "\"dynamic\"";
+      } else {
+        char num[16];
+        std::snprintf(num, sizeof(num), "%d", fs.field_width);
+        out += num;
+      }
+    }
+
     if (fs.alt_form) { out += ",\n        \"alternate-form\": true"; }
     if (fs.leading_zero_pad) { out += ",\n        \"leading-zero-pad\": true"; }
 
-    switch (fs.conv_spec) {
-      case NPF_FMT_SPEC_CONV_BINARY:
-      case NPF_FMT_SPEC_CONV_POINTER:
-      case NPF_FMT_SPEC_CONV_HEX_INT:
-      case NPF_FMT_SPEC_CONV_FLOAT_DEC:
-      case NPF_FMT_SPEC_CONV_FLOAT_SCI:
-      case NPF_FMT_SPEC_CONV_FLOAT_SHORTEST:
-      case NPF_FMT_SPEC_CONV_FLOAT_HEX:
-        if (!fs.case_adjust) { out += ",\n        \"uppercase\": true"; }
-        break;
-      default: break;
+    if (!fs.case_adjust) {
+      switch (fs.conv_spec) {
+        case NPF_FMT_SPEC_CONV_BINARY:
+        case NPF_FMT_SPEC_CONV_POINTER:
+        case NPF_FMT_SPEC_CONV_HEX_INT:
+        case NPF_FMT_SPEC_CONV_FLOAT_DEC:
+        case NPF_FMT_SPEC_CONV_FLOAT_SCI:
+        case NPF_FMT_SPEC_CONV_FLOAT_SHORTEST:
+        case NPF_FMT_SPEC_CONV_FLOAT_HEX: out += ",\n        \"uppercase\": true"; break;
+        default: break;
+      }
     }
 
     out += "\n      }";
@@ -136,7 +144,6 @@ std::string& emit_format_specifiers(char const *s, std::string& out) {
 
   out += '\n';
   if (!first) { out += "    ]\n"; }
-
   return out;
 }
 }
