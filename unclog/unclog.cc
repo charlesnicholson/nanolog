@@ -91,9 +91,15 @@ bytes_ptr patch_elf(state const& s,
 }
 
 bool write_file(void const* buf, unsigned len, char const *output_file) {
-  file_ptr f{open_file(output_file, "wb")};
-  if (!f.get()) { printf("Unable to open output file %s\n", output_file); return false; }
-  bool const ok{std::fwrite(buf, 1, len, f.get()) == len};
+  bool const ok{[&]() { // undefined to remove() an open file pointer
+    file_ptr f{open_file(output_file, "wb")};
+    if (!f.get()) {
+      NL_LOG_ERR("Unable to open output file %s\n", output_file);
+      return false;
+    }
+    return std::fwrite(buf, 1, len, f.get()) == len;
+  }()};
+
   if (!ok) { std::remove(output_file); }
   return ok;
 }
