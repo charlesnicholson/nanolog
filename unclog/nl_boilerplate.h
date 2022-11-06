@@ -2,7 +2,6 @@
 
 #include "../nanolog.h"
 
-#include <cassert>
 #include <cstdint>
 #include <cstdio>
 #include <cstring>

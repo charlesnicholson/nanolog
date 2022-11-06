@@ -12,7 +12,6 @@
 
 namespace {
 std::string& emit_escaped_json(char const *s, std::string& out) {
-  char hex_str[16];
   out.clear();
   while (*s) {
     switch (*s) {
@@ -25,6 +24,7 @@ std::string& emit_escaped_json(char const *s, std::string& out) {
       case '\t': out += "\\t"; break;
       default:
         if (*s <= 0x1F) {
+          char hex_str[16];
           snprintf(hex_str, sizeof(hex_str), "\\u%04hhx", *s);
           out = hex_str;
         } else {

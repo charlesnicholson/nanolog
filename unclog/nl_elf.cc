@@ -9,7 +9,7 @@ bytes_ptr load_file(char const *fn, unsigned& out_len) {
   bytes_ptr contents{new (std::align_val_t{16}) byte[len]};
   std::rewind(f.get());
   auto const r{std::fread(&contents[0], 1, len, f.get())};
-  assert(r == len);
+  if (r != len) { return bytes_ptr{}; }
   out_len = len;
   return contents;
 }
@@ -35,27 +35,34 @@ elf_section_hdr32 const *find_strtab_hdr(elf_section_hdr32 const *sec_hdrs,
 }
 
 bool nl_elf_load(elf& e, char const* filename) {
-  e.bytes = load_file(filename, e.len);
-  if (!e.bytes) { return false; }
+  if (!(e.bytes = load_file(filename, e.len))) { return false; }
 
   e.elf_hdr = (elf_hdr32*)&e.bytes[0];
-  assert(e.elf_hdr->e_shentsize == sizeof(elf_section_hdr32));
+  if (e.elf_hdr->e_shentsize != sizeof(elf_section_hdr32)) {
+    NL_LOG_ERR("%s internal error, incorrect struct size", __func__);
+    return false;
+  }
 
   e.sec_hdrs = (elf_section_hdr32 const *)&e.bytes[e.elf_hdr->e_shoff];
   e.prog_hdrs = (elf_prog_hdr32 const *)&e.bytes[e.elf_hdr->e_phoff];
   e.sec_names = (char const *)(&e.bytes[0] + e.sec_hdrs[e.elf_hdr->e_shstrndx].sh_offset);
 
   // symbol table
-  e.symtab_hdr = find_symtab_hdr(e.sec_hdrs, (int)e.elf_hdr->e_shnum);
-  assert(e.symtab_hdr);
-  assert(e.symtab_hdr->sh_entsize == sizeof(elf_symbol32));
+  if (!(e.symtab_hdr = find_symtab_hdr(e.sec_hdrs, (int)e.elf_hdr->e_shnum))) {
+    NL_LOG_ERR("Input elf '%s' has no symbol table header, aborting", filename);
+    return false;
+  }
+
   e.symtab = (elf_symbol32 const *)&e.bytes[e.symtab_hdr->sh_offset];
 
   // string table
   auto const *strtab_hdr{find_strtab_hdr(e.sec_hdrs, e.sec_names, (int)e.elf_hdr->e_shnum)};
-  assert(strtab_hdr);
-  e.strtab = (char const *)&e.bytes[strtab_hdr->sh_offset];
+  if (!strtab_hdr) {
+    NL_LOG_ERR("Input elf '%s' has no string table header, aborting", filename);
+    return false;
+  }
 
+  e.strtab = (char const *)&e.bytes[strtab_hdr->sh_offset];
   return true;
 }
 

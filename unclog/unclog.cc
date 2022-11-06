@@ -36,9 +36,7 @@ bool load(state& s, std::vector<char const *> const& noreturn_funcs, char const 
     auto const *src{(char const *)&s.e.bytes[nl_str_off]}, *base{src};
     u32 rem{s.nl_hdr->sh_size};
     while (rem) {
-      auto [iter, inserted]{
-        s.missed_nl_strs_map.insert({u32(uintptr_t(src - base) + nl_str_addr), src})};
-      assert(inserted);
+      s.missed_nl_strs_map.insert({u32(uintptr_t(src - base) + nl_str_addr), src});
       u32 const n{u32(strlen(src) + 1)};
       rem -= n; src += n;
       while (rem && !*src) { --rem; ++src; } // arm-gcc aligns to even addresses
@@ -64,9 +62,7 @@ bool load(state& s, std::vector<char const *> const& noreturn_funcs, char const 
       { // non-nanolog-function-address to symbol map
         auto found{s.non_nl_funcs_sym_map.find(sym.st_value)};
         if (found == std::end(s.non_nl_funcs_sym_map)) {
-          bool ok;
-          std::tie(found, ok) = s.non_nl_funcs_sym_map.insert({sym.st_value, {}});
-          assert(ok);
+          found = s.non_nl_funcs_sym_map.insert({sym.st_value, {}}).first;
         }
         found->second.push_back(&sym);
       }
