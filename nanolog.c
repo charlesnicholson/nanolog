@@ -116,10 +116,10 @@ static void nanolog_extract_and_dispatch(nanolog_binary_field_handler_cb_t cb,
       char const *s = va_arg(args, char const *);
       unsigned sl = 0, vil = 0;
       for (char const *c = s; *c; ++c, ++sl); // gcc recognizes this as strlen
-      for (unsigned sl_vi = sl; sl_vi; ++vil, sl_vi >>= 7u) {
-        vi[vil] = (unsigned char)((sl_vi & 0x7Fu) | 0x80u);
+      for (unsigned sl_vi = sl; sl_vi; ++vil, sl_vi >>= 7) {
+        vi[vil] = (unsigned char)((sl_vi & 0x7F) | 0x80);
       }
-      vi[vil++] &= ~0x80u;
+      vi[vil++] &= 0x7F;
       cb(ctx, NL_ARG_TYPE_STRING_LEN_VARINT, vi, vil);
       cb(ctx, NL_ARG_TYPE_STRING, s, sl);
     } break;
@@ -137,6 +137,15 @@ static void nanolog_extract_and_dispatch(nanolog_binary_field_handler_cb_t cb,
 
     case NL_ARG_TYPE_WINT_T: {
       wint_t const w = va_arg(args, wint_t); cb(ctx, type, &w, sizeof(w));
+    } break;
+
+    case NL_ARG_TYPE_FIELD_WIDTH_STAR:
+    case NL_ARG_TYPE_PRECISION_STAR: {
+      unsigned char vi[8];
+      int i = va_arg(args, int), vil = 0;
+      do { vi[vil++] = (unsigned char)((i & 0x7F) | 0x80); i >>= 7; } while (i);
+      vi[vil - 1] &= 0x7F;
+      cb(ctx, type, vi, vil);
     } break;
 
     case NL_ARG_TYPE_LOG_END: cb(ctx, type, NULL, 0); break;
@@ -169,10 +178,10 @@ nanolog_ret_t nanolog_parse_binary_log(nanolog_binary_field_handler_cb_t cb,
 
   // Types are packed, two per byte, low nibble first.
   for (;; ++src) {
-    nl_arg_type_t type = (nl_arg_type_t)(*src & 0xFu);
+    nl_arg_type_t type = (nl_arg_type_t)(*src & 0xF);
     nanolog_extract_and_dispatch(cb, ctx, type, args);
     if (type == NL_ARG_TYPE_LOG_END) { break; }
-    type = (nl_arg_type_t)(*src >> 4u);
+    type = (nl_arg_type_t)(*src >> 4);
     nanolog_extract_and_dispatch(cb, ctx, type, args);
     if (type == NL_ARG_TYPE_LOG_END) { break; }
   }

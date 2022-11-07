@@ -5,3 +5,4 @@
 * Better logging around "ran off the end" (show last BL target)
 * runtime: log buffers
 * star args for field width and precision
+* test stargs (field width + precision)

@@ -598,6 +598,7 @@ float decode_vfp_imm8(u8 imm8, unsigned n) {
   // A6.4.1 Operation of modified immediate constants in floating-point instructions.
   // Page A-196
   // return imm8<7>:NOT(imm8<6>):Replicate(imm8<6>,5):imm8<5:0>:Zeros(19);
+  (void)n;
   u32 const replicate{(-((imm8 >> 6u) & 1u)) & 0x1Fu}, imm8_5_0{imm8 & 0x3Fu},
     not_imm8_6{!((imm8 >> 6u) & 1u)}, imm8_7{(imm8 >> 7u) & 1u},
     imm {(imm8_7 << 31u) | (not_imm8_6 << 30u) | (replicate << 24u) | (imm8_5_0 << 19u)};

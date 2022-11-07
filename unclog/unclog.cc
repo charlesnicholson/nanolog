@@ -15,7 +15,7 @@ struct state {
   std::unordered_map<u32, std::vector<elf_symbol32 const*>> non_nl_funcs_sym_map;
   std::unordered_map<u32, char const *> missed_nl_strs_map;
   std::unordered_set<u32> noreturn_func_addrs;
-  int log_str_cnt = 0;
+  unsigned log_str_cnt = 0;
 };
 
 elf_section_hdr32 const *find_nl_hdr(elf_section_hdr32 const *sec_hdrs,
@@ -42,7 +42,7 @@ bool load(state& s, std::vector<char const *> const& noreturn_funcs, char const 
       rem -= n; src += n;
       while (rem && !*src) { --rem; ++src; } // arm-gcc aligns to even addresses
     }
-    s.log_str_cnt = s.missed_nl_strs_map.size();
+    s.log_str_cnt = unsigned(s.missed_nl_strs_map.size());
   }
 
   for (auto i{0u}, n{s.e.symtab_hdr->sh_size / s.e.symtab_hdr->sh_entsize}; i < n; ++i) {
