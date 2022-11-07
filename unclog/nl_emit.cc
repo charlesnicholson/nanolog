@@ -123,8 +123,26 @@ std::string& emit_format_specifiers(char const *s, std::string& out) {
       }
     }
 
+    if (fs.prec_opt != NPF_FMT_SPEC_OPT_NONE) {
+      out += ",\n        \"precision\": ";
+      if (fs.prec_opt == NPF_FMT_SPEC_OPT_STAR) {
+        out += "\"dynamic\"";
+      } else {
+        char num[16];
+        std::snprintf(num, sizeof(num), "%d", fs.prec);
+        out += num;
+      }
+    }
+
     if (fs.alt_form) { out += ",\n        \"alternate-form\": true"; }
     if (fs.leading_zero_pad) { out += ",\n        \"leading-zero-pad\": true"; }
+    if (fs.left_justified) { out += ",\n        \"left-justified\": true"; }
+
+    if (fs.prepend) {
+      out += ",\n        \"positive-prefix\": \"";
+      out += fs.prepend;
+      out += '\"';
+    }
 
     if (!fs.case_adjust) {
       switch (fs.conv_spec) {
