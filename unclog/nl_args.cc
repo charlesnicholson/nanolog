@@ -71,8 +71,7 @@ bool args_parse(char const *argv[], int const argc, args& out_args) {
           break;
         }
 
-        if (argv[i][0] == '-') { ok = false; break; }
-        if (out_args.input_elf) { ok = false; break; }
+        if ((argv[i][0] == '-') || out_args.input_elf) { ok = false; break; }
         out_args.input_elf = argv[i];
         break;
     }
