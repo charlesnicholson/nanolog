@@ -50,16 +50,63 @@ char const *emit_severity(unsigned sev) {
 }
 
 std::string& emit_python(char const *s, std::string& out) {
+  char tmp[16];
+
   out.clear();
   while (*s) {
     npf_format_spec_t fs;
     int const n{(*s != '%') ? 0 : npf_parse_format_spec(s, &fs)};
-    if (!n) { out += *s++; continue; }
-    s += n;
-    switch (fs.conv_spec) {
-      case NPF_FMT_SPEC_CONV_PERCENT: out += '%'; break;
-      default: out += "{}"; break;
+
+    if (!n) {
+      switch (*s) {
+        case '{': out += "{{"; break;
+        case '}': out += "}}"; break;
+        default: out += *s;
+      }
+      ++s;
+      continue;
     }
+
+    s += n;
+
+    if (fs.conv_spec == NPF_FMT_SPEC_CONV_PERCENT) { out += '%'; continue; }
+    if (fs.conv_spec == NPF_FMT_SPEC_CONV_WRITEBACK) { continue; }
+
+    out += "{:";
+    if (fs.leading_zero_pad) { out += '0'; }
+    if (fs.prepend) { out += fs.prepend; }
+    if (fs.alt_form) { out += '#'; }
+
+    switch (fs.field_width_opt) {
+      case NPF_FMT_SPEC_OPT_NONE: break;
+      case NPF_FMT_SPEC_OPT_STAR: out += "{field_width}"; break;
+      case NPF_FMT_SPEC_OPT_LITERAL: {
+         snprintf(tmp, sizeof(tmp), "%d", (int)fs.field_width); out += tmp;
+      } break;
+    }
+
+    switch (fs.prec_opt) {
+      case NPF_FMT_SPEC_OPT_NONE: break;
+      case NPF_FMT_SPEC_OPT_STAR: out += ".{precision}"; break;
+      case NPF_FMT_SPEC_OPT_LITERAL: {
+         snprintf(tmp, sizeof(tmp), ".%d", (int)fs.prec); out += tmp;
+      } break;
+    }
+
+    switch (fs.conv_spec) {
+      case NPF_FMT_SPEC_CONV_POINTER:
+      case NPF_FMT_SPEC_CONV_HEX_INT: out += fs.case_adjust ? 'x' : 'X'; break;
+      case NPF_FMT_SPEC_CONV_CHAR: out += 'c'; break;
+      case NPF_FMT_SPEC_CONV_BINARY: out += 'b'; break;
+      case NPF_FMT_SPEC_CONV_OCTAL: out += 'o'; break;
+      case NPF_FMT_SPEC_CONV_FLOAT_DEC: out += fs.case_adjust ? 'f' : 'F'; break;
+      case NPF_FMT_SPEC_CONV_FLOAT_HEX:
+      case NPF_FMT_SPEC_CONV_FLOAT_SCI: out += fs.case_adjust ? 'e' : 'E'; break;
+      case NPF_FMT_SPEC_CONV_FLOAT_SHORTEST: out += fs.case_adjust ? 'g' : 'G'; break;
+      default: break;
+    }
+
+    out += '}';
   }
   return out;
 }
