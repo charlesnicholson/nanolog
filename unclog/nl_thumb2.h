@@ -34,19 +34,34 @@ struct reg_mut_node {
 };
 
 struct func_log_call_analysis {
-  explicit func_log_call_analysis(elf_symbol32 const& func_) : func(func_) {}
+  explicit func_log_call_analysis(elf_symbol32 const& func_) : func(func_) {
+    log_calls.reserve(64);
+    reg_muts.reserve(1024);
+    subroutine_calls.reserve(128);
+  }
+
   elf_symbol32 const& func;
+  std::vector<u32> subroutine_calls;
   std::vector<reg_mut_node> reg_muts;
   std::vector<log_call> log_calls;
 };
 
-bool thumb2_analyze_func(elf const& e,
-                         elf_symbol32 const& func,
-                         elf_section_hdr32 const& nl_sec_hdr,
-                         std::vector<elf_symbol32 const*> const& log_funcs,
-                         std::unordered_set<u32> const& noreturn_func_addrs,
-                         func_log_call_analysis& out_lca,
-                         analysis_stats& out_stats);
+enum thumb2_analyze_func_ret {
+  SUCCESS,
+  ERR_RAN_OFF_END_OF_FUNC,
+  ERR_INSTRUCTION_DECODE,
+  ERR_SIMULATE_LOGIC_INCOMPLETE,
+  ERR_UNKNOWN_LOG_CALL_STRATEGY,
+};
+
+thumb2_analyze_func_ret thumb2_analyze_func(
+  elf const& e,
+  elf_symbol32 const& func,
+  elf_section_hdr32 const& nl_sec_hdr,
+  std::vector<elf_symbol32 const*> const& log_funcs,
+  std::unordered_set<u32> const& noreturn_func_addrs,
+  func_log_call_analysis& out_lca,
+  analysis_stats& out_stats);
 
 bool thumb2_patch_fmt_strs(elf const& e,
                            elf_section_hdr32 const& nl_sec_hdr,

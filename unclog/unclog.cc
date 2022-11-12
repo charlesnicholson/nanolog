@@ -127,29 +127,65 @@ int main(int argc, char const *argv[]) {
   state s;
   if (!load(s, cmd_args.noreturn_funcs, cmd_args.input_elf)) { return 1; }
 
-  NL_LOG_DBG("Nanolog public functions:\n");
-  for (auto const& nl_func : s.nl_funcs) {
-    NL_LOG_DBG("  0x%08x %s\n", nl_func->st_value & ~1u, &s.e.strtab[nl_func->st_name]);
-  }
-  NL_LOG_DBG("\n");
-
   analysis_stats stats;
+
+  std::unordered_set<u32> possible_noreturns;
+  possible_noreturns.reserve(128);
 
   std::vector<func_log_call_analysis> log_call_funcs;
   for (auto const& [_, syms] : s.non_nl_funcs_sym_map) {
     func_log_call_analysis lca{*syms[0]};
-    if (!thumb2_analyze_func(s.e,
-                             lca.func,
-                             *s.nl_hdr,
-                             s.nl_funcs,
-                             s.noreturn_func_addrs,
-                             lca,
-                             stats)) {
-      NL_LOG_ERR("thumb2_analyze_func failed, aborting");
-      return 1;
+    switch (thumb2_analyze_func(s.e,
+                                lca.func,
+                                *s.nl_hdr,
+                                s.nl_funcs,
+                                s.noreturn_func_addrs,
+                                lca,
+                                stats)) {
+      case thumb2_analyze_func_ret::SUCCESS: break;
+
+      case thumb2_analyze_func_ret::ERR_INSTRUCTION_DECODE:
+        NL_LOG_ERR("Error decoding instruction, aborting");
+        if (nanolog_get_log_threshold() > NL_SEV_DEBUG) {
+          NL_LOG_ERR("  (re-run with -vv to see decoding error)\n");
+        }
+        return 1;
+
+      case thumb2_analyze_func_ret::ERR_SIMULATE_LOGIC_INCOMPLETE:
+        NL_LOG_ERR("Error simulating function, aborting");
+        if (nanolog_get_log_threshold() > NL_SEV_DEBUG) {
+          NL_LOG_ERR("  (re-run with -vv to see simulation error)\n");
+        }
+        return 1;
+
+      case thumb2_analyze_func_ret::ERR_UNKNOWN_LOG_CALL_STRATEGY:
+        NL_LOG_ERR("Error analyzing log call strategy, aborting");
+        if (nanolog_get_log_threshold() > NL_SEV_DEBUG) {
+          NL_LOG_ERR("  (re-run with -vv to see details)\n");
+        }
+        return 1;
+
+      case thumb2_analyze_func_ret::ERR_RAN_OFF_END_OF_FUNC:
+        std::copy(std::begin(lca.subroutine_calls),
+                  std::end(lca.subroutine_calls),
+                  std::inserter(possible_noreturns, std::end(possible_noreturns)));
+        break;
     }
 
     if (!lca.log_calls.empty()) { log_call_funcs.push_back(lca); }
+  }
+
+  if (!possible_noreturns.empty()) {
+    NL_LOG_ERR("Rewriting %s failed:\n", cmd_args.input_elf);
+    NL_LOG_ERR("  Simulation error: simulator ran off the end of function(s).\n");
+    NL_LOG_ERR("  This is either an incomplete implementation of the simulator,\n");
+    NL_LOG_ERR("  or the compiler emitted calls to functions that don't return.\n");
+    NL_LOG_ERR("  If any of the following functions don't return please add them\n");
+    NL_LOG_ERR("  to the command-line as \"--noreturn-func\" arguments:\n");
+    for (auto const addr : possible_noreturns) {
+      auto const found{s.non_nl_funcs_sym_map.find(addr | 1)};
+      NL_LOG_ERR("    %s\n", &s.e.strtab[found->second[0]->st_name], addr);
+    }
   }
 
   NL_LOG_DBG("\n%u instructions decoded, %u paths analyzed\n\n",

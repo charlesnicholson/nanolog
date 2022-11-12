@@ -277,6 +277,7 @@ simulate_results simulate(inst const& i,
     } break;
 
     case inst_type::BRANCH_LINK:
+      fs.lca.subroutine_calls.push_back(i.i.branch_link.addr);
       if (noreturn_func_addrs.contains(i.i.branch_link.addr)) {
         NL_LOG_DBG("  Stopping path: noreturn call\n");
         return simulate_results::TERMINATE_PATH;
@@ -456,13 +457,14 @@ char const *fmt_str_strat_name(fmt_str_strat s) {
 #undef X
 }
 
-bool thumb2_analyze_func(elf const& e,
-                         elf_symbol32 const& func,
-                         elf_section_hdr32 const& nl_sec_hdr,
-                         std::vector<elf_symbol32 const*> const& log_funcs,
-                         std::unordered_set<u32> const& noreturn_func_addrs,
-                         func_log_call_analysis& out_lca,
-                         analysis_stats& out_stats) {
+thumb2_analyze_func_ret thumb2_analyze_func(
+    elf const& e,
+    elf_symbol32 const& func,
+    elf_section_hdr32 const& nl_sec_hdr,
+    std::vector<elf_symbol32 const*> const& log_funcs,
+    std::unordered_set<u32> const& noreturn_func_addrs,
+    func_log_call_analysis& out_lca,
+    analysis_stats& out_stats) {
   func_state s{func, e, e.sec_hdrs[func.st_shndx], out_lca};
   out_lca.reg_muts.reserve(1024);
 
@@ -476,6 +478,8 @@ bool thumb2_analyze_func(elf const& e,
     s.paths.push(entry);
   }
 
+  bool const debug{nanolog_get_log_threshold() == NL_SEV_DEBUG};
+
   while (!s.paths.empty()) { // recurse through the function
     path_state path{s.paths.top()};
     s.paths.pop();
@@ -486,7 +490,7 @@ bool thumb2_analyze_func(elf const& e,
     for (;;) {
       if (func.st_size && (path.rs.regs[reg::PC] >= s.func_end)) {
         NL_LOG_DBG("  Stopping path: Ran off the end!\n");
-        return false;
+        return thumb2_analyze_func_ret::ERR_RAN_OFF_END_OF_FUNC;
       }
 
       inst pc_i;
@@ -495,23 +499,34 @@ bool thumb2_analyze_func(elf const& e,
 
       ++out_stats.decoded_insts;
 
-      NL_LOG_DBG("    %x: %04x ", path.rs.regs[reg::PC], pc_i.w0);
-      if (pc_i.len == 2) { NL_LOG_DBG("       "); } else { NL_LOG_DBG("%04x   ", pc_i.w1); }
-      inst_print(pc_i);
-      NL_LOG_DBG("\n");
+      if (NL_UNLIKELY(debug)) {
+        NL_LOG_DBG("    %x: %04x ", path.rs.regs[reg::PC], pc_i.w0);
+        if (pc_i.len == 2) {
+          NL_LOG_DBG("       ");
+        } else {
+          NL_LOG_DBG("%04x   ", pc_i.w1);
+        }
+        inst_print(pc_i);
+        NL_LOG_DBG("\n");
+      }
 
       if (!decode_ok) {
         NL_LOG_DBG("  Stopping path: Unknown instruction!\n");
-        break;
+        return thumb2_analyze_func_ret::ERR_INSTRUCTION_DECODE;
       }
 
       int const sev{inst_is_log_call(pc_i, log_funcs, e.strtab)};
       if (sev != -1) {
-        if (!process_log_call(pc_i, path, nl_sec_hdr, sev, s, out_lca)) { return false; }
+        if (!process_log_call(pc_i, path, nl_sec_hdr, sev, s, out_lca)) {
+          return thumb2_analyze_func_ret::ERR_UNKNOWN_LOG_CALL_STRATEGY;
+        }
       }
 
       simulate_results const sr{simulate(pc_i, noreturn_func_addrs, s, path)};
-      if (sr == simulate_results::FAILURE) { return false; }
+      if (sr == simulate_results::FAILURE) {
+        return thumb2_analyze_func_ret::ERR_SIMULATE_LOGIC_INCOMPLETE;
+      }
+
       if (sr == simulate_results::TERMINATE_PATH) {
         NL_LOG_DBG("  Stopping path: terminal pattern\n");
         break;
@@ -519,7 +534,7 @@ bool thumb2_analyze_func(elf const& e,
     }
   }
 
-  return true;
+  return thumb2_analyze_func_ret::SUCCESS;
 }
 
 bool thumb2_patch_fmt_strs(elf const& e,

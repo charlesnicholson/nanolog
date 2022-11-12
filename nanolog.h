@@ -51,6 +51,7 @@ typedef enum {
 
 // Set the runtime log threshold for enabled log calls
 nanolog_ret_t nanolog_set_log_threshold(int severity);
+int nanolog_get_log_threshold(void);
 
 typedef void (*nanolog_log_handler_cb_t)(void *ctx, int sev, char const *fmt, va_list args);
 

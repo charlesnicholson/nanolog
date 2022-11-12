@@ -17,6 +17,10 @@ nanolog_ret_t nanolog_set_log_threshold(int severity) {
   return NANOLOG_RET_SUCCESS;
 }
 
+int nanolog_get_log_threshold(void) {
+  return s_log_threshold;
+}
+
 nanolog_ret_t nanolog_set_log_handler(nanolog_log_handler_cb_t handler) {
   s_log_handler = handler;
   return NANOLOG_RET_SUCCESS;
