@@ -51,7 +51,7 @@ struct func_state {
   func_log_call_analysis& lca;
   path_state_stack paths;
   std::unordered_map<u32, std::vector<reg_state>> taken_branches_reg_states;
-  std::unordered_set<u32> discovered_log_strs;
+  u32_set discovered_log_strs;
 };
 
 path_state path_state_branch(path_state const& p, u32 label) {
@@ -214,7 +214,7 @@ simulate_results process_ldr_pc_jump_table(inst const& i, path_state& p, func_st
 }
 
 simulate_results simulate(inst const& i,
-                          std::unordered_set<u32> const& noreturn_func_addrs,
+                          u32_set const& noreturn_func_addrs,
                           func_state& fs,
                           path_state& path) {
   bool const it_skip{path.it_rem && !(path.it_flags & 1)};
@@ -263,26 +263,24 @@ simulate_results simulate(inst const& i,
         }
 
         if (!branch(i.addr, path, fs)) { return simulate_results::TERMINATE_PATH; }
-
         path.rs.regs[reg::PC] = b.addr;
         return simulate_results::SUCCESS;
       } else {
-        if (addr_in_func) {
-          if (branch(i.addr, path, fs)) {
-            NL_LOG_DBG("  Internal branch, pushing state\n");
-            fs.paths.push(path_state_branch(path, b.addr));
-          }
+        if (addr_in_func && branch(i.addr, path, fs)) {
+          NL_LOG_DBG("  Internal branch, pushing state\n");
+          fs.paths.push(path_state_branch(path, b.addr));
         }
       }
     } break;
 
-    case inst_type::BRANCH_LINK:
-      fs.lca.subroutine_calls.push_back(i.i.branch_link.addr);
-      if (noreturn_func_addrs.contains(i.i.branch_link.addr)) {
+    case inst_type::BRANCH_LINK: {
+      auto const& bl{i.i.branch_link};
+      fs.lca.subs.push_back(bl.addr);
+      if (noreturn_func_addrs.contains(bl.addr)) {
         NL_LOG_DBG("  Stopping path: noreturn call\n");
         return simulate_results::TERMINATE_PATH;
       }
-      break;
+    } break;
 
     case inst_type::BRANCH_XCHG: return simulate_results::TERMINATE_PATH; // tail call
 
@@ -462,7 +460,7 @@ thumb2_analyze_func_ret thumb2_analyze_func(
     elf_symbol32 const& func,
     elf_section_hdr32 const& nl_sec_hdr,
     std::vector<elf_symbol32 const*> const& log_funcs,
-    std::unordered_set<u32> const& noreturn_func_addrs,
+    u32_set const& noreturn_func_addrs,
     func_log_call_analysis& out_lca,
     analysis_stats& out_stats) {
   func_state s{func, e, e.sec_hdrs[func.st_shndx], out_lca};
@@ -541,7 +539,7 @@ bool thumb2_patch_fmt_strs(elf const& e,
                            elf_section_hdr32 const& nl_sec_hdr,
                            byte* patched_elf,
                            std::vector<func_log_call_analysis> const& log_call_funcs,
-                           std::vector<u32> fmt_bin_addrs) {
+                           u32_vec const& fmt_bin_addrs) {
   for (u32 i{0}; auto const &func : log_call_funcs) {
     u32 const func_ofs{e.sec_hdrs[func.func.st_shndx].sh_offset},
       func_addr{e.sec_hdrs[func.func.st_shndx].sh_addr};

@@ -129,9 +129,6 @@ int main(int argc, char const *argv[]) {
 
   analysis_stats stats;
 
-  std::unordered_set<u32> possible_noreturns;
-  possible_noreturns.reserve(128);
-
   std::vector<func_log_call_analysis> log_call_funcs;
   for (auto const& [_, syms] : s.non_nl_funcs_sym_map) {
     func_log_call_analysis lca{*syms[0]};
@@ -165,27 +162,21 @@ int main(int argc, char const *argv[]) {
         }
         return 1;
 
-      case thumb2_analyze_func_ret::ERR_RAN_OFF_END_OF_FUNC:
-        std::copy(std::begin(lca.subroutine_calls),
-                  std::end(lca.subroutine_calls),
-                  std::inserter(possible_noreturns, std::end(possible_noreturns)));
-        break;
+      case thumb2_analyze_func_ret::ERR_RAN_OFF_END_OF_FUNC: {
+        NL_LOG_ERR("\"%s\" simulation error: simulator ran off the end of the function.  "
+                   "If any of the following functions have noreturn semantics, "
+                   "add them to the command-line as \"--noreturn-func\" arguments:\n",
+          &s.e.strtab[lca.func.st_name]);
+
+        for (u32_set const subs{lca.subs.begin(), lca.subs.end()}; auto addr : subs) {
+          auto const found{s.non_nl_funcs_sym_map.find(addr | 1)};
+          NL_LOG_ERR("  %s\n", &s.e.strtab[found->second[0]->st_name], addr);
+        }
+        NL_LOG_ERR("\n");
+      } break;
     }
 
     if (!lca.log_calls.empty()) { log_call_funcs.push_back(lca); }
-  }
-
-  if (!possible_noreturns.empty()) {
-    NL_LOG_ERR("Rewriting %s failed:\n", cmd_args.input_elf);
-    NL_LOG_ERR("  Simulation error: simulator ran off the end of function(s).\n");
-    NL_LOG_ERR("  This is either an incomplete implementation of the simulator,\n");
-    NL_LOG_ERR("  or the compiler emitted calls to functions that don't return.\n");
-    NL_LOG_ERR("  If any of the following functions don't return please add them\n");
-    NL_LOG_ERR("  to the command-line as \"--noreturn-func\" arguments:\n");
-    for (auto const addr : possible_noreturns) {
-      auto const found{s.non_nl_funcs_sym_map.find(addr | 1)};
-      NL_LOG_ERR("    %s\n", &s.e.strtab[found->second[0]->st_name], addr);
-    }
   }
 
   NL_LOG_DBG("\n%u instructions decoded, %u paths analyzed\n\n",
@@ -253,19 +244,21 @@ int main(int argc, char const *argv[]) {
     unsigned(fmt_strs.size()), unsigned(fmt_bin_addrs.size()),
     unsigned(s.nl_hdr->sh_size), unsigned(fmt_bin_mem.size()));
 
-  for (auto i{0u}, n{unsigned(fmt_strs.size())}; i < n; ++i) {
-    unsigned char const *src{&fmt_bin_mem[fmt_bin_addrs[i]]};
-    NL_LOG_DBG("  %s\n", fmt_strs[i]);
-    NL_LOG_DBG("    %02hhX ", *src);
+  if (nanolog_get_log_threshold() == NL_SEV_DEBUG) {
+    for (auto i{0u}, n{unsigned(fmt_strs.size())}; i < n; ++i) {
+      unsigned char const *src{&fmt_bin_mem[fmt_bin_addrs[i]]};
+      NL_LOG_DBG("  %s\n", fmt_strs[i]);
+      NL_LOG_DBG("    %02hhX ", *src);
 
-    do { ++src; NL_LOG_DBG("%02hhX ", *src); } while (*src & 0x80);
+      do { ++src; NL_LOG_DBG("%02hhX ", *src); } while (*src & 0x80);
 
-    do {
-      NL_LOG_DBG("%02hhX ", *++src);
-    } while (((*src & 0xFu) != NL_ARG_TYPE_LOG_END) &&
-             ((*src >> 4u) != NL_ARG_TYPE_LOG_END));
+      do {
+        NL_LOG_DBG("%02hhX ", *++src);
+      } while (((*src & 0xFu) != NL_ARG_TYPE_LOG_END) &&
+               ((*src >> 4u) != NL_ARG_TYPE_LOG_END));
 
-    NL_LOG_DBG("\n");
+      NL_LOG_DBG("\n");
+    }
   }
 
   bytes_ptr patched_elf{patch_elf(s, log_call_funcs, fmt_bin_addrs, fmt_bin_mem)};

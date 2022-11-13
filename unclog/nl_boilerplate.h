@@ -7,6 +7,7 @@
 #include <cstring>
 #include <memory>
 #include <string>
+#include <unordered_set>
 #include <vector>
 
 using i8 = int8_t;
@@ -14,6 +15,9 @@ using u8 = uint8_t;
 using u16 = uint16_t;
 using u32 = uint32_t;
 using i32 = int32_t;
+
+using u32_set = std::unordered_set<u32>;
+using u32_vec = std::vector<u32>;
 
 using byte = unsigned char;
 using byte_vec = std::vector<byte>;
