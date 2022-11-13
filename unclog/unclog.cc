@@ -132,13 +132,8 @@ int main(int argc, char const *argv[]) {
   std::vector<func_log_call_analysis> log_call_funcs;
   for (auto const& [_, syms] : s.non_nl_funcs_sym_map) {
     func_log_call_analysis lca{*syms[0]};
-    switch (thumb2_analyze_func(s.e,
-                                lca.func,
-                                *s.nl_hdr,
-                                s.nl_funcs,
-                                s.noreturn_func_addrs,
-                                lca,
-                                stats)) {
+    switch (NL_EXPECT(thumb2_analyze_func(s.e, lca.func, *s.nl_hdr, s.nl_funcs,
+            s.noreturn_func_addrs, lca, stats), thumb2_analyze_func_ret::SUCCESS)) {
       case thumb2_analyze_func_ret::SUCCESS: break;
 
       case thumb2_analyze_func_ret::ERR_INSTRUCTION_DECODE:
@@ -234,7 +229,7 @@ int main(int argc, char const *argv[]) {
     }
   }
 
-  std::vector<u32> fmt_bin_addrs;
+  u32_vec fmt_bin_addrs;
   fmt_bin_addrs.reserve(fmt_strs.size());
   byte_vec fmt_bin_mem;
   fmt_bin_mem.reserve(s.nl_hdr->sh_size);
@@ -244,7 +239,7 @@ int main(int argc, char const *argv[]) {
     unsigned(fmt_strs.size()), unsigned(fmt_bin_addrs.size()),
     unsigned(s.nl_hdr->sh_size), unsigned(fmt_bin_mem.size()));
 
-  if (nanolog_get_log_threshold() == NL_SEV_DEBUG) {
+  if (NL_UNLIKELY(nanolog_get_log_threshold() == NL_SEV_DEBUG)) {
     for (auto i{0u}, n{unsigned(fmt_strs.size())}; i < n; ++i) {
       unsigned char const *src{&fmt_bin_mem[fmt_bin_addrs[i]]};
       NL_LOG_DBG("  %s\n", fmt_strs[i]);

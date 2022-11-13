@@ -84,6 +84,14 @@ nanolog_ret_t nanolog_parse_binary_log(nanolog_binary_field_handler_cb_t cb,
   __attribute__((section(".nanolog." #SEV "." NL_STR(__LINE__) "." NL_STR(__COUNTER__))))
 #endif
 
+#ifdef __GNUC__
+#define NL_UNLIKELY(COND) __builtin_expect(!!(COND), 0)
+#define NL_EXPECT(COND, VAL) __builtin_expect(COND, VAL)
+#else
+#define NL_UNLIKELY(COND) COND
+#define NL_EXPECT(COND, VAL) COND
+#endif
+
 // Public logging macros
 
 #if NL_LOG_SEVERITY_THRESHOLD <= NL_SEV_DEBUG
@@ -168,12 +176,6 @@ nanolog_ret_t nanolog_parse_binary_log(nanolog_binary_field_handler_cb_t cb,
 // Optional top-level minimal-footprint assert macros
 
 #ifdef NANOLOG_PROVIDE_ASSERT_MACROS
-
-#ifdef __GNUC__
-#define NL_UNLIKELY(COND) __builtin_expect(!!(COND), 0)
-#else
-#define NL_UNLIKELY(COND) COND
-#endif
 
 #define NL_ASSERT(COND) do { \
     if (NL_UNLIKELY(!(COND))) { \

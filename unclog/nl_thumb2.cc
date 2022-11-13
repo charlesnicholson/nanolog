@@ -102,7 +102,9 @@ void cmp_imm_lit_set(reg_state& rs, u8 index, u32 lit) {
 
 bool branch(u32 addr, path_state& p, func_state& s) {
   auto const idx{unsigned((addr - s.func_start) / 2)};
-  if (idx >= p.taken_branches.size()) { p.taken_branches.resize((idx + 1) * 10); }
+  if (NL_UNLIKELY(idx >= p.taken_branches.size())) {
+    p.taken_branches.resize((idx + 1) * 10);
+  }
   if (p.taken_branches[idx]) { return false; }
 
   auto const it{s.taken_branches_reg_states.find(addr)};
@@ -156,7 +158,7 @@ bool table_branch(u32 addr, u32 sz, u32 base, u32 ofs, path_state& path, func_st
     u32 val{*src++};
     if (sz == 2) { val = u32(val | u32(*src++ << 8u)); }
     u32 const label{path.rs.regs[reg::PC] + 4 + (val << 1u)};
-    fs.paths.push(path_state_branch(path, label));
+    fs.paths.emplace(path_state_branch(path, label));
   }
 
   return true;
@@ -207,7 +209,7 @@ simulate_results process_ldr_pc_jump_table(inst const& i, path_state& p, func_st
     u32 jump_label;
     memcpy(&jump_label, src, 4);
     src += 4;
-    fs.paths.push(path_state_branch(p, jump_label & ~1u));
+    fs.paths.emplace(path_state_branch(p, jump_label & ~1u));
   }
 
   return simulate_results::TERMINATE_PATH;
@@ -218,11 +220,16 @@ simulate_results simulate(inst const& i,
                           func_state& fs,
                           path_state& path) {
   bool const it_skip{path.it_rem && !(path.it_flags & 1)};
-  if (path.it_rem) { --path.it_rem; path.it_flags >>= 1u; }
-  if (it_skip) { path.rs.regs[reg::PC] += i.len; return simulate_results::SUCCESS; }
+  if (NL_UNLIKELY(path.it_rem)) {
+    --path.it_rem;
+    path.it_flags >>= 1u;
+  }
+  if (NL_UNLIKELY(it_skip)) { // If inside an if-then and skip bit, don't sim.
+    path.rs.regs[reg::PC] += i.len;
+    return simulate_results::SUCCESS;
+  }
 
   std::vector<reg_mut_node>& reg_muts{fs.lca.reg_muts};
-  u32 len{i.len};
 
   switch (i.type) {
     case inst_type::ADD_IMM: {
@@ -268,7 +275,7 @@ simulate_results simulate(inst const& i,
       } else {
         if (addr_in_func && branch(i.addr, path, fs)) {
           NL_LOG_DBG("  Internal branch, pushing state\n");
-          fs.paths.push(path_state_branch(path, b.addr));
+          fs.paths.emplace(path_state_branch(path, b.addr));
         }
       }
     } break;
@@ -287,14 +294,14 @@ simulate_results simulate(inst const& i,
     case inst_type::CBNZ:
       if (branch(i.addr, path, fs)) {
         NL_LOG_DBG("  Internal branch, pushing state\n");
-        fs.paths.push(path_state_branch(path, i.i.cmp_branch_nz.addr));
+        fs.paths.emplace(path_state_branch(path, i.i.cmp_branch_nz.addr));
       }
       break;
 
     case inst_type::CBZ:
       if (branch(i.addr, path, fs)) {
         NL_LOG_DBG("  Internal branch, pushing state\n");
-        fs.paths.push(path_state_branch(path, i.i.cmp_branch_z.addr));
+        fs.paths.emplace(path_state_branch(path, i.i.cmp_branch_z.addr));
       }
       break;
 
@@ -303,10 +310,12 @@ simulate_results simulate(inst const& i,
       break;
 
     case inst_type::IF_THEN:
-      if (!branch(i.addr, path, fs)) { return simulate_results::TERMINATE_PATH; }
+      if (NL_UNLIKELY(!branch(i.addr, path, fs))) {
+        return simulate_results::TERMINATE_PATH;
+      }
       process_it(i.i.if_then, path);
       NL_LOG_DBG("  IT, pushing state\n");
-      fs.paths.push(path_state_it(path));
+      fs.paths.emplace(path_state_it(path));
       break;
 
     case inst_type::LOAD_IMM: {
@@ -379,7 +388,7 @@ simulate_results simulate(inst const& i,
 
     case inst_type::TABLE_BRANCH_HALF: {
       auto const& tbh{i.i.table_branch_half};
-      if (!table_branch(i.addr, 2, tbh.n, tbh.m, path, fs)) {
+      if (NL_UNLIKELY(!table_branch(i.addr, 2, tbh.n, tbh.m, path, fs))) {
         NL_LOG_ERR("  TBH failure\n");
         return simulate_results::FAILURE;
       }
@@ -388,7 +397,7 @@ simulate_results simulate(inst const& i,
 
     case inst_type::TABLE_BRANCH_BYTE: {
       auto const& tbb{i.i.table_branch_byte};
-      if (!table_branch(i.addr, 1, tbb.n, tbb.m, path, fs)) {
+      if (NL_UNLIKELY(!table_branch(i.addr, 1, tbb.n, tbb.m, path, fs))) {
         NL_LOG_ERR("  TBB failure\n");
         return simulate_results::FAILURE;
       }
@@ -398,7 +407,7 @@ simulate_results simulate(inst const& i,
     default: break;
   }
 
-  path.rs.regs[reg::PC] += len;
+  path.rs.regs[reg::PC] += i.len;
   return simulate_results::SUCCESS;
 }
 
@@ -444,7 +453,6 @@ bool process_log_call(inst const& pc_i,
       NL_LOG_DBG("\n***\n");
       return false;
   }
-
   return true;
 }
 }
@@ -470,11 +478,11 @@ thumb2_analyze_func_ret thumb2_analyze_func(
     &e.strtab[func.st_name], func.st_value, func.st_size, s.func_start, s.func_end,
     s.func_ofs);
 
-  { // set up the function entry point on the path stack
-    path_state entry{.rs{.regs[reg::PC] = s.func_start}};
-    entry.taken_branches.resize((s.func_end - s.func_start) / 2);
-    s.paths.push(entry);
-  }
+  s.paths.emplace([&]() { // set up the function entry point on the path stack
+    path_state ps{.rs{.regs[reg::PC] = s.func_start}};
+    ps.taken_branches.resize((s.func_end - s.func_start) / 2);
+    return ps;
+  }());
 
   bool const debug{nanolog_get_log_threshold() == NL_SEV_DEBUG};
 
@@ -486,7 +494,7 @@ thumb2_analyze_func_ret thumb2_analyze_func(
     ++out_stats.analyzed_paths;
 
     for (;;) {
-      if (func.st_size && (path.rs.regs[reg::PC] >= s.func_end)) {
+      if (NL_UNLIKELY(func.st_size && (path.rs.regs[reg::PC] >= s.func_end))) {
         NL_LOG_DBG("  Stopping path: Ran off the end!\n");
         return thumb2_analyze_func_ret::ERR_RAN_OFF_END_OF_FUNC;
       }
@@ -508,7 +516,7 @@ thumb2_analyze_func_ret thumb2_analyze_func(
         NL_LOG_DBG("\n");
       }
 
-      if (!decode_ok) {
+      if (NL_UNLIKELY(!decode_ok)) {
         NL_LOG_DBG("  Stopping path: Unknown instruction!\n");
         return thumb2_analyze_func_ret::ERR_INSTRUCTION_DECODE;
       }
@@ -521,7 +529,7 @@ thumb2_analyze_func_ret thumb2_analyze_func(
       }
 
       simulate_results const sr{simulate(pc_i, noreturn_func_addrs, s, path)};
-      if (sr == simulate_results::FAILURE) {
+      if (NL_UNLIKELY(sr == simulate_results::FAILURE)) {
         return thumb2_analyze_func_ret::ERR_SIMULATE_LOGIC_INCOMPLETE;
       }
 
@@ -545,7 +553,7 @@ bool thumb2_patch_fmt_strs(elf const& e,
       func_addr{e.sec_hdrs[func.func.st_shndx].sh_addr};
 
     for (auto const &log_call : func.log_calls) {
-      reg_mut_node const& r0_mut{func.reg_muts[log_call.node_idx]};
+      auto const& r0_mut{func.reg_muts[log_call.node_idx]};
       u32 const bin_addr{fmt_bin_addrs[i] + nl_sec_hdr.sh_addr};
 
       switch (log_call.s) {
