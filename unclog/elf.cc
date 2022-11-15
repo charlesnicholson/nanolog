@@ -1,4 +1,4 @@
-#include "nl_elf.h"
+#include "elf.h"
 
 namespace {
 bytes_ptr load_file(char const *fn, unsigned& out_len) {

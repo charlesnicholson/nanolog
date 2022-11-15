@@ -1,8 +1,8 @@
-#include "nl_args.h"
-#include "nl_emit.h"
-#include "nl_elf.h"
-#include "nl_thumb2.h"
-#include "nl_stats.h"
+#include "args.h"
+#include "emit.h"
+#include "elf.h"
+#include "thumb2.h"
+#include "stats.h"
 
 #include <unordered_map>
 

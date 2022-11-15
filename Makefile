@@ -2,11 +2,11 @@ BUILD_DIR := build
 OS := $(shell uname)
 
 UNCLOG_SRCS := unclog/unclog.cc \
-			   unclog/nl_args.cc \
-			   unclog/nl_elf.cc \
-			   unclog/nl_emit.cc \
-			   unclog/nl_thumb2.cc \
-			   unclog/nl_thumb2_inst.cc \
+			   unclog/args.cc \
+			   unclog/elf.cc \
+			   unclog/emit.cc \
+			   unclog/thumb2.cc \
+			   unclog/thumb2_inst.cc \
 			   nanolog.c
 
 UNCLOG_OBJS := $(UNCLOG_SRCS:%=$(BUILD_DIR)/%.o)

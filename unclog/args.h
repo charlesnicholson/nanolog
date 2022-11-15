@@ -1,5 +1,5 @@
 #pragma once
-#include "nl_boilerplate.h"
+#include "boilerplate.h"
 
 struct args {
   int log_threshold = NL_SEV_WARNING;

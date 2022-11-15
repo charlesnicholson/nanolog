@@ -1,6 +1,6 @@
 #pragma once
 
-#include "nl_boilerplate.h"
+#include "boilerplate.h"
 
 #define ELF_OSABI_X_LIST() \
   X(ELF_OSABI_SYSTEM_V, 0x00) \

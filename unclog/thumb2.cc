@@ -1,6 +1,6 @@
-#include "nl_thumb2.h"
-#include "nl_thumb2_inst.h"
-#include "nl_elf.h"
+#include "thumb2.h"
+#include "thumb2_inst.h"
+#include "elf.h"
 
 #include <stack>
 #include <unordered_map>

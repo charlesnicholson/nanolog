@@ -1,8 +1,7 @@
 #pragma once
 
-#include "nl_stats.h"
-#include "nl_thumb2_inst.h"
-#include <vector>
+#include "stats.h"
+#include "thumb2_inst.h"
 
 struct elf;
 struct elf_section_hdr32;
