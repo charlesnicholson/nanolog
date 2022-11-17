@@ -41,6 +41,7 @@ typedef enum {
   NL_ARG_TYPE_WINT_T = 8,
   NL_ARG_TYPE_FIELD_WIDTH_STAR = 9,
   NL_ARG_TYPE_PRECISION_STAR = 10,
+  NL_ARG_TYPE_STRING_PRECISION_LITERAL = 11,
   NL_ARG_TYPE_LOG_END = 0xF,
 
   // Synthetic values emitted by runtime, not packed into binary
