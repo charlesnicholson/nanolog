@@ -6,7 +6,7 @@ bytes_ptr load_file(char const *fn, unsigned& out_len) {
   if (!f.get()) { return bytes_ptr{}; }
   std::fseek(f.get(), 0, SEEK_END);
   unsigned const len{unsigned(std::ftell(f.get()))};
-  bytes_ptr contents{new (std::align_val_t{16}) byte[len]};
+  bytes_ptr contents{alloc_bytes(16, len)};
   std::rewind(f.get());
   auto const r{std::fread(&contents[0], 1, len, f.get())};
   if (r != len) { return bytes_ptr{}; }

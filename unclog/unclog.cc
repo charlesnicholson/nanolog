@@ -78,7 +78,7 @@ bytes_ptr patch_elf(state const& s,
                     std::vector<func_log_call_analysis> const& log_call_funcs,
                     std::vector<u32> const& fmt_bin_addrs,
                     byte_vec const& fmt_bin_mem) {
-  bytes_ptr pe{new (std::align_val_t{16}) byte[s.e.len]};
+  bytes_ptr pe{alloc_bytes(16, s.e.len)};
   memcpy(&pe[0], &s.e.bytes[0], s.e.len);
   memset(&pe[s.nl_hdr->sh_offset], 0, s.nl_hdr->sh_size);
   memcpy(&pe[s.nl_hdr->sh_offset], fmt_bin_mem.data(), fmt_bin_mem.size());
