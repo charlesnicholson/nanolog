@@ -1,4 +1,4 @@
-cl.exe /std:c++20 /W4 /WX /EHsc ^
+cl.exe /std:c++20 /W4 /WX /EHsc /DNANOLOG_HOST_TOOL=1 ^
     nanolog.c ^
     unclog/args.cc ^
     unclog/elf.cc ^
