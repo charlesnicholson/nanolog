@@ -1,4 +1,5 @@
 #include "nanolog.h"
+#include <assert.h>
 #include <stddef.h>
 
 #ifndef NANOLOG_HOST_TOOL
