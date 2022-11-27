@@ -600,7 +600,11 @@ imm_shift decode_imm_shift(u8 const type, u8 const imm5) {
       if (imm5 == 0u) { return imm_shift{ .t = imm_shift_type::RRX, .n = 1 }; }
       return imm_shift{ .t = imm_shift_type::ROR, .n = imm5 };
   }
+#ifdef _MSC_VER
+  __assume(0);
+#else
   __builtin_unreachable();
+#endif
 }
 
 float decode_vfp_imm8(u8 imm8, unsigned n) {
