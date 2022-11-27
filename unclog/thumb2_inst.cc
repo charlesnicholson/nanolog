@@ -1616,16 +1616,16 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
   // 4.6.71 LSR (reg), T2 encoding (pg 4-156)
   if (((w0 & 0xFFE0u) == 0xFA20u) && ((w1 & 0xF0F0u) == 0xF000u)) {
     out_inst.type = inst_type::LSHIFT_LOG_REG;
-    out_inst.i.lshift_log_reg = { .m = u8(w1 & 0xFu), .n = u8(w0 & 0xFu),
-      .d = u8((w1 >> 8u) & 0xFu) };
+    out_inst.i.lshift_log_reg = { .d = u8((w1 >> 8u) & 0xFu), .n = u8(w0 & 0xFu),
+      .m = u8(w1 & 0xFu) };
     return true;
   }
 
   // 4.6.74 MLA, T1 encoding (pg 4-162)
   if (((w0 & 0xFFF0u) == 0xFB00u) && ((w1 & 0xF0u) == 0)) {
     out_inst.type = inst_type::MUL_ACCUM;
-    out_inst.i.mul_accum = { .m = u8(w1 & 0xFu), .n = u8(w0 & 0xFu),
-      .d = u8((w1 >> 8u) & 0xFu), .a = u8((w1 >> 12u) & 0xFu) };
+    out_inst.i.mul_accum = { .d = u8((w1 >> 8u) & 0xFu), .n = u8(w0 & 0xFu),
+      .m = u8(w1 & 0xFu), .a = u8((w1 >> 12u) & 0xFu) };
     return true;
   }
 
@@ -1666,7 +1666,7 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
 
   // 4.6.88 NOP, T2 encoding (pg 4-189)
   if (((w0 & 0xFFF0u) == 0xF3A0u) && ((w1 & 0xD7FFu) == 0x8000u)) {
-    // shouldn't need nop flag memory hints for static analysis (e.g. dsb, isb)
+    // don't need nop flag memory hints for static analysis (e.g. dsb, isb)
     out_inst.type = inst_type::NOP; out_inst.i.nop = {};
     return true;
   }
@@ -1681,7 +1681,7 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
       return true;
     }
     out_inst.type = inst_type::OR_NOT_REG;
-    out_inst.i.or_not_reg = { .d = d, .m = m, .n = n, .shift = shift };
+    out_inst.i.or_not_reg = { .shift = shift, .d = d, .n = n, .m = m };
     return true;
   }
 
@@ -1767,7 +1767,7 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
   if (((w0 & 0xFBF0u) == 0xF340u) && ((w1 & 0x8000u) == 0)) {
     u8 const imm2{u8((w1 >> 6u) & 3u)}, imm3{u8((w1 >> 12u) & 7u)};
     out_inst.type = inst_type::BITFIELD_EXTRACT_SIGNED;
-    out_inst.i.bitfield_extract_signed = { .n = u8(w0 & 0xFu), .d = u8((w1 >> 8u) & 0xFu),
+    out_inst.i.bitfield_extract_signed = { .d = u8((w1 >> 8u) & 0xFu), .n = u8(w0 & 0xFu),
       .lsbit = u8((imm3 << 2u) | imm2), .widthminus1 = u8(w1 & 0x1Fu) };
     return true;
   }
@@ -1784,16 +1784,16 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
     u32 const imm2{(w1 >> 6u) & 3u}, imm3{(w1 >> 12u) & 7u};
     out_inst.type = inst_type::SUB_REG_CARRY;
     out_inst.i.sub_reg_carry = {
-      .m = u8(w1 & 0xFu), .d = u8((w1 >> 8u) & 0xFu), .n = u8(w0 & 0xFu),
-      .shift = decode_imm_shift(u8((w1 >> 4u) & 3u), u8((imm3 << 2u) | imm2)) };
+      .shift = decode_imm_shift(u8((w1 >> 4u) & 3u), u8((imm3 << 2u) | imm2)),
+      .d = u8((w1 >> 8u) & 0xFu), .n = u8(w0 & 0xFu), .m = u8(w1 & 0xFu) };
     return true;
   }
 
   // 4.6.127 SEL, T1 encoding (4-267)
   if (((w0 & 0xFFF0u) == 0xFAA0u) && ((w1 & 0xF0F0u) == 0xF080u)) {
     out_inst.type = inst_type::SELECT_BYTES;
-    out_inst.i.select_bytes = { .m = u8(w1 & 0xFu), .n = u8(w0 & 0xFu),
-      .d = u8((w1 >> 8u) & 0xFu) };
+    out_inst.i.select_bytes = { .d = u8((w1 >> 8u) & 0xFu), .n = u8(w0 & 0xFu),
+      .m = u8(w1 & 0xFu) };
     return true;
   }
 
