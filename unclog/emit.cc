@@ -84,9 +84,9 @@ std::string& emit_python(char const *s, std::string& out) {
     switch (fs.field_width_opt) {
       case NPF_FMT_SPEC_OPT_NONE: break;
       case NPF_FMT_SPEC_OPT_STAR: out += "{}"; break;
-      case NPF_FMT_SPEC_OPT_LITERAL: {
-         snprintf(tmp, sizeof(tmp), "%d", (int)fs.field_width); out += tmp;
-      } break;
+      case NPF_FMT_SPEC_OPT_LITERAL:
+        snprintf(tmp, sizeof(tmp), "%d", (int)fs.field_width); out += tmp;
+        break;
     }
 
     switch (fs.conv_spec) { // python doesn't allow precision for integer types
