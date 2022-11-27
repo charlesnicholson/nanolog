@@ -1,4 +1,6 @@
-cl.exe /std:c++20 /W4 /WX /EHsc /D_CRT_SECURE_NO_WARNINGS /DNANOLOG_HOST_TOOL=1 ^
+cl.exe /std:c++20 /W4 /WX /Osy /LTCG /EHsc ^
+    /D_CRT_SECURE_NO_WARNINGS ^
+    /DNANOLOG_HOST_TOOL=1 ^
     nanolog.c ^
     unclog/args.cc ^
     unclog/elf.cc ^
