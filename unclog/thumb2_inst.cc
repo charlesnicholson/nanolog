@@ -1201,8 +1201,9 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
       return false;
     }
     out_inst.type = inst_type::AND_REG;
-    out_inst.i.and_reg = { .n = u8(w0 & 0xFu), .m = u8(w1 & 0xFu),
-      .d = d, .shift = decode_imm_shift(u8((w1 >> 4u) & 3u), u8((imm3 << 2u) | imm2)) };
+    out_inst.i.and_reg = {
+      .shift = decode_imm_shift(u8((w1 >> 4u) & 3u), u8((imm3 << 2u) | imm2)), .d = d,
+      .n = u8(w0 & 0xFu), .m = u8(w1 & 0xFu) };
     return true;
   }
 
@@ -1239,7 +1240,7 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
       imm{sext((s << 24u) | (i1 << 23u) | (i2 << 22u) | (imm10 << 12u) | (imm11 << 1u), 24)},
       addr{out_inst.addr + 4u + imm};
     out_inst.type = inst_type::BRANCH;
-    out_inst.i.branch = { .cc = cond_code::AL2, .imm = imm, .addr = addr };
+    out_inst.i.branch = { .imm = imm, .addr = addr, .cc = cond_code::AL2 };
     return true;
   }
 
@@ -1259,8 +1260,8 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
   if (((w0 & 0xFBE0u) == 0xF020u) && ((w1 & 0x8000u) == 0)) {
     u32 const imm8{w1 & 0xFFu}, imm3{(w1 >> 12u) & 7u}, i{(w0 >> 10u) & 1u};
     out_inst.type = inst_type::BIT_CLEAR_IMM;
-    out_inst.i.bit_clear_imm = { .d = u8((w1 >> 8u) & 0xFu), .n = u8(w0 & 0xFu),
-      .imm = decode_imm12((i << 11u) | (imm3 << 8u) | imm8) };
+    out_inst.i.bit_clear_imm = { .imm = decode_imm12((i << 11u) | (imm3 << 8u) | imm8),
+      .d = u8((w1 >> 8u) & 0xFu), .n = u8(w0 & 0xFu) };
     return true;
   }
 
