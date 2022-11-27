@@ -668,14 +668,14 @@ bool decode_16bit_inst(u16 const w0, inst& out_inst) {
 
   if ((w0 & 0xFE00u) == 0x1800u) { // 4.6.4 ADD (reg), T1 encoding (pg 4-22)
     out_inst.type = inst_type::ADD_REG;
-    out_inst.i.add_reg = { .d = u8(w0 & 7u), .n = u8((w0 >> 3u) & 7u),
-      .m = u8((w0 >> 6u) & 7u), .shift = decode_imm_shift(0b00, 0) };
+    out_inst.i.add_reg = { .shift = decode_imm_shift(0b00, 0), .d = u8(w0 & 7u),
+      .n = u8((w0 >> 3u) & 7u), .m = u8((w0 >> 6u) & 7u) };
     return true;
   }
 
   if ((w0 & 0xF800u) == 0xA800u) { // 4.5.5 ADD (SP + imm), T1 encoding (pg 4-24)
     out_inst.type = inst_type::ADD_SP_IMM;
-    out_inst.i.add_sp_imm = { .d = u8((w0 >> 8u) & 7u), .imm = u16((w0 & 0xFFu) << 2u) };
+    out_inst.i.add_sp_imm = { .imm = u16((w0 & 0xFFu) << 2u), .d = u8((w0 >> 8u) & 7u) };
     return true;
   }
 
@@ -735,8 +735,8 @@ bool decode_16bit_inst(u16 const w0, inst& out_inst) {
   if ((w0 & 0xFFC0u) == 0x4380u) { // 4.6.16 BIC (reg), T1 encoding (pg 4-46)
     u8 const dn{u8(w0 & 7u)};
     out_inst.type = inst_type::BIT_CLEAR_REG;
-    out_inst.i.bit_clear_reg = { .d = dn, .n = dn, .m = u8((w0 >> 3u) & 7u),
-      .shift = decode_imm_shift(0b00, 0) };
+    out_inst.i.bit_clear_reg = { .shift = decode_imm_shift(0b00, 0), .d = dn, .n = dn,
+      .m = u8((w0 >> 3u) & 7u) };
     return true;
   }
 
@@ -761,22 +761,22 @@ bool decode_16bit_inst(u16 const w0, inst& out_inst) {
   if ((w0 & 0xFD00u) == 0xB900u) { // 4.6.22 CBNZ, T1 encoding (pg 4-58)
     u32 const imm5{(w0 >> 3u) & 0x1Fu}, i{(w0 >> 9u) & 1u}, imm32{(imm5 << 1u) | (i << 6u)};
     out_inst.type = inst_type::CBNZ;
-    out_inst.i.cmp_branch_nz = { .n = u8(w0 & 7u), .imm = u8(imm32),
-      .addr = out_inst.addr + 4u + imm32 };
+    out_inst.i.cmp_branch_nz = { .addr = out_inst.addr + 4u + imm32, .n = u8(w0 & 7u),
+      .imm = u8(imm32) };
     return true;
   }
 
   if ((w0 & 0xFD00u) == 0xB100u) { // 4.6.23 CBZ, T1 encoding (pg 4-60)
     u32 const imm5{(w0 >> 3u) & 0x1Fu}, i{(w0 >> 9u) & 1u}, imm32{(imm5 << 1u) | (i << 6u)};
     out_inst.type = inst_type::CBZ;
-    out_inst.i.cmp_branch_z = { .n = u8(w0 & 7u), .imm = u8(imm32),
-      .addr = out_inst.addr + 4u + imm32 };
+    out_inst.i.cmp_branch_z = { .addr = out_inst.addr + 4u + imm32, .n = u8(w0 & 7u),
+      .imm = u8(imm32) };
     return true;
   }
 
   if ((w0 & 0xF800u) == 0x2800u) { // 4.6.29 CMP (imm), T1 encoding (pg 4-72)
     out_inst.type = inst_type::CMP_IMM;
-    out_inst.i.cmp_imm = { .n = u8((w0 >> 8u) & 7u), .imm = u8(w0 & 0xFFu) };
+    out_inst.i.cmp_imm = { .imm = u8(w0 & 0xFFu), .n = u8((w0 >> 8u) & 7u) };
     return true;
   }
 
