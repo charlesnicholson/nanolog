@@ -105,10 +105,14 @@ bool write_file(void const* buf, unsigned len, char const *output_file) {
 }
 
 void on_log(void *, int, char const *fmt, va_list args) {
+#ifndef _MSC_VER
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wformat-nonliteral"
+#endif
   vprintf(fmt, args);
+#ifndef _MSC_VER
 #pragma GCC diagnostic pop
+#endif
 }
 
 }
