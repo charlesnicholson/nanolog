@@ -8,6 +8,7 @@ struct elf_section_hdr32;
 struct elf_symbol32;
 
 #define FMT_STR_STRAT_LIST() \
+  X(UNKNOWN) \
   X(DIRECT_LOAD) \
   X(MOV_FROM_DIRECT_LOAD) \
   X(ADD_IMM_FROM_BASE_REG)

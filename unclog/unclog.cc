@@ -191,6 +191,8 @@ int main(int argc, char const *argv[]) {
         r0_mut.i.addr);
 
       switch (lc.s) {
+        case fmt_str_strat::UNKNOWN: NL_LOG_DBG("unknown?"); break;
+
         case fmt_str_strat::DIRECT_LOAD:
           NL_LOG_DBG("literal at %x: ", r0_mut.i.i.load_lit.addr);
           break;

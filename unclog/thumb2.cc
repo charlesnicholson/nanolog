@@ -436,7 +436,7 @@ bool process_log_call(inst const& pc_i,
 
   lca.log_calls.emplace_back(log_call{ .fmt_str_addr = path.rs.regs[reg::R0],
     .log_func_call_addr = pc_i.addr, .node_idx = path.rs.mut_node_idxs[reg::R0],
-    .severity = u8(sev)});
+    .severity = u8(sev), .s = fmt_str_strat::UNKNOWN});
   auto& log_call{lca.log_calls[lca.log_calls.size() - 1]};
 
   NL_LOG_DBG("  Found log function, format string 0x%08x\n", path.rs.regs[reg::R0]);
@@ -569,6 +569,10 @@ bool thumb2_patch_fmt_strs(elf const& e,
 
         case fmt_str_strat::ADD_IMM_FROM_BASE_REG:
           NL_LOG_ERR("Strategy ADD_IMM_FROM_BASE_REG not supported yet.\n");
+          return false;
+
+        case fmt_str_strat::UNKNOWN:
+          NL_LOG_ERR("Unknown strategy\n");
           return false;
       }
 
