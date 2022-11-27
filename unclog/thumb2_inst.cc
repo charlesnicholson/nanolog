@@ -1939,16 +1939,16 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
       return false;
     }
     out_inst.type = inst_type::STORE_HALF_IMM;
-    out_inst.i.store_half_imm = { .index = p, .add = u, .t = t, .n = n, .imm = imm };
+    out_inst.i.store_half_imm = { .imm = imm, .t = t, .n = n, .index = p, .add = u };
     return true;
   }
 
   // 4.6.173 STRH (reg), T2 encoding (pg 4-359)
   if (((w0 & 0xFFF0u) == 0xF820u) && ((w1 & 0xFC0u) == 0)) {
     out_inst.type = inst_type::STORE_HALF_REG;
-    out_inst.i.store_half_reg = { .m = u8(w1 & 0xFu), .n = u8(w0 & 0xFu),
-      .t = u8((w1 >> 12u) & 0xFu),
-      .shift = decode_imm_shift(u8(imm_shift_type::LSL), u8((w1 >> 4u) & 3u)) };
+    out_inst.i.store_half_reg = {
+      .shift = decode_imm_shift(u8(imm_shift_type::LSL), u8((w1 >> 4u) & 3u)),
+      .t = u8((w1 >> 12u) & 0xFu), .n = u8(w0 & 0xFu), .m = u8(w1 & 0xFu) };
     return true;
   }
 
@@ -1959,16 +1959,16 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
     u8 const d{u8((w1 >> 8u) & 0xFu)}, n{u8(w0 & 0xFu)}, s{u8((w0 >> 4u) & 1u)};
     if ((d == 15) && (s == 1)) { // 4.6.29 CMP (imm), T2 encoding (pg 4-72)
       out_inst.type = inst_type::CMP_IMM;
-      out_inst.i.cmp_imm = { .n = n, .imm = imm };
+      out_inst.i.cmp_imm = { .imm = imm, .n = n };
       return true;
     }
     if (n == 13) { // 4.6.178 SUB (SP minus imm), T2 encoding (pg 4-369)
       out_inst.type = inst_type::SUB_SP_IMM;
-      out_inst.i.sub_sp_imm = { .d = d, .imm = imm };
+      out_inst.i.sub_sp_imm = { .imm = imm, .d = d };
       return true;
     }
     out_inst.type = inst_type::SUB_IMM;
-    out_inst.i.sub_imm = { .d = d, .n = n, .imm = imm };
+    out_inst.i.sub_imm = { .imm = imm, .d = d, .n = n };
     return true;
   }
 
@@ -1982,11 +1982,11 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
     }
     if (n == 13) { // 4.6.178 SUB (SP minus imm), T3 encoding, (pg 4-369)
       out_inst.type = inst_type::SUB_SP_IMM;
-      out_inst.i.sub_sp_imm = { .d = d, .imm = imm };
+      out_inst.i.sub_sp_imm = { .imm = imm, .d = d };
       return true;
     }
     out_inst.type = inst_type::SUB_IMM;
-    out_inst.i.sub_imm = { .d = d, .n = n, .imm = imm };
+    out_inst.i.sub_imm = { .imm = imm, .d = d, .n = n };
     return true;
   }
 
@@ -1996,11 +1996,11 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
       rotation{u8(((w1 >> 4u) & 3u) << 3u)};
     if (n == 15) { // 4.6.185 SXTB, T2 encoding (pg 4-383)
       out_inst.type = inst_type::EXTEND_SIGNED_BYTE;
-      out_inst.i.extend_signed_byte = { .rotation = rotation, .d = d, .m = m };
+      out_inst.i.extend_signed_byte = { .d = d, .m = m, .rotation = rotation };
       return true;
     }
     out_inst.type = inst_type::EXTEND_ADD_SIGNED_BYTE;
-    out_inst.i.extend_add_signed_byte = { .d = d, .m = m, .n = n, .rotation = rotation };
+    out_inst.i.extend_add_signed_byte = { .d = d, .n = n, .m = m, .rotation = rotation };
     return true;
   }
 
@@ -2014,15 +2014,15 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
       return true;
     }
     out_inst.type = inst_type::EXTEND_ADD_SIGNED_HALF;
-    out_inst.i.extend_add_signed_half = { .m = m, .n = n, .d = d, .rotation = rotation };
+    out_inst.i.extend_add_signed_half = { .d = d, .n = n, .m = m, .rotation = rotation };
     return true;
   }
 
   // 4.6.195 UADD8, T1 encoding (pg 4-403)
   if (((w0 & 0xFFF0u) == 0xFA80u) && ((w1 & 0xF0F0u) == 0xF040u)) {
     out_inst.type = inst_type::ADD_8_UNSIGNED;
-    out_inst.i.add_8_unsigned = { .m = u8(w1 & 0xFu), .n = u8(w0 & 0xFu),
-      .d = u8((w1 >> 8u) & 0xFu) };
+    out_inst.i.add_8_unsigned = { .d = u8((w1 >> 8u) & 0xFu), .n = u8(w0 & 0xFu),
+      .m = u8(w1 & 0xFu) };
     return true;
   }
 
