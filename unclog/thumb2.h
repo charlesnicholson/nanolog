@@ -27,8 +27,14 @@ struct log_call {
 };
 
 struct reg_mut_node {
+  explicit reg_mut_node(inst const& i_,
+                        u16 par_idx0=0xFFFFu,
+                        u16 par_idx1=0xFFFFu,
+                        u16 par_idx2=0xFFFFu) : i(i_) {
+    par_idxs[0] = par_idx0; par_idxs[1] = par_idx1; par_idxs[2] = par_idx2;
+  }
   inst i;
-  u16 par_idxs[3] = { 0xFFFFu, 0xFFFFu, 0xFFFFu };
+  u16 par_idxs[3];
 };
 
 struct func_log_call_analysis {
