@@ -870,14 +870,14 @@ bool decode_16bit_inst(u16 const w0, inst& out_inst) {
   if ((w0 & 0xF800u) == 0x7800u) { // 4.6.46 LDRB (imm), T1 encoding (pg 4-106)
     out_inst.type = inst_type::LOAD_BYTE_IMM;
     out_inst.i.load_byte_imm = { .imm = u8((w0 >> 6u) & 0x1Fu), .t = u8(w0 & 7u),
-      .n = u8((w0 >> 3u) & 7u) };
+      .n = u8((w0 >> 3u) & 7u), .add = 1u, .index = 1u };
     return true;
   }
 
   if ((w0 & 0xFE00u) == 0x5C00u) { // 4.6.48 LDRB (reg), T1 encoding (pg 4-110)
     out_inst.type = inst_type::LOAD_BYTE_REG;
-    out_inst.i.load_byte_reg = { .t = u8(w0 & 7u), .n = u8((w0 >> 3u) & 7u),
-      .m = u8((w0 >> 6u) & 7u) };
+    out_inst.i.load_byte_reg = { .shift = decode_imm_shift(0b00, 0), .t = u8(w0 & 7u),
+      .n = u8((w0 >> 3u) & 7u), .m = u8((w0 >> 6u) & 7u) };
     return true;
   }
 
