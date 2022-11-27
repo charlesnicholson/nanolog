@@ -512,7 +512,7 @@ void print(inst_vload const& v) {
 }
 
 void print(inst_vload_mult const& v) {
-  NL_LOG_DBG("VLDM%s %s, {%x}", v.add ? "IA" : "DB", s_rn[v.n], unsigned(v.list));
+  NL_LOG_DBG("VLDM%s %s, {%x}", v.add ? "IA" : "DB", s_rn[v.n], unsigned(v.regs));
 }
 
 void print(inst_vmov_imm const& v) {
@@ -2107,10 +2107,11 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
 
   // A7.7.222 VCMP, T1 encoding (pg A7-567)
   if (((w0 & 0xFFBFu) == 0xEEB4u) && ((w1 & 0xF50u) == 0xA40u)) {
-    u8 const D{u8((w0 >> 6u) & 1u)}, vd{u8((w1 >> 12u) & 0xFu)};
+    u8 const D{u8((w0 >> 6u) & 1u)}, vd{u8((w1 >> 12u) & 0xFu)}, vm{u8(w1 & 0xFu)},
+      M{u8((w1 >> 5u) & 1u)};
     out_inst.type = inst_type::VCOMPARE;
     out_inst.i.vcompare = { .quiet_nan_exc = u8((w1 >> 7u) & 1u), .with_zero = 0u,
-      .d = u8((vd << 1u) | D) };
+      .d = u8((vd << 1u) | D), .m = u8((vm << 1u) | M) };
     return true;
   }
 
@@ -2119,7 +2120,7 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
     u8 const D{u8((w0 >> 6u) & 1u)}, vd{u8((w1 >> 12u) & 0xFu)};
     out_inst.type = inst_type::VCOMPARE;
     out_inst.i.vcompare = { .quiet_nan_exc = u8((w1 >> 7u) & 1u), .with_zero = 1u,
-      .d = u8((vd << 1u) | D) };
+      .d = u8((vd << 1u) | D), .m = 0 };
     return true;
   }
 
@@ -2162,7 +2163,8 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
   // A7.7.229 VLDM, T2 encoding (pg A7-579)
   if (((w0 & 0xFE10u) == 0xEC10u) && ((w1 & 0xF00u) == 0xA00u)) {
     u8 const p{u8((w0 >> 8u) & 1u)}, u{u8((w0 >> 7u) & 1u)}, w{u8((w0 >> 5u) & 1u)},
-      n{u8(w0 & 0xFu)}, imm8{u8(w1 & 0xFFu)};
+      n{u8(w0 & 0xFu)}, imm8{u8(w1 & 0xFFu)}, D{u8((w0 >> 6u) & 1u)},
+      vd{u8((w1 >> 12u) & 0xFu)};
     if ((p == 0) && (u == 0) && (w == 0)) {
       printf("See 64-bit transfers ... on page A6-199\n");
       return false;
@@ -2172,15 +2174,14 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
       return false;
     }
     if ((p == 1) && (w == 0)) { // A7.7.230 VLDR, T2 encoding (pg A7-581)
-      u8 const D{u8((w0 >> 6u) & 1u)}, vd{u8((w1 >> 12u) & 0xFu)};
       out_inst.type = inst_type::VLOAD;
       out_inst.i.vload = { .imm = u16(imm8 << 2u), .single_reg = 1u,
         .add = u8((w0 >> 7u) & 1u), .n = u8(w0 & 0xFu), .d = u8((vd << 1) | D) };
       return true;
     }
     out_inst.type = inst_type::VLOAD_MULT;
-    out_inst.i.vload_mult = { .imm = u16(imm8 << 2u), .n = n, .list = imm8,
-      .single_regs = 1u, .add = u };
+    out_inst.i.vload_mult = { .imm = u32(imm8 << 2u), .d = u8((vd << 1) | D), .n = n,
+      .wback = w, .regs = imm8, .single_regs = 1u, .add = u };
     return true;
   }
 
