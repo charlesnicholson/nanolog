@@ -1526,8 +1526,8 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
       return false;
     }
     out_inst.type = inst_type::LOAD_SIGNED_BYTE_REG;
-    out_inst.i.load_signed_byte_reg = { .t = t, .m = m, .n = n,
-      .shift = decode_imm_shift(u8(imm_shift_type::LSL), shift) };
+    out_inst.i.load_signed_byte_reg = {
+      .shift = decode_imm_shift(u8(imm_shift_type::LSL), shift) .t = t, .n = n, .m = m };
     return true;
   }
 
@@ -1540,8 +1540,8 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
       return false;
     }
     out_inst.type = inst_type::LOAD_SIGNED_HALF_IMM;
-    out_inst.i.load_signed_half_imm = { .add = 1u, .index = 1u, .n = n, .t = t,
-      .imm = u16(w1 & 0xFFFu) };
+    out_inst.i.load_signed_half_imm = { .imm = u16(w1 & 0xFFFu), .t = t, .n = n,
+      .index = 1u, .add = 1u };
     return true;
   }
 
@@ -1563,7 +1563,7 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
       return false;
     }
     out_inst.type = inst_type::LOAD_SIGNED_HALF_IMM;
-    out_inst.i.load_signed_half_imm = { .n = n, .t = t, .add = u, .index = p, .imm = imm };
+    out_inst.i.load_signed_half_imm = { .imm = imm, .t = t, .n = n, .index = p, .add = u };
     return true;
   }
 
