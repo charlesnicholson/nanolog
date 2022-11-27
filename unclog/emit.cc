@@ -10,6 +10,10 @@
 #define NANOPRINTF_USE_WRITEBACK_FORMAT_SPECIFIERS 1
 #include "nanoprintf.h"
 
+#ifdef _MSC_VER
+#pragma warning(disable: 4701) // maybe uninitialized; spurious w/nanoprintf
+#endif
+
 namespace {
 std::string& emit_escaped_json(char const *s, std::string& out) {
   out.clear();

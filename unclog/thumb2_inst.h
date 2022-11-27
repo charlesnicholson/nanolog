@@ -100,7 +100,7 @@ struct imm_shift { imm_shift_type t; u8 n; };
   X(LOAD_MULT_INC_AFTER, load_mult_inc_after, { u16 regs; u8 n, wback; }) \
   X(LOAD_REG, load_reg, { imm_shift shift; u8 t, n, m; }) \
   X(LSHIFT_LOG_IMM, lshift_log_imm, { imm_shift shift; u8 d, m; }) \
-  X(LSHIFT_LOG_REG, lshift_log_reg, { imm_shift shift; u8 d, n, m; }) \
+  X(LSHIFT_LOG_REG, lshift_log_reg, { u8 d, n, m; }) \
   X(MOV_REG, mov_reg, { u8 d, m; }) \
   X(MOV_IMM, mov_imm, { u32 imm; u8 d; }) \
   X(MOV_NEG_IMM, mov_neg_imm, { u32 imm; u8 d; }) \
@@ -115,7 +115,7 @@ struct imm_shift { imm_shift_type t; u8 n; };
   X(NOP, nop, {}) \
   X(OR_NOT_REG, or_not_reg, { imm_shift shift; u8 d, n, m; }) \
   X(OR_IMM, or_imm, { u32 imm; u8 d, n; }) \
-  X(OR_REG, or_reg, { u32 imm; imm_shift shift; u8 d, n, m; }) \
+  X(OR_REG, or_reg, { imm_shift shift; u8 d, n, m; }) \
   X(PACK_HALF, pack_half, { imm_shift shift; u8 d, n, m, tbform; }) \
   X(PUSH, push, { u16 reg_list; }) \
   X(POP, pop, { u16 reg_list; }) \
@@ -132,8 +132,8 @@ struct imm_shift { imm_shift_type t; u8 n; };
   X(STORE_EXCL, store_excl, { u16 imm; u8 d, t, n; }) \
   X(STORE_HALF_IMM, store_half_imm, { u16 imm; u8 t, n, index, add; }) \
   X(STORE_HALF_REG, store_half_reg, { imm_shift shift; u8 t, n, m; }) \
-  X(STORE_IMM, store_imm, { u8 t, n; u16 imm; }) \
-  X(STORE_MULT_DEC_BEF, store_mult_dec_bef, { u16 regs; u8 n; }) \
+  X(STORE_IMM, store_imm, { u16 imm; u8 t, n; }) \
+  X(STORE_MULT_DEC_BEFORE, store_mult_dec_before, { u16 regs; u8 n; }) \
   X(STORE_MULT_INC_AFTER, store_mult_inc_after, { u16 regs; u8 n, wback; }) \
   X(STORE_REG, store_reg, { imm_shift shift; u8 t, n, m; }) \
   X(SUB_IMM, sub_imm, { u32 imm; u8 d, n; }) \
@@ -155,11 +155,11 @@ struct imm_shift { imm_shift_type t; u8 n; };
   X(VDIV, vdiv, { u8 d, n, m; }) \
   X(VMULT_ACCUM, vmult_accum, { u8 op1_neg, d, n, m; }) \
   X(VLOAD, vload, { u16 imm; u8 single_reg, add, n, d; }) \
-  X(VLOAD_MULT, vload_mult, { u16 imm; u8 n, list, wb, single_regs, add; }) \
+  X(VLOAD_MULT, vload_mult, { u32 imm; u8 d, n, wback, regs, single_regs, add; }) \
   X(VMOV_IMM, vmov_imm, { float imm; u8 d, regs; }) \
   X(VMOV_REG, vmov_reg, { u8 d, m; }) \
   X(VMOV_REG_DOUBLE, vmov_reg_double, { u8 t, t2, m, to_arm_regs; }) \
-  X(VMOV_REG_SINGLE, vmov_reg_single, { u8 t, n, m, to_arm_reg; }) \
+  X(VMOV_REG_SINGLE, vmov_reg_single, { u8 t, n, to_arm_reg; }) \
   X(VMOV_SPECIAL_FROM, vmov_special_from, { u8 t; }) \
   X(VMOV_SPECIAL_TO, vmov_special_to, { u8 t; }) \
   X(VMUL, vmul, { u8 d, n, m; }) \
