@@ -1127,9 +1127,9 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
   if ((w0 & 0xFFE0u) == 0xEB40u) { // 4.6.2 ADC (reg), T2 encoding (pg 4-18)
     u8 const imm3{u8((w1 >> 12u) & 7u)}, imm2{u8((w1 >> 6u) & 3u)};
     out_inst.type = inst_type::ADD_CARRY_REG;
-    out_inst.i.add_carry_reg = { .m = u8(w1 & 0xFu), .n = u8(w0 & 0xFu),
-      .d = u8((w1 >> 8u) & 0xFu),
-      .shift = decode_imm_shift(u8((w1 >> 4u) & 3u), u8((imm3 << 2u) | imm2)) };
+    out_inst.i.add_carry_reg = {
+      .shift = decode_imm_shift(u8((w1 >> 4u) & 3u), u8((imm3 << 2u) | imm2)),
+      .d = u8((w1 >> 8u) & 0xFu), .n = u8(w0 & 0xFu), .m = u8(w1 & 0xFu) };
     return true;
   }
 
@@ -1296,11 +1296,11 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
       imm{decode_imm12((i << 11u) | (imm3 << 8u) | imm8)};
     if ((s == 1) && (d == 15)) { // 4.6.190 TEQ (imm), T1 encoding (pg 4-393)
       out_inst.type = inst_type::TEST_EQUIV_IMM;
-      out_inst.i.test_equiv_imm = { .n = n, .imm = imm };
+      out_inst.i.test_equiv_imm = { .imm = imm, .n = n };
       return true;
     }
     out_inst.type = inst_type::EXCL_OR_IMM;
-    out_inst.i.excl_or_imm = { .n = n, .d = d, .imm = imm };
+    out_inst.i.excl_or_imm = { .imm = imm, .d = d, .n = n };
     return true;
   }
 
@@ -1310,11 +1310,11 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
     imm_shift const shift{decode_imm_shift(u8((w1 >> 4u) & 3u), u8((imm3 << 2u) | imm2))};
     if ((d == 15) && (s == 1)) { // 4.6.191 TEQ (reg), T1 encoding (pg 4-395)
       out_inst.type = inst_type::TEST_EQUIV_REG;
-      out_inst.i.test_equiv_reg = { .m = m, .n = n, .shift = shift };
+      out_inst.i.test_equiv_reg = { .shift = shift, .n = n, .m = m };
       return true;
     }
     out_inst.type = inst_type::EXCL_OR_REG;
-    out_inst.i.excl_or_reg = { .d = d, .n = n, .m = m, .shift = shift };
+    out_inst.i.excl_or_reg = { .shift = shift, .d = d, .n = n, .m = m };
     return true;
   }
 
