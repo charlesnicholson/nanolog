@@ -1692,11 +1692,11 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
     u8 const n{u8(w0 & 0xFu)}, d{u8((w1 >> 8u) & 0xFu)};
     if (n == 15) { // 4.6.76 MOV (imm), T2 encoding (pg 4-166)
       out_inst.type = inst_type::MOV_IMM;
-      out_inst.i.mov_imm = { .d = d, .imm = imm };
+      out_inst.i.mov_imm = { .imm = imm, .d = d };
       return true;
     }
     out_inst.type = inst_type::OR_IMM;
-    out_inst.i.or_imm = { .d = d, .n = n, .imm = imm };
+    out_inst.i.or_imm = { .imm = imm, .d = d, .n = n };
     return true;
   }
 
@@ -1710,7 +1710,7 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
       return true;
     }
     out_inst.type = inst_type::OR_REG;
-    out_inst.i.or_reg = { .d = d, .n = n, .m = m, .shift = shift };
+    out_inst.i.or_reg = { .shift = shift, .d = d, .n = n, .m = m };
     return true;
   }
 
@@ -1718,9 +1718,9 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
   if (((w0 & 0xFFF0u) == 0xEAC0u) && ((w1 & 0x10u) == 0)) {
     u8 const imm2{u8((w1 >> 6u) & 3u)}, imm3{u8((w1 >> 12u) & 7u)}, tb{u8((w1 >> 5u) & 1u)};
     out_inst.type = inst_type::PACK_HALF;
-    out_inst.i.pack_half = { .m = u8(w1 & 0xFu), .n = u8(w0 & 0xFu),
-      .tbform = tb, .shift = decode_imm_shift(u8(tb << 1u), u8((imm3 << 2u) | imm2)),
-      .d = u8((w1 >> 8u) & 0xFu) };
+    out_inst.i.pack_half = {
+      .shift = decode_imm_shift(u8(tb << 1u), u8((imm3 << 2u) | imm2)),
+      .d = u8((w1 >> 8u) & 0xFu), .n = u8(w0 & 0xFu), .m = u8(w1 & 0xFu), .tbform = tb };
     return true;
   }
 
@@ -1749,8 +1749,8 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
     u8 const imm2{u8((w1 >> 6u) & 3u)}, imm3{u8((w1 >> 12u) & 7u)},
       imm{u8((imm3 << 2u) | imm2)};
     out_inst.type = inst_type::SUB_REV_REG;
-    out_inst.i.sub_rev_reg = { .m = u8(w1 & 0xFu), .n = u8(w0 & 0xFu),
-      .d = u8((w1 >> 8u) & 0xFu), .shift = decode_imm_shift(u8((w1 >> 4u) & 3u), imm) };
+    out_inst.i.sub_rev_reg = { .shift = decode_imm_shift(u8((w1 >> 4u) & 3u), imm),
+      .d = u8((w1 >> 8u) & 0xFu), .n = u8(w0 & 0xFu), .m = u8(w1 & 0xFu) };
     return true;
   }
 
@@ -1758,8 +1758,9 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
   if (((w0 & 0xFBE0u) == 0xF160u) && ((w1 & 0x8000u) == 0)) {
     u32 const imm8{w1 & 0xFFu}, imm3{(w1 >> 12u) & 7u}, i{(w0 >> 10u) & 1u};
     out_inst.type = inst_type::SUB_IMM_CARRY;
-    out_inst.i.sub_imm_carry = { .n = u8(w0 & 0xFu), .d = u8((w1 >> 8u) & 0xFu),
-      .imm = decode_imm12((i << 11u) | (imm3 << 8u) | imm8) };
+    out_inst.i.sub_imm_carry = {
+      .imm = decode_imm12((i << 11u) | (imm3 << 8u) | imm8), .d = u8((w1 >> 8u) & 0xFu),
+      .n = u8(w0 & 0xFu) };
     return true;
   }
 
@@ -1834,8 +1835,8 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
 
   if ((w0 & 0xFFF0u) == 0xF8C0u) { // 4.6.162 STR (imm), T3 encoding (pg 4-337)
     out_inst.type = inst_type::STORE_IMM;
-    out_inst.i.store_imm = { .t = u8(w1 >> 12u), .n = u8(w0 & 0xFu),
-      .imm = u16(w1 & 0xFFFu) };
+    out_inst.i.store_imm = { .imm = u16(w1 & 0xFFFu), .t = u8(w1 >> 12u),
+      .n = u8(w0 & 0xFu) };
     return true;
   }
 
@@ -1847,7 +1848,7 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
       return false;
     }
     out_inst.type = inst_type::STORE_IMM;
-    out_inst.i.store_imm = { .t = t, .n = n, .imm = u16(imm8) };
+    out_inst.i.store_imm = { .imm = u16(imm8), .t = t, .n = n };
     return true;
   }
 
