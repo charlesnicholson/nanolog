@@ -1912,21 +1912,21 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
     imm_shift const shift{decode_imm_shift(u8((w1 >> 4u) & 3u), u8(imm3 << 2u) | imm2)};
     if ((d == 15) && (s == 1)) { // 4.6.30 CMP (reg), T3 encoding (pg 4-74)
       out_inst.type = inst_type::CMP_REG;
-      out_inst.i.cmp_reg = { .n = n, .m = m, .shift = shift };
+      out_inst.i.cmp_reg = { .shift = shift, .n = n, .m = m };
       return true;
     }
     if (n == 13) { // "SEE SUB (SP minus register) on page 4-371"
       return false;
     }
     out_inst.type = inst_type::SUB_REG;
-    out_inst.i.sub_reg = { .d = d, .n = n, .m = m, .shift = shift };
+    out_inst.i.sub_reg = { .shift = shift, .d = d, .n = n, .m = m };
     return true;
   }
 
   if ((w0 & 0xFFF0u) == 0xF8A0u) { // 4.6.172 STRH (imm), T2 encoding (pg 4-357)
     out_inst.type = inst_type::STORE_HALF_IMM;
-    out_inst.i.store_half_imm = { .n = u8(w0 & 0xFu), .imm = u16(w1 & 0xFFFu), .add = 1u,
-      .t = u8((w1 >> 12u) & 0xFu), .index = 1u };
+    out_inst.i.store_half_imm = { .imm = u16(w1 & 0xFFFu), .t = u8((w1 >> 12u) & 0xFu),
+      .n = u8(w0 & 0xFu), .index = 1u, .add = 1u };
     return true;
   }
 
