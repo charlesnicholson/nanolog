@@ -1227,7 +1227,7 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
       return true;
     }
     out_inst.type = inst_type::BRANCH;
-    out_inst.i.branch = { .cc = cc, .imm = imm, .addr = addr };
+    out_inst.i.branch = { .imm = imm, .addr = addr, .cc = cc };
     return true;
   }
 
@@ -1415,8 +1415,8 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
     if ((p == 0) && (w == 0)) {
       if (u == 0) { // 4.6.51 LDREX, T1 encoding (pg 4-116)
         out_inst.type = inst_type::LOAD_EXCL;
-        out_inst.i.load_excl = { .imm = u16((w1 & 0xFFu) << 2u), .n = u8(w0 & 0xFu),
-          .t = u8((w1 >> 12u) & 0xFu) };
+        out_inst.i.load_excl = { .imm = u16((w1 & 0xFFu) << 2u),
+          .t = u8((w1 >> 12u) & 0xFu), .n = u8(w0 & 0xFu) };
         return true;
       } else {
         if ((w1 & 0xF0u) == 0x10) { // 4.6.189 TBH, T1 encoding (pg 4-391)
@@ -1480,7 +1480,7 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
       return false;
     }
     out_inst.type = inst_type::LOAD_HALF_REG;
-    out_inst.i.load_half_reg = { .shift = shift, .m = m, .n = n, .t = t };
+    out_inst.i.load_half_reg = { .shift = shift, .t = t, .n = n, .m = m };
     return true;
   }
 
@@ -1577,8 +1577,9 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
       return false;
     }
     out_inst.type = inst_type::LOAD_SIGNED_HALF_REG;
-    out_inst.i.load_signed_half_reg = { .n = n, .t = t, .m = u8(w1 & 0xFu),
-      .shift = decode_imm_shift(u8(imm_shift_type::LSL), u8((w1 >> 4u) & 3u)) };
+    out_inst.i.load_signed_half_reg = {
+      .shift = decode_imm_shift(u8(imm_shift_type::LSL), u8((w1 >> 4u) & 3u)),
+      .t = t, .n = n, .m = u8(w1 & 0xFu) };
     return true;
   }
 
