@@ -23,6 +23,7 @@ CPPFLAGS += -Os -flto
 CPPFLAGS += -Werror -Wall -Wextra
 
 ifneq '' '$(findstring clang,$(COMPILER_VERSION))'
+CFLAGS += -Wno-declaration-after-statement
 CPPFLAGS += -Weverything -Wno-poison-system-directories -Wno-format-pedantic
 CXXFLAGS += -Wno-c++98-compat-pedantic \
 			-Wno-gnu-zero-variadic-macro-arguments \
