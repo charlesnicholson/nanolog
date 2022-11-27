@@ -1338,12 +1338,13 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
     u16 const imm{u16(w1 & 0xFFFu)};
     if (n == 15) { // 4.6.44 LDR (literal), T2 encoding (pg 4-102)
       out_inst.type = inst_type::LOAD_LIT;
-      out_inst.i.load_lit = { .t = t, .imm = imm, .add = u8((w0 >> 7u) & 1u),
-        .addr = u32(inst_align(out_inst.addr, 4) + imm + 4) };
+      out_inst.i.load_lit = { .imm = imm,
+        .addr = u32(inst_align(out_inst.addr, 4) + imm + 4), .t = t,
+        .add = u8((w0 >> 7u) & 1u) };
       return true;
     }
     out_inst.type = inst_type::LOAD_IMM;
-    out_inst.i.load_imm = { .n = n, .t = t, .add = 1u, .imm = imm, .index = 1u };
+    out_inst.i.load_imm = { .imm = imm, .n = n, .t = t, .add = 1u, .index = 1u };
     return true;
   }
 
@@ -1352,8 +1353,9 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
     u8 const puw{u8((w1 >> 8u) & 7u)};
     if (puw == 7u) { return false; } // TODO: LDRT
     out_inst.type = inst_type::LOAD_IMM;
-    out_inst.i.load_imm = { .t = u8((w1 >> 12u) & 0xFu), .add = u8((puw >> 1u) & 1u),
-      .n = u8(w0 & 0xFu), .imm = u8(w1 & 0xFFu), .index = u8((puw >> 2u) & 1u) };
+    out_inst.i.load_imm = { .imm = u8(w1 & 0xFFu), .n = u8(w0 & 0xFu),
+      .t = u8((w1 >> 12u) & 0xFu), .add = u8((puw >> 1u) & 1u),
+      .index = u8((puw >> 2u) & 1u) };
     return true;
   }
 
@@ -1382,8 +1384,8 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
       return false;
     }
     out_inst.type = inst_type::LOAD_BYTE_IMM;
-    out_inst.i.load_byte_imm = { .add = u8((puw >> 1u) & 1u), .index = u8((puw >> 2u) & 1u),
-      .t = t, .n = n, .imm = u16(w1 & 0xFFu) };
+    out_inst.i.load_byte_imm = { .imm = u16(w1 & 0xFFu), .t = t, .n = n,
+      .add = u8((puw >> 1u) & 1u), .index = u8((puw >> 2u) & 1u) };
     return true;
   }
 
@@ -1402,8 +1404,9 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
         .add = u8((w0 >> 7u) & 1u) };
     } else {
       out_inst.type = inst_type::LOAD_BYTE_REG;
-      out_inst.i.load_byte_reg = { .m = u8(w1 & 0xFu), .n = n, .t = t,
-        .shift = decode_imm_shift(u8(imm_shift_type::LSL), u8((w1 >> 4u) & 3u)) };
+      out_inst.i.load_byte_reg = {
+        .shift = decode_imm_shift(u8(imm_shift_type::LSL), u8((w1 >> 4u) & 3u)),
+        .t = t, .n = n, .m = u8(w1 & 0xFu) };
     }
     return true;
   }
@@ -1431,8 +1434,8 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
       }
     }
     out_inst.type = inst_type::LOAD_DBL_REG;
-    out_inst.i.load_dbl_reg = { .imm = u16((w1 & 0xFFu) << 2u), .n = u8(w0 & 0xFu),
-      .t = u8((w1 >> 12u) & 0xFu), .t2 = u8((w1 >> 8u) & 0xFu), .add = u, .index = p };
+    out_inst.i.load_dbl_reg = { .imm = u16((w1 & 0xFFu) << 2u), .t = u8((w1 >> 12u) & 0xFu),
+      .t2 = u8((w1 >> 8u) & 0xFu), .n = u8(w0 & 0xFu), .index = p, .add = u };
     return true;
   }
 
