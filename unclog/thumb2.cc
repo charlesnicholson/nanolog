@@ -436,7 +436,7 @@ bool process_log_call(inst const& pc_i,
 
   lca.log_calls.emplace_back(log_call{ .fmt_str_addr = path.rs.regs[reg::R0],
     .log_func_call_addr = pc_i.addr, .node_idx = path.rs.mut_node_idxs[reg::R0],
-    .severity = u8(sev), .s = fmt_str_strat::UNKNOWN});
+    .s = fmt_str_strat::UNKNOWN, .severity = u8(sev)});
   auto& log_call{lca.log_calls[lca.log_calls.size() - 1]};
 
   NL_LOG_DBG("  Found log function, format string 0x%08x\n", path.rs.regs[reg::R0]);
