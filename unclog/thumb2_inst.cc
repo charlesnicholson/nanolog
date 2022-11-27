@@ -1863,7 +1863,7 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
   if ((w0 & 0xFFF0u) == 0xF880u) { // 4.6.164 STRB (imm), T2 encoding (pg 4.341)
     out_inst.type = inst_type::STORE_BYTE_IMM;
     out_inst.i.store_byte_imm = { .imm = u16(w1 & 0xFFFu), .t = u8((w1 >> 12u) & 0xFu),
-      .n = u8(w0 & 0xFu), .add = 1u, .index = 1u };
+      .n = u8(w0 & 0xFu), .index = 1u, .add = 1u };
     return true;
   }
 
@@ -1872,12 +1872,11 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
     u8 const puw{u8((w1 >> 8u) & 7u)};
     if (puw == 0b110) {
       out_inst.type = inst_type::STORE_BYTE_UNPRIV;
-      out_inst.i.store_byte_unpriv = {
-        .t = u8((w1 >> 12u) & 0xFu), .n = u8(w0 & 0xFu) };
+      out_inst.i.store_byte_unpriv = { .t = u8((w1 >> 12u) & 0xFu), .n = u8(w0 & 0xFu) };
     } else {
       out_inst.type = inst_type::STORE_BYTE_IMM;
       out_inst.i.store_byte_imm = {
-        .t = u8((w1 >> 12u) & 0xFu), .n = u8(w0 & 0xFu), .add = u8((puw >> 1u) & 1u) };
+        .n = u8(w0 & 0xFu), .t = u8((w1 >> 12u) & 0xFu), .add = u8((puw >> 1u) & 1u) };
     }
     return true;
   }
@@ -1885,9 +1884,9 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
   // 4.6.165 STRB (reg), T2 encoding (pg 4-343)
   if (((w0 & 0xFFF0u) == 0xF800u) && ((w1 & 0xFC0u) == 0)) {
     out_inst.type = inst_type::STORE_BYTE_REG;
-    out_inst.i.store_byte_reg = { .n = u8(w0 & 0xFu), .m = u8(w1 & 0xFu),
-      .t = u8((w1 >> 12u) & 0xFu),
-      .shift = decode_imm_shift(u8(imm_shift_type::LSL), u8((w1 >> 4u) & 3u))};
+    out_inst.i.store_byte_reg = {
+      .shift = decode_imm_shift(u8(imm_shift_type::LSL), u8((w1 >> 4u) & 3u)),
+      .t = u8((w1 >> 12u) & 0xFu), .m = u8(w1 & 0xFu), .n = u8(w0 & 0xFu) };
     return true;
   }
 
@@ -1895,8 +1894,8 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
     u8 const p{u8((w0 >> 8u) & 1u)}, w{u8((w0 >> 5u) & 1u)};
     if ((p == 0) && (w == 0)) {  // 4.6.168 STREX, T1 encoding (pg 4-349)
       out_inst.type = inst_type::STORE_EXCL;
-      out_inst.i.store_excl = { .imm = u16((w1 & 0xFFu) << 2u), .n = u8(w0 & 0xFu),
-        .t = u8((w1 >> 12u) & 0xFu), .d = u8((w1 >> 8u) & 0xFu) };
+      out_inst.i.store_excl = { .imm = u16((w1 & 0xFFu) << 2u), .d = u8((w1 >> 8u) & 0xFu),
+        .t = u8((w1 >> 12u) & 0xFu), .n = u8(w0 & 0xFu) };
       return true;
     }
     out_inst.type = inst_type::STORE_DOUBLE_IMM;
