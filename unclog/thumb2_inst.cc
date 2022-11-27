@@ -393,7 +393,7 @@ void print(inst_store_imm const& s) {
   NL_LOG_DBG("STR_IMM %s, [%s, #%d]", s_rn[s.t], s_rn[s.n], int(s.imm));
 }
 
-void print(inst_store_mult_dec_bef const& s) {
+void print(inst_store_mult_dec_before const& s) {
   NL_LOG_DBG("STMDB %s!, { ", s_rn[s.n]);
   for (int i = 0; i < 16; ++i) { if (s.regs & (1 << i)) { NL_LOG_DBG("%s ", s_rn[i]); } }
   NL_LOG_DBG("}");
@@ -1000,8 +1000,8 @@ bool decode_16bit_inst(u16 const w0, inst& out_inst) {
 
   if ((w0 & 0xF800u) == 0x6000u) { // 4.6.162 STR (imm), T1 encoding (pg 4-337)
     out_inst.type = inst_type::STORE_IMM;
-    out_inst.i.store_imm = { .t = u8(w0 & 7u), .n = u8((w0 >> 3u) & 7u),
-      .imm = u16(((w0 >> 6u) & 0x1Fu) << 2u) };
+    out_inst.i.store_imm = { .imm = u16(((w0 >> 6u) & 0x1Fu) << 2u), .t = u8(w0 & 7u),
+      .n = u8((w0 >> 3u) & 7u) };
     return true;
   }
 
@@ -1021,8 +1021,8 @@ bool decode_16bit_inst(u16 const w0, inst& out_inst) {
 
   if ((w0 & 0xF800u) == 0x7000u) { // 4.6.164 STRB (imm), T1 encoding (pg 4-341)
     out_inst.type = inst_type::STORE_BYTE_IMM;
-    out_inst.i.store_byte_imm = { .imm = u16((w0 >> 6u) & 0x1Fu), .t = u8(w0 & 7u),
-      .n = u8((w0 >> 3u) & 7u) };
+    out_inst.i.store_byte_imm = { .imm = u16((w0 >> 6u) & 0x1Fu), .n = u8((w0 >> 3u) & 7u),
+      .t = u8(w0 & 7u) };
     return true;
   }
 
@@ -1070,7 +1070,7 @@ bool decode_16bit_inst(u16 const w0, inst& out_inst) {
 
   if ((w0 & 0xFF80u) == 0xB080u) { // 4.6.178 SUB (SP - imm), T1 encoding (pg 4-369)
     out_inst.type = inst_type::SUB_SP_IMM;
-    out_inst.i.sub_sp_imm = { .d = u8(13u), .imm = (w0 & 0x7Fu) << 2u };
+    out_inst.i.sub_sp_imm = { .imm = (w0 & 0x7Fu) << 2u, .d = u8(13u) };
     return true;
   }
 
@@ -1322,8 +1322,8 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
 
   if ((w0 & 0xFFD0u) == 0xE910u) {
     out_inst.type = inst_type::LOAD_MULT_DEC_BEFORE;
-    out_inst.i.load_mult_dec_before = { .n = u8(w0 & 0xFu), .wback = u8((w0 >> 5u) & 1u),
-      .regs = u16(w1 & 0xDFFu) };
+    out_inst.i.load_mult_dec_before = { .regs = u16(w1 & 0xDFFu), .n = u8(w0 & 0xFu),
+      .wback = u8((w0 >> 5u) & 1u) };
     return true;
   }
 
@@ -1825,8 +1825,8 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
   }
 
   if ((w0 & 0xFFD0u) == 0xE900u) { // 4.6.160 STMDB, T1 encoding (pg 4-333)
-    out_inst.type = inst_type::STORE_MULT_DEC_BEF;
-    out_inst.i.store_mult_dec_bef = { .n = u8(w0 & 0xFu), .regs = u16(w1 & 0x5FFFu) };
+    out_inst.type = inst_type::STORE_MULT_DEC_BEFORE;
+    out_inst.i.store_mult_dec_before = { .regs = u16(w1 & 0x5FFFu), .n = u8(w0 & 0xFu) };
     return true;
   }
 
