@@ -956,8 +956,8 @@ bool decode_16bit_inst(u16 const w0, inst& out_inst) {
 
   if ((w0 & 0xFFC0) == 0x4300) { // 4.6.92 ORR (reg), T1 encoding (pg 4-197)
     out_inst.type = inst_type::OR_REG;
-    out_inst.i.or_reg = { .d = u8(w0 & 7u), .n = u8(w0 & 7u), .m = u8((w0 >> 3u) & 7u),
-      .shift = decode_imm_shift(0b00, 0) };
+    out_inst.i.or_reg = { .shift = decode_imm_shift(0b00, 0), .d = u8(w0 & 7u),
+      .n = u8(w0 & 7u), .m = u8((w0 >> 3u) & 7u) };
     return true;
   }
 
@@ -993,7 +993,7 @@ bool decode_16bit_inst(u16 const w0, inst& out_inst) {
 
   if ((w0 & 0xF800u) == 0xC000u) { // 4.6.161 STMIA, T1 encoding (pg 4-335)
     out_inst.type = inst_type::STORE_MULT_INC_AFTER;
-    out_inst.i.store_mult_inc_after = { .n = u8((w0 >> 8u) & 7u), .regs = u8(w0 & 0xFFu),
+    out_inst.i.store_mult_inc_after = { .regs = u8(w0 & 0xFFu), .n = u8((w0 >> 8u) & 7u),
       .wback = 1u };
     return true;
   }
@@ -1007,8 +1007,8 @@ bool decode_16bit_inst(u16 const w0, inst& out_inst) {
 
   if ((w0 & 0xF800u) == 0x9000u) { // 4.6.162 STR (imm), T2 encoding (pg 4-337)
     out_inst.type = inst_type::STORE_IMM;
-    out_inst.i.store_imm = { .n = reg::SP, .t = u8((w0 >> 8u) & 7u),
-      .imm = u16((w0 & 0xFFu) << 2u) };
+    out_inst.i.store_imm = { .imm = u16((w0 & 0xFFu) << 2u), .t = u8((w0 >> 8u) & 7u),
+      .n = reg::SP };
     return true;
   }
 
@@ -1029,7 +1029,7 @@ bool decode_16bit_inst(u16 const w0, inst& out_inst) {
   if ((w0 & 0xFE00u) == 0x5400u) {  // 4.6.165 STRB (reg), T1 encoding (pg 4-343)
     out_inst.type = inst_type::STORE_BYTE_REG;
     out_inst.i.store_byte_reg = { .shift = decode_imm_shift(0b00, 0), .t = u8(w0 & 7u),
-      .n = u8((w0 >> 3u) & 7u), .m = u8((w0 >> 6u) & 7u) };
+      .m = u8((w0 >> 6u) & 7u), .n = u8((w0 >> 3u) & 7u) };
     return true;
   }
 
@@ -1141,11 +1141,11 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
       n{u8(w0 & 0xFu)};
     if ((s == 1) && (d == 15)) { // 4.6.27 CMN (imm), T1 encoding (pg 4-68)
       out_inst.type = inst_type::CMP_NEG_IMM;
-      out_inst.i.cmp_neg_imm = { .n = n, .imm = imm };
+      out_inst.i.cmp_neg_imm = { .imm = imm, .n = n };
       return true;
     }
     out_inst.type = inst_type::ADD_IMM;
-    out_inst.i.add_imm = { .n = n, .d = d, .imm = imm };
+    out_inst.i.add_imm = { .imm = imm, .d = d, .n = n };
     return true;
   }
 
@@ -1159,11 +1159,11 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
     }
     if (n == 13) { // 4.6.5 ADD (SP plus imm), T4 encoding (pg 4-24)
       out_inst.type = inst_type::ADD_SP_IMM;
-      out_inst.i.add_sp_imm = { .d = d, .imm = u16(imm) };
+      out_inst.i.add_sp_imm = { .imm = u16(imm), .d = d };
       return true;
     }
     out_inst.type = inst_type::ADD_IMM;
-    out_inst.i.add_imm = { .n = n, .d = d, .imm = u16(imm) };
+    out_inst.i.add_imm = { .imm = u16(imm), .d = d, .n = n };
     return true;
   }
 
@@ -1176,7 +1176,7 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
     }
     if (n == u8(reg::SP)) { // ADD (SP + reg), T3 encoding (pg 4-26)
       out_inst.type = inst_type::ADD_SP_REG;
-      out_inst.i.add_sp_reg = { .m = m, .d = d, .shift = decode_imm_shift(type, si) };
+      out_inst.i.add_sp_reg = { .shift = decode_imm_shift(type, si), .d = d, .m = m };
       return true;
     }
     out_inst.type = inst_type::ADD_REG;
@@ -1188,8 +1188,8 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
   if (((w0 & 0xFBE0u) == 0xF000u) && ((w1 & 0x8000u) == 0)) {
     u32 const imm8{w1 & 0xFFu}, imm3{(w1 >> 12u) & 7u}, i{(w0 >> 10u) & 1u};
     out_inst.type = inst_type::AND_IMM;
-    out_inst.i.and_imm = { .d = u8((w1 >> 8u) & 0xFu), .n = u8(w0 & 0xFu),
-      .imm = decode_imm12((i << 11u) | (imm3 << 8u) | imm8) };
+    out_inst.i.and_imm = { .imm = decode_imm12((i << 11u) | (imm3 << 8u) | imm8),
+      .d = u8((w1 >> 8u) & 0xFu), .n = u8(w0 & 0xFu) };
     return true;
   }
 

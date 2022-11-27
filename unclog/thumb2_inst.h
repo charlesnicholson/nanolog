@@ -132,7 +132,7 @@ struct imm_shift { imm_shift_type t; u8 n; };
   X(STORE_EXCL, store_excl, { u16 imm; u8 d, t, n; }) \
   X(STORE_HALF_IMM, store_half_imm, { u16 imm; u8 t, n, index, add; }) \
   X(STORE_HALF_REG, store_half_reg, { imm_shift shift; u8 t, n, m; }) \
-  X(STORE_IMM, store_imm, { u8 t, n; u16 imm; }) \
+  X(STORE_IMM, store_imm, { u16 imm; u8 t, n; }) \
   X(STORE_MULT_DEC_BEF, store_mult_dec_bef, { u16 regs; u8 n; }) \
   X(STORE_MULT_INC_AFTER, store_mult_inc_after, { u16 regs; u8 n, wback; }) \
   X(STORE_REG, store_reg, { imm_shift shift; u8 t, n, m; }) \
