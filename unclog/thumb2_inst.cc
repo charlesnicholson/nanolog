@@ -1899,9 +1899,9 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
       return true;
     }
     out_inst.type = inst_type::STORE_DOUBLE_IMM;
-    out_inst.i.store_double_imm = { .imm = u16((w1 & 0xFFu) << 2u), .n = u8(w0 & 0xFu),
-      .t = u8((w1 >> 12u) & 0xFu), .t2 = u8((w1 >> 8u) & 0xFu), .add = u8((w0 >> 7u) & 1u),
-      .index = p };
+    out_inst.i.store_double_imm = { .imm = u16((w1 & 0xFFu) << 2u),
+      .t = u8((w1 >> 12u) & 0xFu), .t2 = u8((w1 >> 8u) & 0xFu),
+      .n = u8(w0 & 0xFu), .add = u8((w0 >> 7u) & 1u), .index = p };
     return true;
   }
 
@@ -2045,8 +2045,8 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
   // 4.6.206 UMLAL, T1 encoding (pg 4-425)
   if (((w0 & 0xFFF0u) == 0xFBE0u) && ((w1 & 0xF0u) == 0)) {
     out_inst.type = inst_type::MUL_ACCUM_UNSIGNED_LONG;
-    out_inst.i.mul_accum_unsigned_long = { .m = u8(w1 & 0xFu), .n = u8(w0 & 0xFu),
-      .dlo = u8((w1 >> 12u) & 0xFu), .dhi = u8((w1 >> 8u) & 0xFu)};
+    out_inst.i.mul_accum_unsigned_long = { .dlo = u8((w1 >> 12u) & 0xFu),
+      .dhi = u8((w1 >> 8u) & 0xFu), .n = u8(w0 & 0xFu), .m = u8(w1 & 0xFu) };
     return true;
   }
 
@@ -2214,8 +2214,8 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
   // A7.7.240 VMOV (ARM core reg and single-precision reg), T1 encoding (pg A7-531)
   if (((w0 & 0xFFE0u) == 0xEE00u) && ((w1 & 0xF10u) == 0xA10u)) {
     out_inst.type = inst_type::VMOV_REG_SINGLE;
-    out_inst.i.vmov_reg_single = { .to_arm_reg = u8((w0 >> 4u) & 1u),
-      .t = u8((w1 >> 12u) & 0xFu), .n = u8(((w0 & 0xFu) << 1u) | ((w1 >> 7u) & 1u)) };
+    out_inst.i.vmov_reg_single = { .t = u8((w1 >> 12u) & 0xFu),
+      .n = u8(((w0 & 0xFu) << 1u) | ((w1 >> 7u) & 1u)), .to_arm_reg = u8((w0 >> 4u) & 1u) };
     return true;
   }
 
@@ -2224,8 +2224,8 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
     u8 const D{u8((w0 >> 6u) & 1u)}, N{u8((w1 >> 7u) & 1u)}, M{u8((w1 >> 5u) & 1u)},
       vd{u8((w1 >> 12u) & 0xFu)}, vm{u8(w1 & 0xFu)}, vn{u8(w0 & 0xFu)};
     out_inst.type = inst_type::VMUL;
-    out_inst.i.vmul = { .n = u8((vn << 1u) | N), .m = u8((vm << 1u) | M),
-      .d = u8((vd << 1u) | D) };
+    out_inst.i.vmul = { .d = u8((vd << 1u) | D), .n = u8((vn << 1u) | N),
+      .m = u8((vm << 1u) | M) };
     return true;
   }
 
@@ -2243,8 +2243,8 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
     u8 const vd{u8((w1 >> 12u) & 0xFu)}, D{u8((w0 >> 6u) & 1u)};
     u16 const imm8{u16(w1 & 0xFFu)};
     out_inst.type = inst_type::VPOP;
-    out_inst.i.vpop = { .single_regs = 0, .regs = u8(imm8 / 2), .imm = u16(imm8 << 2u),
-      .d = u8((D << 4u) | vd) };
+    out_inst.i.vpop = { .imm = u16(imm8 << 2u), .d = u8((D << 4u) | vd),
+      .single_regs = 0, .regs = u8(imm8 / 2) };
     return true;
   }
 
@@ -2253,8 +2253,8 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
     u8 const vd{u8((w1 >> 12u) & 0xFu)}, D{u8((w0 >> 6u) & 1u)};
     u16 const imm8{u16(w1 & 0xFFu)};
     out_inst.type = inst_type::VPUSH;
-    out_inst.i.vpush = { .single_regs = 0, .regs = u8(imm8 / 2), .imm = u16(imm8 << 2u),
-      .d = u8((D << 4u) | vd) };
+    out_inst.i.vpush = { .imm = u16(imm8 << 2u), .d = u8((D << 4u) | vd),
+      .single_regs = 0, .regs = u8(imm8 / 2) };
     return true;
   }
 
@@ -2263,7 +2263,7 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
     u8 const vm{u8(w1 & 0xFu)}, vd{u8((w1 >> 12u) & 0xFu)}, M{u8((w1 >> 5u) & 1u)},
       D{u8((w0 >> 6u) & 1u)};
     out_inst.type = inst_type::VSQRT;
-    out_inst.i.vsqrt = { .m = u8((vm << 1u) | M), .d = u8((vd << 1u) | D) };
+    out_inst.i.vsqrt = { .d = u8((vd << 1u) | D), .m = u8((vm << 1u) | M) };
     return true;
   }
 
