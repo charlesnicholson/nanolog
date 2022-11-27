@@ -165,18 +165,7 @@ void print(inst_cmp_reg const& c) {
 
 void print(inst_if_then const& i) {
   static char const *s_it[] = {
-    "???", // 0000
-    "EEE", // 0001
-    "EE",  // 0010
-    "EET", // 0011
-    "",    // 1000
-    "TEE", // 1001
-    "TE",  // 1010
-    "TET", // 1011
-    "T",   // 1100
-    "TTE", // 1101
-    "TT",  // 1110
-    "TTT", // 1111
+    "???", "EEE", "EE", "EET", "", "TEE", "TE", "TET", "T", "TTE", "TT", "TTT"
   };
 
   NL_LOG_DBG("IT%s %s", s_it[i.mask], cond_code_name(cond_code(i.firstcond)));
