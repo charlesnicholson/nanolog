@@ -681,7 +681,7 @@ bool decode_16bit_inst(u16 const w0, inst& out_inst) {
 
   if ((w0 & 0xFF80u) == 0xB000u) { // 4.6.5 ADD (SP + imm), T1 encoding (pg 4-24)
     out_inst.type = inst_type::ADD_SP_IMM;
-    out_inst.i.add_sp_imm = { .d = u8(reg::SP), .imm = u16((w0 & 0x7Fu) << 2u) };
+    out_inst.i.add_sp_imm = { .imm = u16((w0 & 0x7Fu) << 2u), .d = u8(reg::SP) };
     return true;
   }
 
@@ -789,8 +789,8 @@ bool decode_16bit_inst(u16 const w0, inst& out_inst) {
 
   if ((w0 & 0xFF00u) == 0x4500u) { // 4.6.30 CMP (reg), T2 encoding (pg 4-74)
     out_inst.type = inst_type::CMP_REG;
-    out_inst.i.cmp_reg = { .n = u8((w0 & 7u) | ((w0 >> 4u) & 8u)),
-      .m = u8((w0 >> 3u) & 0xFu), .shift = decode_imm_shift(0b00, 0) };
+    out_inst.i.cmp_reg = { .shift = decode_imm_shift(0b00, 0),
+      .n = u8((w0 & 7u) | ((w0 >> 4u) & 8u)), .m = u8((w0 >> 3u) & 0xFu) };
     return true;
   }
 
@@ -798,15 +798,15 @@ bool decode_16bit_inst(u16 const w0, inst& out_inst) {
     u8 const im{u8((w0 >> 4u) & 1u)};
     out_inst.type = inst_type::CHANGE_PROC_STATE;
     out_inst.i.change_proc_state = { .en = (im == 0), .dis = (im == 1), .cm = 0,
-      .aff_a = u8((w0 >> 2u) & 1u), .aff_f = u8(w0 & 1u), .aff_i = u8((w0 >> 1u) & 1u) };
+      .aff_a = u8((w0 >> 2u) & 1u), .aff_i = u8((w0 >> 1u) & 1u), .aff_f = u8(w0 & 1u) };
     return true;
   }
 
   if ((w0 & 0xFFC0u) == 0x4040u) { // 4.6.37 EOR (reg), T1 encoding (pg 4-88)
     u8 const rdn{u8(w0 & 7u)};
     out_inst.type = inst_type::EXCL_OR_REG;
-    out_inst.i.excl_or_reg = { .d = rdn, .n = rdn, .m = u8((w0 >> 3u) & 7u),
-      .shift = decode_imm_shift(0b00, 0) };
+    out_inst.i.excl_or_reg = { .shift = decode_imm_shift(0b00, 0), .d = rdn, .n = rdn,
+      .m = u8((w0 >> 3u) & 7u) };
     return true;
   }
 
@@ -827,14 +827,14 @@ bool decode_16bit_inst(u16 const w0, inst& out_inst) {
     u16 const regs{u16(w0 & 0xFFu)};
     u8 const n{u8((w0 >> 8u) & 7u)};
     out_inst.type = inst_type::LOAD_MULT_INC_AFTER;
-    out_inst.i.load_mult_inc_after = { .n = n, .regs = regs, .wback = !(regs & (1u << n)) };
+    out_inst.i.load_mult_inc_after = { .regs = regs, .n = n, .wback = !(regs & (1u << n)) };
     return true;
   }
 
   if ((w0 & 0xF800u) == 0x6800u) { // 4.6.43 LDR (imm), T1 encoding (pg 4-100)
     out_inst.type = inst_type::LOAD_IMM;
-    out_inst.i.load_imm = { .imm = u16(((w0 >> 6u) & 0x1Fu) << 2u), .add = 1u,
-      .t = u8(w0 & 7u), .n = u8((w0 >> 3u) & 7u), .index = 1u };
+    out_inst.i.load_imm = { .imm = u16(((w0 >> 6u) & 0x1Fu) << 2u),
+      .n = u8((w0 >> 3u) & 7u), .t = u8(w0 & 7u), .add = 1u, .index = 1u };
     return true;
   }
 
@@ -855,8 +855,8 @@ bool decode_16bit_inst(u16 const w0, inst& out_inst) {
 
   if ((w0 & 0xFE00u) == 0x5800u) { // 4.6.45 LDR (register), T1 encoding (pg 4-104)
     out_inst.type = inst_type::LOAD_REG;
-    out_inst.i.load_reg = { .t = u8(w0 & 7u), .n = u8((w0 >> 3u) & 7u),
-      .m = u8((w0 >> 6u) & 7u), .shift = decode_imm_shift(0b00, 0) };
+    out_inst.i.load_reg = { .shift = decode_imm_shift(0b00, 0), .t = u8(w0 & 7u),
+      .n = u8((w0 >> 3u) & 7u), .m = u8((w0 >> 6u) & 7u) };
     return true;
   }
 
