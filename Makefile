@@ -1,5 +1,6 @@
 BUILD_DIR := build
 OS := $(shell uname)
+COMPILER_VERSION := $(shell $(CXX) --version)
 
 UNCLOG_SRCS := unclog/unclog.cc \
 			   unclog/args.cc \
@@ -19,17 +20,10 @@ CXXFLAGS = --std=c++20
 
 CPPFLAGS += -MMD -MP -g
 CPPFLAGS += -Os -flto
-#CPPFLAGS += -O0
 CPPFLAGS += -Werror -Wall -Wextra
 
-ifeq ($(OS),Darwin)
-CPPFLAGS += -Weverything
-endif
-
-CPPFLAGS += -Wno-padded
-
-ifeq ($(OS),Darwin)
-CPPFLAGS += -Wno-poison-system-directories -Wno-format-pedantic
+ifneq '' '$(findstring clang,$(COMPILER_VERSION))'
+CPPFLAGS += -Weverything -Wno-poison-system-directories -Wno-format-pedantic
 CXXFLAGS += -Wno-c++98-compat-pedantic \
 			-Wno-gnu-zero-variadic-macro-arguments \
 			-Wno-missing-prototypes \
@@ -39,7 +33,11 @@ CXXFLAGS += -Wno-c++98-compat-pedantic \
 			-Wno-cast-align \
 			-Wno-unused-function \
 			-Wno-c++98-compat
+else
+CPPFLAGS += -Wconversion
 endif
+
+CPPFLAGS += -Wno-padded
 
 LDFLAGS = -flto
 
