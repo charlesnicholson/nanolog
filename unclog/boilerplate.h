@@ -23,8 +23,21 @@ using u32_set = std::unordered_set<u32>;
 using u32_vec = std::vector<u32>;
 
 using byte = unsigned char;
+
+namespace detail {
+struct aligned_deleter {
+  void operator()(byte *b) {
+#ifdef _MSC_VER
+    _aligned_free(b);
+#else
+    free(b);
+#endif
+  }
+};
+}
+
 using byte_vec = std::vector<byte>;
-using bytes_ptr = std::unique_ptr<byte[]>;
+using bytes_ptr = std::unique_ptr<byte[], detail::aligned_deleter>;
 using file_ptr = std::unique_ptr<FILE, decltype(&fclose)>;
 
 inline file_ptr open_file(char const *fn, char const *mode) {
@@ -32,6 +45,13 @@ inline file_ptr open_file(char const *fn, char const *mode) {
   return file_ptr{std::fopen(fn, mode), file_ptr_close};
 }
 
-inline bytes_ptr alloc_bytes(size_t align, size_t len) {
-  return bytes_ptr{static_cast<byte *>(std::aligned_alloc(align, len))};
+inline bytes_ptr alloc_bytes(unsigned align, unsigned len) {
+  void *mem;
+#ifdef _MSC_VER
+  mem = _aligned_malloc(len, align);
+#else
+  if (posix_memalign(&mem, align, len)) { mem = nullptr; }
+#endif
+  return bytes_ptr{static_cast<byte *>(mem)};
 }
+
