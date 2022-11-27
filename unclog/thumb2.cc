@@ -15,11 +15,11 @@ struct reg_state {
   u16 cmp_imm_present = 0;
 };
 
-void print(reg_state const& rs) {
-  for (auto i = 0u; i < 16; ++i) {
-    NL_LOG_DBG("R%u %u %x\n", unsigned(i), unsigned((rs.known >> i) & 1), rs.regs[i]);
-  }
-}
+//void print(reg_state const& rs) {
+//  for (auto i = 0u; i < 16; ++i) {
+//    NL_LOG_DBG("R%u %u %x\n", unsigned(i), unsigned((rs.known >> i) & 1), rs.regs[i]);
+//  }
+//}
 
 struct path_state {
   reg_state rs;
