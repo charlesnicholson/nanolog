@@ -7,10 +7,7 @@ A: Maybe? Put the format strings in their own section, simulate instruction flow
 
 Don't use this yet. Maybe don't use this ever. It's really just an experiment. Wouldn't it be cool, though?
 
-Build with
-```
-NANOLOG_VERBOSE=1 make -j
-```
+Build with `make -j` or `make-win.bat`.
 
 If you get the runtime error "Ran off the end", it might mean you need to tell unclog about a function of yours that doesn't return: `--noreturn-func your_function`.
 
