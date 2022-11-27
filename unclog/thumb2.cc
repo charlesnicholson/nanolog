@@ -352,7 +352,7 @@ simulate_results simulate(inst const& i,
     case inst_type::MOV_IMM:
       path.rs.regs[i.i.mov_imm.d] = i.i.mov_imm.imm;
       mark_reg_known(path.rs.known, i.i.mov_imm.d);
-      reg_muts.push_back(reg_mut_node(i));
+      reg_muts.emplace_back(reg_mut_node(i));
       path.rs.mut_node_idxs[i.i.mov_imm.d] = u16(reg_muts.size() - 1u);
       break;
 
@@ -360,7 +360,7 @@ simulate_results simulate(inst const& i,
       auto const& mvn{i.i.mov_neg_imm};
       path.rs.regs[mvn.d] = ~u32(mvn.imm);
       mark_reg_known(path.rs.known, mvn.d);
-      reg_muts.push_back(reg_mut_node(i));
+      reg_muts.emplace_back(reg_mut_node(i));
       path.rs.mut_node_idxs[mvn.d] = u16(reg_muts.size() - 1u);
     } break;
 
@@ -368,7 +368,7 @@ simulate_results simulate(inst const& i,
       auto const& mov{i.i.mov_reg};
       path.rs.regs[mov.d] = path.rs.regs[mov.m];
       copy_reg_known(path.rs.known, mov.d, mov.m);
-      reg_muts.push_back(reg_mut_node(i, path.rs.mut_node_idxs[mov.m]));
+      reg_muts.emplace_back(reg_mut_node(i, path.rs.mut_node_idxs[mov.m]));
       path.rs.mut_node_idxs[mov.d] = u16(reg_muts.size() - 1u);
     } break;
 
@@ -380,7 +380,7 @@ simulate_results simulate(inst const& i,
       auto const& sub{i.i.sub_imm};
       path.rs.regs[sub.d] = path.rs.regs[sub.n] - sub.imm;
       copy_reg_known(path.rs.known, sub.d, sub.n);
-      reg_muts.push_back(reg_mut_node(i, path.rs.mut_node_idxs[sub.n]));
+      reg_muts.emplace_back(reg_mut_node(i, path.rs.mut_node_idxs[sub.n]));
       path.rs.mut_node_idxs[sub.d] = u16(reg_muts.size() - 1u);
     } break;
 
