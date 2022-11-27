@@ -840,16 +840,16 @@ bool decode_16bit_inst(u16 const w0, inst& out_inst) {
 
   if ((w0 & 0xF800u) == 0x9800u) { // 4.6.43 LDR (imm), T2 encoding (pg 4-100)
     out_inst.type = inst_type::LOAD_IMM;
-    out_inst.i.load_imm = { .n = 13u, .index = 1u, .add = 1u, .t = u8((w0 >> 8u) & 7u),
-      .imm = u16((w0 & 0xFFu) << 2u) };
+    out_inst.i.load_imm = { .imm = u16((w0 & 0xFFu) << 2u), .n = 13u,
+      .t = u8((w0 >> 8u) & 7u), .add = 1u, .index = 1u };
     return true;
   }
 
   if ((w0 & 0xF800u) == 0x4800u) { // 4.6.44 LDR (literal), T1 encoding (pg 4-102)
     u16 const imm{u16((w0 & 0xFFu) << 2u)};
     out_inst.type = inst_type::LOAD_LIT;
-    out_inst.i.load_lit = { .imm = imm, .t = u8((w0 >> 8u) & 7u), .add = 1,
-      .addr = u32(inst_align(out_inst.addr, 4) + imm + 4) };
+    out_inst.i.load_lit = { .imm = imm, .addr = u32(inst_align(out_inst.addr, 4) + imm + 4),
+      .t = u8((w0 >> 8u) & 7u), .add = 1u };
     return true;
   }
 
@@ -876,8 +876,8 @@ bool decode_16bit_inst(u16 const w0, inst& out_inst) {
 
   if ((w0 & 0xF800u) == 0x8800u) { // 4.6.55 LDRH (imm), T1 encoding (pg 4-124)
     out_inst.type = inst_type::LOAD_HALF_IMM;
-    out_inst.i.load_half_imm = { .imm = (u8)(((w0 >> 6u) & 0x1Fu) << 1u), .add = 1u,
-      .t = u8(w0 & 7u), .n = u8((w0 >> 3u) & 7u), .index = 1u };
+    out_inst.i.load_half_imm = { .imm = (u8)(((w0 >> 6u) & 0x1Fu) << 1u), .t = u8(w0 & 7u),
+      .n = u8((w0 >> 3u) & 7u), .add = 1u, .index = 1u };
     return true;
   }
 
@@ -890,8 +890,8 @@ bool decode_16bit_inst(u16 const w0, inst& out_inst) {
 
   if ((w0 & 0xFE00u) == 0x5600u) { // 4.6.61 LDRSB (reg), T1 encoding (pg 4-136)
     out_inst.type = inst_type::LOAD_SIGNED_BYTE_REG;
-    out_inst.i.load_signed_byte_reg = { .t = u8(w0 & 7u), .n = u8((w0 >> 3u) & 7u),
-      .m = u8((w0 >> 6u) & 7u), .shift = decode_imm_shift(0b00, 0) };
+    out_inst.i.load_signed_byte_reg = { .shift = decode_imm_shift(0b00, 0),
+      .t = u8(w0 & 7u), .n = u8((w0 >> 3u) & 7u), .m = u8((w0 >> 6u) & 7u) };
     return true;
   }
 
@@ -911,8 +911,8 @@ bool decode_16bit_inst(u16 const w0, inst& out_inst) {
 
   if ((w0 & 0xF800u) == 0x800u) { // 4.6.70 LSR (imm), T1 encoding (pg 4-154)
     out_inst.type = inst_type::RSHIFT_LOG_IMM;
-    out_inst.i.rshift_log_imm = { .d = u8(w0 & 7u), .m = u8((w0 >> 3u) & 7u),
-      .shift = decode_imm_shift(0b01, u8((w0 >> 6u) & 0x1Fu)) };
+    out_inst.i.rshift_log_imm = { .shift = decode_imm_shift(0b01, u8((w0 >> 6u) & 0x1Fu)),
+      .d = u8(w0 & 7u), .m = u8((w0 >> 3u) & 7u) };
     return true;
   }
 
@@ -931,8 +931,8 @@ bool decode_16bit_inst(u16 const w0, inst& out_inst) {
 
   if ((w0 & 0xFF00u) == 0x4600u) { // 4.6.77 MOV (reg), T1 encoding (pg 4-168)
     out_inst.type = inst_type::MOV_REG;
-    out_inst.i.mov_reg = { .m = u8((w0 >> 3u) & 0xFu),
-      .d = u8((w0 & 7u) | ((w0 & 0x80u) >> 4u)) };
+    out_inst.i.mov_reg = { .d = u8((w0 & 7u) | ((w0 & 0x80u) >> 4u)),
+      .m = u8((w0 >> 3u) & 0xFu) };
     return true;
   }
 
@@ -944,8 +944,8 @@ bool decode_16bit_inst(u16 const w0, inst& out_inst) {
 
   if ((w0 & 0xFFC0u) == 0x43C0u) { // 4.6.86 MVN (reg), T1 encoding (pg 4-185)
     out_inst.type = inst_type::MOV_NEG_REG;
-    out_inst.i.mov_neg_reg = { .d = u8(w0 & 7u), .m = u8((w0 >> 3u) & 7u),
-      .shift = decode_imm_shift(0b00, 0) };
+    out_inst.i.mov_neg_reg = { .shift = decode_imm_shift(0b00, 0), .d = u8(w0 & 7u),
+      .m = u8((w0 >> 3u) & 7u) };
     return true;
   }
 
@@ -1180,7 +1180,7 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
       return true;
     }
     out_inst.type = inst_type::ADD_REG;
-    out_inst.i.add_reg = { .m = m, .n = n, .d = d, .shift = decode_imm_shift(type, si) };
+    out_inst.i.add_reg = { .shift = decode_imm_shift(type, si), .d = d, .n = n, .m = m };
     return true;
   }
 
@@ -1507,7 +1507,7 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
       return false;
     }
     out_inst.type = inst_type::LOAD_SIGNED_BYTE_IMM;
-    out_inst.i.load_signed_byte_imm = { .index = p, .add = u, .t = t, .n = n, .imm = imm };
+    out_inst.i.load_signed_byte_imm = { .imm = imm, .t = t, .n = n, .index = p, .add = u };
     return true;
   }
 
