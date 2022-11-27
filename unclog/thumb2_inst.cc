@@ -634,15 +634,15 @@ bool decode_16bit_inst(u16 const w0, inst& out_inst) {
 
   if ((w0 & 0xFFC0u) == 0x4140u) { // 4.6.2 ADC (reg), T1 encoding (pg 4-18)
     out_inst.type = inst_type::ADD_CARRY_REG;
-    out_inst.i.add_carry_reg = { .d = u8(w0 & 7u), .n = u8(w0 & 7u),
-      .m = u8((w0 >> 3u) & 7u), .shift = decode_imm_shift(0b00, 0) };
+    out_inst.i.add_carry_reg = { .shift = decode_imm_shift(0b00, 0),
+      .d = u8(w0 & 7u), .n = u8(w0 & 7u), .m = u8((w0 >> 3u) & 7u),  };
     return true;
   }
 
   if ((w0 & 0xFE00u) == 0x1C00u) { // 4.6.3 ADD (imm), T1 encoding (pg 4-20)
     out_inst.type = inst_type::ADD_IMM;
-    out_inst.i.add_imm = { .d = u8(w0 & 7u), .n = u8((w0 >> 3u) & 7u),
-      .imm = u16((w0 >> 6u) & 7u) };
+    out_inst.i.add_imm = { .imm = u16((w0 >> 6u) & 7u), .d = u8(w0 & 7u),
+      .n = u8((w0 >> 3u) & 7u) };
     return true;
   }
 
@@ -658,7 +658,7 @@ bool decode_16bit_inst(u16 const w0, inst& out_inst) {
       m{u8((w0 >> 3u) & 7u)};
     if ((d == 13) || (m == 13)) { // 4.6.6 ADD (SP plus reg), T2 encoding (pg 4-26)
       out_inst.type = inst_type::ADD_SP_IMM;
-      out_inst.i.add_sp_imm = { .d = d, .imm = d };
+      out_inst.i.add_sp_imm = { .imm = d, .d = d };
       return true;
     }
     out_inst.type = inst_type::ADD_REG;
@@ -700,8 +700,8 @@ bool decode_16bit_inst(u16 const w0, inst& out_inst) {
 
   if ((w0 & 0xF800) == 0x1000u) { // 4.6.10 ASR (imm), T1 encoding (pg 4-34)
     out_inst.type = inst_type::RSHIFT_ARITH_IMM;
-    out_inst.i.rshift_arith_imm = { .d = u8(w0 & 7u), .m = u8((w0 >> 3u) & 7u),
-      .shift = decode_imm_shift(0b10, (w0 >> 6u) & 0x1Fu) };
+    out_inst.i.rshift_arith_imm = { .shift = decode_imm_shift(0b10, (w0 >> 6u) & 0x1Fu),
+      .d = u8(w0 & 7u), .m = u8((w0 >> 3u) & 7u) };
     return true;
   }
 
@@ -718,8 +718,8 @@ bool decode_16bit_inst(u16 const w0, inst& out_inst) {
     if (u8(cc) == 0xFu) { // cc 0b1111 == SVC, 4.6.181 SVC (pg 4-375)
       out_inst.type = inst_type::SVC; out_inst.i.svc = { .imm = imm32 };
     } else {
-      out_inst.type = inst_type::BRANCH; out_inst.i.branch = { .imm = imm32, .cc = cc,
-        .addr = u32(out_inst.addr + 4u + imm32) };
+      out_inst.type = inst_type::BRANCH; out_inst.i.branch = { .imm = imm32,
+        .addr = u32(out_inst.addr + 4u + imm32), .cc = cc };
     }
     return true;
   }
@@ -727,8 +727,8 @@ bool decode_16bit_inst(u16 const w0, inst& out_inst) {
   if ((w0 & 0xF800u) == 0xE000u) { // 4.6.12 B, T2 encoding (pg 4-38)
     u32 const imm32{u32(sext((w0 & 0x7FFu) << 1u, 11u))};
     out_inst.type = inst_type::BRANCH;
-    out_inst.i.branch = { .cc = cond_code::AL2, .imm = imm32,
-      .addr = u32(out_inst.addr + 4u + imm32)  };
+    out_inst.i.branch = {  .imm = imm32, .addr = u32(out_inst.addr + 4u + imm32),
+      .cc = cond_code::AL2 };
     return true;
   }
 
