@@ -48,7 +48,7 @@ bool nl_elf_load(elf& e, char const* filename) {
   e.sec_names = (char const *)(&e.bytes[0] + e.sec_hdrs[e.elf_hdr->e_shstrndx].sh_offset);
 
   // symbol table
-  if (!(e.symtab_hdr = find_symtab_hdr(e.sec_hdrs, (int)e.elf_hdr->e_shnum))) {
+  if ((e.symtab_hdr = find_symtab_hdr(e.sec_hdrs, (int)e.elf_hdr->e_shnum)) == nullptr) {
     NL_LOG_ERR("Input elf '%s' has no symbol table header, aborting", filename);
     return false;
   }
