@@ -1,4 +1,5 @@
-cl.exe /std:c++20 /W4 /WX /Osy /GL /EHsc ^
+@echo off
+cl.exe /nologo /std:c++20 /W4 /WX /Osy /GL /EHsc ^
     /D_CRT_SECURE_NO_WARNINGS ^
     /DNANOLOG_HOST_TOOL=1 ^
     nanolog.c ^
