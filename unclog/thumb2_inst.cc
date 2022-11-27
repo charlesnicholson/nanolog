@@ -1599,8 +1599,8 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
   // 4.6.69 LSL (reg), T2 encoding (pg 4-152)
   if (((w0 & 0xFFE0u) == 0xFA00u) && ((w1 & 0xF0F0u) == 0xF000u)) {
     out_inst.type = inst_type::LSHIFT_LOG_REG;
-    out_inst.i.lshift_log_reg = { .m = u8(w1 & 0xFu), .d = u8((w1 >> 8u) & 0xFu),
-      .n = u8(w0 & 0xFu) };
+    out_inst.i.lshift_log_reg = { .d = u8((w1 >> 8u) & 0xFu), .n = u8(w0 & 0xFu),
+      .m = u8(w1 & 0xFu) };
     return true;
   }
 
@@ -1608,8 +1608,9 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
   if (((w0 & 0xFFEFu) == 0xEA4Fu) && ((w1 & 0x30u) == 0x10u)) {
     u8 const imm3{u8((w1 >> 12u) & 7u)}, imm2{u8((w1 >> 6u) & 7u)};
     out_inst.type = inst_type::RSHIFT_LOG_IMM;
-    out_inst.i.rshift_log_imm = { .m = u8(w1 & 0xFu), .d = u8((w1 >> 8u) & 0xFu),
-      .shift = decode_imm_shift(0b01, u8((imm3 << 2u) | imm2)) };
+    out_inst.i.rshift_log_imm = {
+      .shift = decode_imm_shift(0b01, u8((imm3 << 2u) | imm2)),
+      .d = u8((w1 >> 8u) & 0xFu), .m = u8(w1 & 0xFu) };
     return true;
   }
 
@@ -1732,7 +1733,7 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
   // 4.6.110 RBIT, T1 encoding (pg 4-233)
   if (((w0 & 0xFFF0u) == 0xFA90u) && ((w1 & 0xF0F0u) == 0xF0A0u)) {
     out_inst.type = inst_type::REVERSE_BITS;
-    out_inst.i.reverse_bits = { .m = u8(w1 & 0xFu), .d = u8((w1 >> 8u) & 0xFu) };
+    out_inst.i.reverse_bits = { .d = u8((w1 >> 8u) & 0xFu), .m = u8(w1 & 0xFu) };
     return true;
   }
 
@@ -1740,8 +1741,8 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
   if (((w0 & 0xFBE0u) == 0xF1C0u) && ((w1 & 0x8000u) == 0)) {
     u32 const imm8{w1 & 0xFFu}, imm3{(w1 >> 12u) & 7u}, i{(w0 >> 10u) & 1u};
     out_inst.type = inst_type::SUB_REV_IMM;
-    out_inst.i.sub_rev_imm = { .n = u8(w0 & 0xFu), .d = u8((w1 >> 8u) & 0xFu),
-      .imm = decode_imm12((i << 11u) | (imm3 << 8u) | imm8) };
+    out_inst.i.sub_rev_imm = { .imm = decode_imm12((i << 11u) | (imm3 << 8u) | imm8),
+      .d = u8((w1 >> 8u) & 0xFu), .n = u8(w0 & 0xFu) };
     return true;
   }
 
@@ -2077,7 +2078,7 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
   // 4.6.224 UXTB, T2 encoding (pg 4-461)
   if ((w0 == 0xFA5Fu) && ((w1 & 0xF080u) == 0xF080u)) {
     out_inst.type = inst_type::EXTEND_UNSIGNED_BYTE;
-    out_inst.i.extend_unsigned_byte = { .m = u8(w1 & 0xFu), .d = u8((w1 >> 8u) & 0xFu),
+    out_inst.i.extend_unsigned_byte = { .d = u8((w1 >> 8u) & 0xFu), .m = u8(w1 & 0xFu),
       .rotation = u8(((w1 >> 4u) & 3u) << 2u) };
     return true;
   }
@@ -2117,11 +2118,11 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
       to_int{u8(!!(opc2 & 0b100))};
     out_inst.type = inst_type::VCONVERT_FP_INT;
     if (to_int) {
-      out_inst.i.vconvert_fp_int = { .m = m, .d = d, .int_unsigned = ((opc2 & 1u) == 0),
-        .round_zero = op, .to_int = to_int };
+      out_inst.i.vconvert_fp_int = { .d = d, .m = m, .to_int = to_int,
+        .int_unsigned = ((opc2 & 1u) == 0), .round_zero = op };
     } else {
-      out_inst.i.vconvert_fp_int = { .m = m, .d = d, .int_unsigned = (op == 0),
-        .round_zero = 0, .to_int = to_int };
+      out_inst.i.vconvert_fp_int = { .d = d, .m = m, .to_int = to_int,
+        .int_unsigned = (op == 0), .round_zero = 0 };
     }
     return true;
   }
@@ -2161,13 +2162,13 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
     if ((p == 1) && (w == 0)) { // A7.7.230 VLDR, T2 encoding (pg A7-581)
       u8 const D{u8((w0 >> 6u) & 1u)}, vd{u8((w1 >> 12u) & 0xFu)};
       out_inst.type = inst_type::VLOAD;
-      out_inst.i.vload = { .single_reg = 1u, .add = u8((w0 >> 7u) & 1u), .n = u8(w0 & 0xFu),
-        .d = u8((vd << 1) | D), .imm = u16(imm8 << 2u) };
+      out_inst.i.vload = { .imm = u16(imm8 << 2u), .single_reg = 1u,
+        .add = u8((w0 >> 7u) & 1u), .n = u8(w0 & 0xFu), .d = u8((vd << 1) | D) };
       return true;
     }
     out_inst.type = inst_type::VLOAD_MULT;
-    out_inst.i.vload_mult = { .single_regs = 1u, .n = n, .list = imm8, .add = u,
-      .imm = u16(imm8 << 2u) };
+    out_inst.i.vload_mult = { .imm = u16(imm8 << 2u), .n = n, .list = imm8,
+      .single_regs = 1u, .add = u };
     return true;
   }
 
