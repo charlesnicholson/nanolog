@@ -1035,8 +1035,8 @@ bool decode_16bit_inst(u16 const w0, inst& out_inst) {
 
   if ((w0 & 0xF800u) == 0x8000u) { // 4.6.172 STRH (imm), T1 encoding (pg 4-357)
     out_inst.type = inst_type::STORE_HALF_IMM;
-    out_inst.i.store_half_imm = { .t = u8(w0 & 7u), .n = u8((w0 >> 3u) & 7u),
-      .imm = u16(((w0 >> 6u) & 0x1F) << 1u), .index = 1u, .add = 1u };
+    out_inst.i.store_half_imm = { .imm = u16(((w0 >> 6u) & 0x1F) << 1u), .t = u8(w0 & 7u),
+      .n = u8((w0 >> 3u) & 7u), .index = 1u, .add = 1u };
     return true;
   }
 
@@ -1119,8 +1119,8 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
   if (((w0 & 0xFBE0u) == 0xF140u) && ((w1 & 0x8000u) == 0)) {
     u32 const imm8{w1 & 0xFFu}, imm3{(w1 >> 12u) & 7u}, i{(w0 >> 10u) & 1u};
     out_inst.type = inst_type::ADD_CARRY_IMM;
-    out_inst.i.add_carry_imm = { .n = u8(w0 & 0xFu), .d = u8((w1 >> 8u) & 0xFu),
-      .imm = decode_imm12((i << 11u) | (imm3 << 8u) | imm8) };
+    out_inst.i.add_carry_imm = { .imm = decode_imm12((i << 11u) | (imm3 << 8u) | imm8),
+      .d = u8((w1 >> 8u) & 0xFu), .n = u8(w0 & 0xFu) };
     return true;
   }
 
