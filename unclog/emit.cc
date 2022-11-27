@@ -83,18 +83,35 @@ std::string& emit_python(char const *s, std::string& out) {
 
     switch (fs.field_width_opt) {
       case NPF_FMT_SPEC_OPT_NONE: break;
-      case NPF_FMT_SPEC_OPT_STAR: out += "{field_width}"; break;
+      case NPF_FMT_SPEC_OPT_STAR: out += "{}"; break;
       case NPF_FMT_SPEC_OPT_LITERAL: {
          snprintf(tmp, sizeof(tmp), "%d", (int)fs.field_width); out += tmp;
       } break;
     }
 
-    switch (fs.prec_opt) {
-      case NPF_FMT_SPEC_OPT_NONE: break;
-      case NPF_FMT_SPEC_OPT_STAR: out += ".{precision}"; break;
-      case NPF_FMT_SPEC_OPT_LITERAL: {
-         snprintf(tmp, sizeof(tmp), ".%d", (int)fs.prec); out += tmp;
-      } break;
+    switch (fs.conv_spec) { // python doesn't allow precision for integer types
+      case NPF_FMT_SPEC_CONV_STRING:
+      case NPF_FMT_SPEC_CONV_FLOAT_DEC:
+      case NPF_FMT_SPEC_CONV_FLOAT_SCI:
+      case NPF_FMT_SPEC_CONV_FLOAT_SHORTEST:
+      case NPF_FMT_SPEC_CONV_FLOAT_HEX:
+        switch (fs.prec_opt) {
+          case NPF_FMT_SPEC_OPT_NONE: break;
+          case NPF_FMT_SPEC_OPT_STAR: out += ".{}"; break;
+          case NPF_FMT_SPEC_OPT_LITERAL:
+            snprintf(tmp, sizeof(tmp), ".%d", (int)fs.prec); out += tmp;
+            break;
+        }
+        break;
+
+      case NPF_FMT_SPEC_CONV_POINTER:
+      case NPF_FMT_SPEC_CONV_CHAR:
+      case NPF_FMT_SPEC_CONV_BINARY:
+      case NPF_FMT_SPEC_CONV_OCTAL:
+      case NPF_FMT_SPEC_CONV_HEX_INT:
+      case NPF_FMT_SPEC_CONV_UNSIGNED_INT:
+      case NPF_FMT_SPEC_CONV_SIGNED_INT:
+      default: break;
     }
 
     switch (fs.conv_spec) {
