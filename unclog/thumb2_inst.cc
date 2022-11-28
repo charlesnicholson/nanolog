@@ -1202,9 +1202,12 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
   if ((w0 & 0xFFE0u) == 0xEA00u) { // 4.6.9 AND (reg), T2 encoding (pg 4-32)
     u8 const imm2{u8((w1 >> 6u) & 3u)}, imm3{u8((w1 >> 12u) & 7u)},
       d{u8((w1 >> 8u) & 0xFu)}, s{u8((w0 >> 4u) & 1u)};
-    if ((d == 15) && (s == 1)) {
-      printf("SEE TST (register) on page 4-399\n");
-      return false;
+    if ((d == 15) && (s == 1)) { // 4.6.193 TST (reg), T2 encoding (pg 4-399)
+      out_inst.type = inst_type::TEST_REG;
+      out_inst.i.test_reg = {
+        .shift = decode_imm_shift(u8((w1 >> 4u) & 3u), u8((imm3 << 2u) | imm2)),
+        .n = u8(w0 & 0xFFu), .m = u8(w1 & 0xFFu) };
+      return true;
     }
     out_inst.type = inst_type::AND_REG;
     out_inst.i.and_reg = {
