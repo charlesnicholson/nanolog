@@ -1,4 +1,5 @@
 #include "thumb2_inst.h"
+#include "boilerplate.h"
 
 namespace {
 
@@ -106,6 +107,10 @@ void print(inst_bit_clear_imm const& b) {
 void print(inst_bit_clear_reg const& b) {
   NL_LOG_DBG("BIC_REG %s, %s, %s, <%s #%d>", s_rn[b.d], s_rn[b.n], s_rn[b.m],
     s_sn[int(b.shift.t)], int(b.shift.n));
+}
+
+void print(inst_bitfield_clear const& b) {
+  NL_LOG_DBG("BFC %s, #%d, #%d", s_rn[b.d], int(b.lsbit), int(b.msbit - b.lsbit));
 }
 
 void print(inst_bitfield_extract_signed const& b) {
@@ -1260,13 +1265,16 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
 
   // 4.6.14 BFI, T1 encoding (pg 4-42)
   if (((w0 & 0xFBF0u) == 0xF360u) && ((w1 & 0x8000u) == 0)) {
-    u8 const imm2{u8((w1 >> 6u) & 3u)}, imm3{u8((w1 >> 12u) & 7u)}, n{u8(w1 & 0xFu)};
-    if (n == 15) { // "SEE BFC on page 4-40"
-      return false;
+    u8 const imm2{u8((w1 >> 6u) & 3u)}, imm3{u8((w1 >> 12u) & 7u)},
+      imm5{u8((imm3 << 2u) | imm2)}, n{u8(w0 & 0xFu)}, msbit{u8(w1 & 0x1Fu)},
+      d{u8((w1 >> 8u) & 0xFu)};
+    if (n == 15) { // 4.6.13 BFC, T1 encoding (pg 4-40)
+      out_inst.type = inst_type::BITFIELD_CLEAR;
+      out_inst.i.bitfield_clear = { .d = d, .msbit = msbit, .lsbit = imm5 };
+      return true;
     }
     out_inst.type = inst_type::BITFIELD_INSERT;
-    out_inst.i.bitfield_insert = { .d = u8((w1 >> 8u) & 0xFu), .n = n,
-      .msbit = u8(w1 & 0x1Fu), .lsbit = u8((imm3 << 2u) | imm2) };
+    out_inst.i.bitfield_insert = { .d = d, .n = n, .msbit = msbit, .lsbit = imm5 };
     return true;
   }
 
