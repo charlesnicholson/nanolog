@@ -1360,12 +1360,14 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
 
   // 4.6.43 LDR (immediate), T4 encoding (pg 4-100)
   if (((w0 & 0xFFF0u) == 0xF850u) && ((w1 & 0x800u) == 0x800u)) {
-    u8 const puw{u8((w1 >> 8u) & 7u)};
-    if (puw == 7u) { return false; } // TODO: LDRT
+    u8 const p{u8((w1 >> 10u) & 1u)}, u{u8((w1 >> 9u) & 1u)}, w{u8((w1 >> 8u) & 1u)};
+    if ((p == 1) && (u == 1) && (w == 0)) {
+      NL_LOG_ERR("SEE LDRT on page 4-148\n");
+      return false;
+    }
     out_inst.type = inst_type::LOAD_IMM;
     out_inst.i.load_imm = { .imm = u8(w1 & 0xFFu), .n = u8(w0 & 0xFu),
-      .t = u8((w1 >> 12u) & 0xFu), .add = u8((puw >> 1u) & 1u),
-      .index = u8((puw >> 2u) & 1u) };
+      .t = u8((w1 >> 12u) & 0xFu), .add = u, .index = p };
     return true;
   }
 
