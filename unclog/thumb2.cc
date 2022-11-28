@@ -478,6 +478,7 @@ thumb2_analyze_func_ret thumb2_analyze_func(
 
   s.paths.emplace([&]() { // set up the function entry point on the path stack
     path_state ps;
+    ps.it_rem = 0;
     ps.rs.regs[reg::PC] = s.func_start;
     ps.taken_branches.resize((s.func_end - s.func_start) / 2);
     return ps;
