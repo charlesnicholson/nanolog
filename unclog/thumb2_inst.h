@@ -63,6 +63,7 @@ struct imm_shift { imm_shift_type t; u8 n; };
   X(BRANCH_XCHG, branch_xchg, { u8 m; }) \
   X(BREAKPOINT, breakpoint, { u16 imm; }) \
   X(BYTE_REV_PACKED_HALF, byte_rev_packed_half, { u8 d, m; }) \
+  X(BYTE_REV_SIGNED_HALF, byte_rev_signed_half, { u8 d, m; }) \
   X(BYTE_REV_WORD, byte_rev_word, { u8 d, m; }) \
   X(CBNZ, cmp_branch_nz, { u32 addr; u8 n, imm; }) \
   X(CBZ, cmp_branch_z, { u32 addr; u8 n, imm; }) \

@@ -140,6 +140,10 @@ void print(inst_byte_rev_packed_half const& b) {
   NL_LOG_DBG("REV16 %s, %s", s_rn[b.d], s_rn[b.m]);
 }
 
+void print(inst_byte_rev_signed_half const &b) {
+  NL_LOG_DBG("REVSH %s, %s", s_rn[b.d], s_rn[b.m]);
+}
+
 void print(inst_byte_rev_word const& b) { NL_LOG_DBG("REV %s, %s", s_rn[b.d], s_rn[b.m]); }
 
 void print(inst_cmp_branch_nz const& c) {
@@ -165,8 +169,8 @@ void print(inst_cmp_reg const& c) {
 
 void print(inst_if_then const& i) {
   static char const *s_it[] = {
-    "???", "EEE", "EE", "EET", "", "TEE", "TE", "TET", "T", "TTE", "TT", "TTT"
-  };
+    "???", "EEE", "EE", "EET", "E", "ETE", "ET", "ETT", "", "TEE", "TE", "TET", "T",
+    "TTE", "TT", "TTT" };
 
   NL_LOG_DBG("IT%s %s", s_it[i.mask], cond_code_name(cond_code(i.firstcond)));
 }
@@ -977,7 +981,13 @@ bool decode_16bit_inst(u16 const w0, inst& out_inst) {
 
   if ((w0 & 0xFFC0u) == 0xBA40u) { // 4.6.112 REV16, T1 encoding (pg 4-237)
     out_inst.type = inst_type::BYTE_REV_PACKED_HALF;
-    out_inst.i.byte_rev_packed_half = { .d = u8(w0 & 7u), .m = u8((w0 >> 3u) & 7u)};
+    out_inst.i.byte_rev_packed_half = { .d = u8(w0 & 7u), .m = u8((w0 >> 3u) & 7u) };
+    return true;
+  }
+
+  if ((w0 & 0xFFC0u) == 0xBAC0u) { // 4.6.113 REVSH, T1 encoding (pg 4-239)
+    out_inst.type = inst_type::BYTE_REV_SIGNED_HALF;
+    out_inst.i.byte_rev_signed_half = { .d = u8(w0 & 7u), .m = u8((w0 >> 3u) & 7u) };
     return true;
   }
 

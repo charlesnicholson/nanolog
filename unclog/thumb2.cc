@@ -10,16 +10,16 @@ namespace {
 struct reg_state {
   u32 regs[16];
   u32 cmp_imm_lits[16];
-  u16 mut_node_idxs[16];
+  u32 mut_node_idxs[16];
   u16 known = u16(1u << reg::PC);
   u16 cmp_imm_present = 0;
 };
 
-//void print(reg_state const& rs) {
-//  for (auto i = 0u; i < 16; ++i) {
-//    NL_LOG_DBG("R%u %u %x\n", unsigned(i), unsigned((rs.known >> i) & 1), rs.regs[i]);
-//  }
-//}
+void print(reg_state const& rs) {
+  for (auto i = 0u; i < 16; ++i) {
+    NL_LOG_DBG("R%u %u %x\n", unsigned(i), unsigned((rs.known >> i) & 1), rs.regs[i]);
+  }
+}
 
 struct path_state {
   reg_state rs;
@@ -75,11 +75,12 @@ bool reg_states_equal(reg_state const& r1, reg_state const& r2) {
 }
 
 bool address_in_func(u32 addr, func_state const& s) {
-  return !s.f.st_size || ((addr >= s.func_start) && (addr < s.func_end));
+  return (addr >= s.func_start) && (!s.f.st_size || (addr < s.func_end));
 }
 
 bool test_reg_known(u16 regs, u8 idx) { return (regs >> idx) & 1u; }
 void mark_reg_known(u16& regs, u8 dst) { regs |= (1u << dst); }
+void clear_reg_known(u16& regs, u8 dst) { regs &= ~(1u << dst); }
 void copy_reg_known(u16& regs, u8 dst, u8 src) {
   regs = u16(regs & ~(1u << dst)) | u16(((regs >> src) & 1u) << dst);
 }
@@ -237,7 +238,7 @@ simulate_results simulate(inst const& i,
       path.rs.regs[add.d] = path.rs.regs[add.n] + add.imm;
       copy_reg_known(path.rs.known, add.d, add.n);
       reg_muts.emplace_back(reg_mut_node(i, path.rs.mut_node_idxs[add.n]));
-      path.rs.mut_node_idxs[add.d] = u16(reg_muts.size() - 1u);
+      path.rs.mut_node_idxs[add.d] = u32(reg_muts.size() - 1u);
     } break;
 
     case inst_type::ADD_REG: {
@@ -246,7 +247,7 @@ simulate_results simulate(inst const& i,
       union_reg_known(path.rs.known, add.d, add.m, add.n);
       reg_muts.emplace_back(reg_mut_node(i, path.rs.mut_node_idxs[add.n],
         path.rs.mut_node_idxs[add.m]));
-      path.rs.mut_node_idxs[add.d] = u16(reg_muts.size() - 1u);
+      path.rs.mut_node_idxs[add.d] = u32(reg_muts.size() - 1u);
     } break;
 
     case inst_type::ADR: {
@@ -255,7 +256,7 @@ simulate_results simulate(inst const& i,
       path.rs.regs[adr.d] = adr.add ? (base + adr.imm) : (base - adr.imm);
       mark_reg_known(path.rs.known, adr.d);
       reg_muts.emplace_back(reg_mut_node(i));
-      path.rs.mut_node_idxs[adr.d] = u16(reg_muts.size() - 1u);
+      path.rs.mut_node_idxs[adr.d] = u32(reg_muts.size() - 1u);
     } break;
 
     case inst_type::BRANCH: {
@@ -319,6 +320,7 @@ simulate_results simulate(inst const& i,
     case inst_type::LOAD_IMM: {
       auto const& ldr{i.i.load_imm};
       if (ldr.t == reg::PC) { return simulate_results::TERMINATE_PATH; }
+      clear_reg_known(path.rs.known, ldr.t);
     } break;
 
     case inst_type::LOAD_LIT: {
@@ -326,7 +328,7 @@ simulate_results simulate(inst const& i,
       memcpy(&path.rs.regs[ldr.t], &fs.e.bytes[fs.func_ofs + (ldr.addr - fs.func_start)], 4);
       mark_reg_known(path.rs.known, ldr.t);
       reg_muts.emplace_back(reg_mut_node(i));
-      path.rs.mut_node_idxs[ldr.t] = u16(reg_muts.size() - 1u);
+      path.rs.mut_node_idxs[ldr.t] = u32(reg_muts.size() - 1u);
     } break;
 
     case inst_type::LOAD_REG: {
@@ -349,19 +351,20 @@ simulate_results simulate(inst const& i,
       }
       break;
 
-    case inst_type::MOV_IMM:
-      path.rs.regs[i.i.mov_imm.d] = i.i.mov_imm.imm;
-      mark_reg_known(path.rs.known, i.i.mov_imm.d);
+    case inst_type::MOV_IMM: {
+      auto const& mov{i.i.mov_imm};
+      path.rs.regs[mov.d] = mov.imm;
+      mark_reg_known(path.rs.known, mov.d);
       reg_muts.emplace_back(reg_mut_node(i));
-      path.rs.mut_node_idxs[i.i.mov_imm.d] = u16(reg_muts.size() - 1u);
-      break;
+      path.rs.mut_node_idxs[mov.d] = u32(reg_muts.size() - 1u);
+    } break;
 
     case inst_type::MOV_NEG_IMM: {
       auto const& mvn{i.i.mov_neg_imm};
       path.rs.regs[mvn.d] = ~u32(mvn.imm);
       mark_reg_known(path.rs.known, mvn.d);
       reg_muts.emplace_back(reg_mut_node(i));
-      path.rs.mut_node_idxs[mvn.d] = u16(reg_muts.size() - 1u);
+      path.rs.mut_node_idxs[mvn.d] = u32(reg_muts.size() - 1u);
     } break;
 
     case inst_type::MOV_REG: {
@@ -369,7 +372,7 @@ simulate_results simulate(inst const& i,
       path.rs.regs[mov.d] = path.rs.regs[mov.m];
       copy_reg_known(path.rs.known, mov.d, mov.m);
       reg_muts.emplace_back(reg_mut_node(i, path.rs.mut_node_idxs[mov.m]));
-      path.rs.mut_node_idxs[mov.d] = u16(reg_muts.size() - 1u);
+      path.rs.mut_node_idxs[mov.d] = u32(reg_muts.size() - 1u);
     } break;
 
     case inst_type::POP:
@@ -381,7 +384,7 @@ simulate_results simulate(inst const& i,
       path.rs.regs[sub.d] = path.rs.regs[sub.n] - sub.imm;
       copy_reg_known(path.rs.known, sub.d, sub.n);
       reg_muts.emplace_back(reg_mut_node(i, path.rs.mut_node_idxs[sub.n]));
-      path.rs.mut_node_idxs[sub.d] = u16(reg_muts.size() - 1u);
+      path.rs.mut_node_idxs[sub.d] = u32(reg_muts.size() - 1u);
     } break;
 
     case inst_type::TABLE_BRANCH_HALF: {
@@ -447,6 +450,7 @@ bool process_log_call(inst const& pc_i,
     case inst_type::ADD_IMM:  log_call.s = fmt_str_strat::ADD_IMM_FROM_BASE_REG; break;
     default:
       NL_LOG_DBG("Unrecognized pattern!\n***\n");
+      NL_LOG_DBG("0x%x\n", r0_i.addr);
       inst_print(r0_i);
       NL_LOG_DBG("\n***\n");
       return false;
