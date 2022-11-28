@@ -15,11 +15,11 @@ struct reg_state {
   u16 cmp_imm_present = 0;
 };
 
-void print(reg_state const& rs) {
-  for (auto i = 0u; i < 16; ++i) {
-    NL_LOG_DBG("R%u %u %x\n", unsigned(i), unsigned((rs.known >> i) & 1), rs.regs[i]);
-  }
-}
+//void print(reg_state const& rs) {
+//  for (auto i = 0u; i < 16; ++i) {
+//    NL_LOG_DBG("R%u %u %x\n", unsigned(i), unsigned((rs.known >> i) & 1), rs.regs[i]);
+//  }
+//}
 
 struct path_state {
   reg_state rs;
@@ -80,7 +80,7 @@ bool address_in_func(u32 addr, func_state const& s) {
 
 bool test_reg_known(u16 regs, u8 idx) { return (regs >> idx) & 1u; }
 void mark_reg_known(u16& regs, u8 dst) { regs |= (1u << dst); }
-void clear_reg_known(u16& regs, u8 dst) { regs &= ~(1u << dst); }
+void clear_reg_known(u16& regs, u8 dst) { regs &= u16(~(1u << dst)); }
 void copy_reg_known(u16& regs, u8 dst, u8 src) {
   regs = u16(regs & ~(1u << dst)) | u16(((regs >> src) & 1u) << dst);
 }
