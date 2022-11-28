@@ -369,6 +369,11 @@ void print(inst_select_bytes const& s) {
   NL_LOG_DBG("SEL %s, %s, %s", s_rn[s.d], s_rn[s.n], s_rn[s.m]);
 }
 
+void print(inst_saturate_unsigned const& s) {
+  NL_LOG_DBG("USAT %s, #%d, %s <%s #%d>", s_rn[s.d], int(s.saturate_to), s_rn[s.n],
+    s_sn[int(s.shift.t)], int(s.shift.n));
+}
+
 void print(inst_store_byte_imm const& s) {
   NL_LOG_DBG("STRB_IMM %s, [%s, #%c%d]", s_rn[s.t], s_rn[s.n], s.add ? '+' : '-',
     int(s.imm));
@@ -2073,6 +2078,16 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
     out_inst.type = inst_type::MUL_UNSIGNED_LONG;
     out_inst.i.mul_unsigned_long = { .dlo = u8((w1 >> 12u) & 0xFu),
       .dhi = u8((w1 >> 8u) & 0xFu), .n = u8(w0 & 0xFu), .m = u8(w1 & 0xFu) };
+    return true;
+  }
+
+  // 4.6.216 USAT, T1 encoding (pg 4-445)
+  if (((w0 & 0xFBD0u) == 0xF380u) && ((w1 & 0x8000u) == 0)) {
+    u8 const imm2{u8((w1 >> 6u) & 3u)}, imm3{u8((w1 >> 12u) & 7u)},
+      imm5{u8((imm3 << 2u) | imm2)}, sh{u8((w0 >> 5u) & 1u)};
+    out_inst.type = inst_type::SATURATE_UNSIGNED;
+    out_inst.i.saturate_unsigned = { .shift = decode_imm_shift(u8(sh << 1u), imm5),
+      .d = u8((w1 >> 8) & 0xFu), .n = u8(w0 & 0xFu), .saturate_to = u8(w1 & 0x1Fu) };
     return true;
   }
 
