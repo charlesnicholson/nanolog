@@ -54,8 +54,13 @@ bool load(state& s, std::vector<char const *> const& noreturn_funcs, char const 
       s.nl_funcs.push_back(&sym);
     } else {
       { // noreturn functions
-        auto found{std::find_if(std::begin(noreturn_funcs), std::end(noreturn_funcs),
-          [name](char const *f) { return !strcmp(f, name); })};
+        auto const found{std::find_if(
+          std::begin(noreturn_funcs),
+          std::end(noreturn_funcs),
+          [name](char const *f) {
+            auto const f_len{unsigned(strlen(f))};
+            return (strstr(name, f) == name) && ((name[f_len] == 0) || name[f_len] == '.');
+          })};
         if (found != std::end(noreturn_funcs)) {
           s.noreturn_func_addrs.insert({u32(sym.st_value & ~1u)});
         }

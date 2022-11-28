@@ -22,20 +22,20 @@ char const *fmt_str_strat_name(fmt_str_strat s);
 struct log_call {
   u32 fmt_str_addr;
   u32 log_func_call_addr;
-  u16 node_idx;
+  u32 node_idx;
   fmt_str_strat s;
   u8 severity;
 };
 
 struct reg_mut_node {
   explicit reg_mut_node(inst const& i_,
-                        u16 par_idx0=0xFFFFu,
-                        u16 par_idx1=0xFFFFu,
-                        u16 par_idx2=0xFFFFu) : i(i_) {
+                        u32 par_idx0=0xFFFFFFFFu,
+                        u32 par_idx1=0xFFFFFFFFu,
+                        u32 par_idx2=0xFFFFFFFFu) : i(i_) {
     par_idxs[0] = par_idx0; par_idxs[1] = par_idx1; par_idxs[2] = par_idx2;
   }
   inst i;
-  u16 par_idxs[3];
+  u32 par_idxs[3];
 };
 
 struct func_log_call_analysis {
