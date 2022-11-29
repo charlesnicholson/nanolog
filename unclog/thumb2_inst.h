@@ -79,11 +79,12 @@ struct imm_shift { imm_shift_type t; u8 n; };
   X(EXCL_OR_REG, excl_or_reg, { imm_shift shift; u8 d, n, m; }) \
   X(EXTEND_ADD_SIGNED_BYTE, extend_add_signed_byte, { u8 d, n, m, rotation; }) \
   X(EXTEND_ADD_SIGNED_HALF, extend_add_signed_half, { u8 d, n, m, rotation; }) \
+  X(EXTEND_ADD_UNSIGNED_BYTE, extend_add_unsigned_byte, { u8 d, n, m, rotation; }) \
   X(EXTEND_SIGNED_BYTE, extend_signed_byte, { u8 d, m, rotation; }) \
   X(EXTEND_SIGNED_HALF, extend_signed_half, { u8 d, m, rotation; }) \
   X(EXTEND_UNSIGNED_BYTE, extend_unsigned_byte, { u8 d, m, rotation; }) \
   X(EXTEND_UNSIGNED_HALF, extend_unsigned_half, { u8 d, m, rotation; }) \
-  X(EXTEND_UNSIGNED_HALF_ADD, extend_unsigned_half_add, { u8 d, n, m, rotation; }) \
+  X(EXTEND_ADD_UNSIGNED_HALF, extend_add_unsigned_half, { u8 d, n, m, rotation; }) \
   X(IF_THEN, if_then, { u8 firstcond, mask, cnt; }) \
   X(LOAD_BYTE_IMM, load_byte_imm, { u16 imm; u8 t, n, add, index; }) \
   X(LOAD_BYTE_LIT, load_byte_lit, { u16 imm; u8 t, add; }) \
@@ -112,6 +113,7 @@ struct imm_shift { imm_shift_type t; u8 n; };
   X(MUL_ACCUM_SIGNED_HALF, mul_accum_signed_half, { u8 d, n, m, a, n_high, m_high; }) \
   X(MUL_ACCUM_SIGNED_LONG, mul_accum_signed_long, { u8 dlo, dhi, n, m; }) \
   X(MUL_ACCUM_UNSIGNED_LONG, mul_accum_unsigned_long, { u8 dlo, dhi, n, m; }) \
+  X(MUL_SIGNED_LONG, mul_signed_long, { u8 dlo, dhi, n, m; }) \
   X(MUL_SUB, mul_sub, { u8 d, n, m, a; }) \
   X(MUL_UNSIGNED_LONG, mul_unsigned_long, { u8 dlo, dhi, n, m; }) \
   X(NOP, nop, {}) \

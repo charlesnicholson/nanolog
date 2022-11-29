@@ -209,7 +209,7 @@ void print(inst_extend_unsigned_half const& u) {
   NL_LOG_DBG("UXTH %s, %s, <%d>", s_rn[u.d], s_rn[u.m], int(u.rotation));
 }
 
-void print(inst_extend_unsigned_half_add const& u) {
+void print(inst_extend_add_unsigned_half const& u) {
   NL_LOG_DBG("UXTAH %s, %s, %s, <#%d>", s_rn[u.d], s_rn[u.n], s_rn[u.m], int(u.rotation));
 }
 
@@ -219,6 +219,10 @@ void print(inst_extend_add_signed_byte const &e) {
 
 void print(inst_extend_add_signed_half const &e) {
   NL_LOG_DBG("SXTAH %s, %s, %s, <%d>", s_rn[e.d], s_rn[e.n], s_rn[e.m], int(e.rotation));
+}
+
+void print(inst_extend_add_unsigned_byte const &e) {
+  NL_LOG_DBG("UXTAB %s, %s, %s, <%d>", s_rn[e.d], s_rn[e.n], s_rn[e.m], int(e.rotation));
 }
 
 void print(inst_extend_signed_byte const& u) {
@@ -346,6 +350,10 @@ void print(inst_mul_accum_signed_long const& m) {
 
 void print(inst_mul_accum_unsigned_long const& m) {
   NL_LOG_DBG("UMLAL %s, %s, %s, %s", s_rn[m.dlo], s_rn[m.dhi], s_rn[m.n], s_rn[m.m]);
+}
+
+void print(inst_mul_signed_long const& m) {
+  NL_LOG_DBG("SMULL %s, %s, %s, %s", s_rn[m.dlo], s_rn[m.dhi], s_rn[m.n], s_rn[m.m]);
 }
 
 void print(inst_mul_sub const& m) {
@@ -1004,6 +1012,14 @@ bool decode_16bit_inst(u16 const w0, inst& out_inst) {
   if ((w0 & 0xFFC0u) == 0x4240u) { // 4.6.118 RSB (imm), T1 encoding (pg 4-249)
     out_inst.type = inst_type::SUB_REV_IMM;
     out_inst.i.sub_rev_imm = { .imm = 0, .d = u8(w0 & 7u), .n = u8((w0 >> 3u) & 7u) };
+    return true;
+  }
+
+  if ((w0 & 0xFFC0u) == 0x4180u) { // 4.6.124 SBC (reg), T1 encoding (pg 4-261)
+    u8 const rdn{u8(w0 & 7u)};
+    out_inst.type = inst_type::SUB_REG_CARRY;
+    out_inst.i.sub_reg_carry = { .shift = decode_imm_shift(0b00, 0), .d = rdn, .n = rdn,
+      .m = u8((w0 >> 3u) & 7u) };
     return true;
   }
 
@@ -1848,6 +1864,14 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
     return true;
   }
 
+  // 4.6.150 SMULL, T1 encoding (pg 4-313)
+  if (((w0 & 0xFFF0u) == 0xFB80u) && ((w1 & 0xF0u) == 0)) {
+    out_inst.type = inst_type::MUL_SIGNED_LONG;
+    out_inst.i.mul_signed_long = { .dlo = u8((w1 >> 12u) & 0xFu),
+      .dhi = u8((w1 >> 8u) & 0xFu), .n = u8(w0 & 0xFu), .m = u8(w1 & 0xFu) };
+    return true;
+  }
+
   if ((w0 & 0xFFD0u) == 0xE900u) { // 4.6.160 STMDB, T1 encoding (pg 4-333)
     out_inst.type = inst_type::STORE_MULT_DEC_BEFORE;
     out_inst.i.store_mult_dec_before = { .regs = u16(w1 & 0x5FFFu), .n = u8(w0 & 0xFu) };
@@ -2099,6 +2123,21 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
     return true;
   }
 
+  // 4.6.221 UXTAB, T1 encoding (pg 4-455)
+  if (((w0 & 0xFFF0u) == 0xFA50u) && ((w1 & 0xF080u) == 0xF080u)) {
+    u8 const d{u8((w1 >> 8u) & 0xFu)}, n{u8(w0 & 0xFu)}, m{u8(w1 & 0xFu)},
+      rotation{u8(((w1 >> 4u) & 3u) << 3u)};
+    if (n == 15) {  // 4.6.224 UXTB, T2 encoding (pg 4-461)
+      out_inst.type = inst_type::EXTEND_UNSIGNED_BYTE;
+      out_inst.i.extend_unsigned_byte = { .d = d, .m = m, .rotation = rotation };
+      return true;
+    }
+    out_inst.type = inst_type::EXTEND_ADD_UNSIGNED_BYTE;
+    out_inst.i.extend_add_unsigned_byte = { .d = d, .n = n, .m = m,
+      .rotation = rotation };
+    return true;
+  }
+
   // 4.6.223 UXTAH, T1 encoding (pg 4-459)
   if (((w0 & 0xFFF0u) == 0xFA10u) && ((w1 & 0xF080u) == 0xF080u)) {
     u8 const n{u8(w0 & 0xFu)}, d{u8((w1 >> 8u) & 0xFu)}, m{u8(w1 & 0xFu)},
@@ -2108,17 +2147,9 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
       out_inst.i.extend_unsigned_half = { .d = d, .m = m, .rotation = rotation };
       return true;
     }
-    out_inst.type = inst_type::EXTEND_UNSIGNED_HALF_ADD;
-    out_inst.i.extend_unsigned_half_add = { .d = d, .n = n, .m = m,
+    out_inst.type = inst_type::EXTEND_ADD_UNSIGNED_HALF;
+    out_inst.i.extend_add_unsigned_half = { .d = d, .n = n, .m = m,
       .rotation = rotation };
-    return true;
-  }
-
-  // 4.6.224 UXTB, T2 encoding (pg 4-461)
-  if ((w0 == 0xFA5Fu) && ((w1 & 0xF080u) == 0xF080u)) {
-    out_inst.type = inst_type::EXTEND_UNSIGNED_BYTE;
-    out_inst.i.extend_unsigned_byte = { .d = u8((w1 >> 8u) & 0xFu), .m = u8(w1 & 0xFu),
-      .rotation = u8(((w1 >> 4u) & 3u) << 2u) };
     return true;
   }
 
