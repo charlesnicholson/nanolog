@@ -50,7 +50,7 @@ bool load(state& s, std::vector<char const *> const& noreturn_funcs, char const 
     if ((sym.st_info & 0xF) != ELF_SYM_TYPE_FUNC) { continue; }
     char const *name{&s.e.strtab[sym.st_name]};
 
-    if (strstr(name, "nanolog_") == name) {
+    if (strstr(name, "nanolog_log_") == name) {
       s.nl_funcs.push_back(&sym);
     } else {
       { // noreturn functions
@@ -123,7 +123,7 @@ void on_log(void *, int, char const *fmt, va_list args) {
 }
 
 int main(int argc, char const *argv[]) {
-  nanolog_set_log_handler(on_log);
+  nanolog_set_handler(on_log);
 
   args cmd_args;
   if (!args_parse(argv, argc, cmd_args)) { return 1; }
@@ -131,7 +131,7 @@ int main(int argc, char const *argv[]) {
   cmd_args.noreturn_funcs.push_back("_exit");
   cmd_args.noreturn_funcs.push_back("_mainCRTStartup");
 
-  nanolog_set_log_threshold(cmd_args.log_threshold);
+  nanolog_set_threshold(cmd_args.log_threshold);
 
   state s;
   if (!load(s, cmd_args.noreturn_funcs, cmd_args.input_elf)) { return 1; }
@@ -147,21 +147,21 @@ int main(int argc, char const *argv[]) {
 
       case thumb2_analyze_func_ret::ERR_INSTRUCTION_DECODE:
         NL_LOG_ERR("Error decoding instruction, aborting");
-        if (nanolog_get_log_threshold() > NL_SEV_DEBUG) {
+        if (nanolog_get_threshold() > NL_SEV_DEBUG) {
           NL_LOG_ERR("  (re-run with -vv to see decoding error)\n");
         }
         return 1;
 
       case thumb2_analyze_func_ret::ERR_SIMULATE_LOGIC_INCOMPLETE:
         NL_LOG_ERR("Error simulating function, aborting");
-        if (nanolog_get_log_threshold() > NL_SEV_DEBUG) {
+        if (nanolog_get_threshold() > NL_SEV_DEBUG) {
           NL_LOG_ERR("  (re-run with -vv to see simulation error)\n");
         }
         return 1;
 
       case thumb2_analyze_func_ret::ERR_UNKNOWN_LOG_CALL_STRATEGY:
         NL_LOG_ERR("Error analyzing log call strategy, aborting");
-        if (nanolog_get_log_threshold() > NL_SEV_DEBUG) {
+        if (nanolog_get_threshold() > NL_SEV_DEBUG) {
           NL_LOG_ERR("  (re-run with -vv to see details)\n");
         }
         return 1;
@@ -250,7 +250,7 @@ int main(int argc, char const *argv[]) {
     unsigned(fmt_strs.size()), unsigned(fmt_bin_addrs.size()),
     unsigned(s.nl_hdr->sh_size), unsigned(fmt_bin_mem.size()));
 
-  if (NL_UNLIKELY(nanolog_get_log_threshold() == NL_SEV_DEBUG)) {
+  if (NL_UNLIKELY(nanolog_get_threshold() == NL_SEV_DEBUG)) {
     for (auto i{0u}, n{unsigned(fmt_strs.size())}; i < n; ++i) {
       unsigned char const *src{&fmt_bin_mem[fmt_bin_addrs[i]]};
       NL_LOG_DBG("  %s\n", fmt_strs[i]);
