@@ -51,16 +51,16 @@ typedef enum {
 } nl_arg_type_t;
 
 // Set the runtime log threshold for enabled log calls
-nanolog_ret_t nanolog_set_log_threshold(int severity);
-int nanolog_get_log_threshold(void);
+nanolog_ret_t nanolog_set_threshold(int severity);
+int nanolog_get_threshold(void);
 
-typedef void (*nanolog_log_handler_cb_t)(void *ctx, int sev, char const *fmt, va_list args);
+typedef void (*nanolog_handler_cb_t)(void *ctx, int sev, char const *fmt, va_list args);
 
 // Install a handler to be called on every log macro invocation.
-nanolog_ret_t nanolog_set_log_handler(nanolog_log_handler_cb_t handler);
+nanolog_ret_t nanolog_set_handler(nanolog_handler_cb_t handler);
 
 // Writes 1 to |out_is_binary| if fmt is a rewritten binary spec, 0 if ASCII.
-nanolog_ret_t nanolog_log_is_binary(char const *fmt, int *out_is_binary);
+nanolog_ret_t nanolog_fmt_is_binary(char const *fmt, int *out_is_binary);
 
 typedef void (*nanolog_binary_field_handler_cb_t)(void *ctx,
                                                   nl_arg_type_t type,
@@ -72,6 +72,10 @@ nanolog_ret_t nanolog_parse_binary_log(nanolog_binary_field_handler_cb_t cb,
                                        void *ctx,
                                        char const *fmt,
                                        va_list args);
+
+// Direct log functions, for dynamic runtime severity.
+void nanolog_log_sev(char const *fmt, int sev, ...);
+void nanolog_log_sev_ctx(char const *fmt, int sev, void* ctx, ...);
 
 // Boilerplate, has to be before the public logging macros
 

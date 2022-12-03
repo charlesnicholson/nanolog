@@ -488,7 +488,7 @@ thumb2_analyze_func_ret thumb2_analyze_func(
     return ps;
   }());
 
-  bool const debug{nanolog_get_log_threshold() == NL_SEV_DEBUG};
+  bool const debug{nanolog_get_threshold() == NL_SEV_DEBUG};
 
   while (!s.paths.empty()) { // recurse through the function
     path_state path{s.paths.top()};

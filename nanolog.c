@@ -7,10 +7,10 @@
 #include <wchar.h>
 #endif
 
-static nanolog_log_handler_cb_t s_log_handler = NULL;
+static nanolog_handler_cb_t s_log_handler = NULL;
 static int s_log_threshold = NL_SEV_DEBUG;
 
-nanolog_ret_t nanolog_set_log_threshold(int severity) {
+nanolog_ret_t nanolog_set_threshold(int severity) {
   if ((severity < NL_SEV_DEBUG) || (severity > NL_SEV_ASSERT)) {
     return NANOLOG_RET_ERR_BAD_ARG;
   }
@@ -18,13 +18,23 @@ nanolog_ret_t nanolog_set_log_threshold(int severity) {
   return NANOLOG_RET_SUCCESS;
 }
 
-int nanolog_get_log_threshold(void) {
+int nanolog_get_threshold(void) {
   return s_log_threshold;
 }
 
-nanolog_ret_t nanolog_set_log_handler(nanolog_log_handler_cb_t handler) {
+nanolog_ret_t nanolog_set_handler(nanolog_handler_cb_t handler) {
   s_log_handler = handler;
   return NANOLOG_RET_SUCCESS;
+}
+
+void nanolog_log_sev(char const *fmt, int sev, ...) {
+  if (!s_log_handler || (s_log_threshold > sev)) { return; }
+  va_list a; va_start(a, sev); s_log_handler(NULL, sev, fmt, a); va_end(a);
+}
+
+void nanolog_log_sev_ctx(char const *fmt, int sev, void* ctx, ...) {
+  if (!s_log_handler || (s_log_threshold > sev)) { return; }
+  va_list a; va_start(a, ctx); s_log_handler(ctx, sev, fmt, a); va_end(a);
 }
 
 void nanolog_log_debug(char const *fmt, ...) {
@@ -152,6 +162,9 @@ static void nanolog_extract_and_dispatch(nanolog_binary_field_handler_cb_t cb,
       vi[vil - 1] &= 0x7F;
       cb(ctx, type, vi, vil);
     } break;
+
+    case NL_ARG_TYPE_STRING_PRECISION_LITERAL:
+      break;
 
     case NL_ARG_TYPE_LOG_END: cb(ctx, type, NULL, 0); break;
 
