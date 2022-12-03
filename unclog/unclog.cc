@@ -21,8 +21,8 @@ struct state {
 elf_section_hdr32 const *find_nl_hdr(elf_section_hdr32 const *sec_hdrs,
                                      char const *sec_names,
                                      int sec_n) {
-  auto const it = std::find_if(sec_hdrs, &sec_hdrs[sec_n], [&sec_names](auto const& sh) {
-    return sh.sh_type && !strcmp(".nanolog", &sec_names[sh.sh_name]); });
+  auto const it{std::find_if(sec_hdrs, &sec_hdrs[sec_n], [&sec_names](auto const& sh) {
+    return sh.sh_type && !strcmp(".nanolog", &sec_names[sh.sh_name]); })};
   return (it == &sec_hdrs[sec_n]) ? nullptr : &*it;
 }
 

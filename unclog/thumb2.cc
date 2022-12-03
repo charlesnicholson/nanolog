@@ -525,8 +525,13 @@ thumb2_analyze_func_ret thumb2_analyze_func(
         return thumb2_analyze_func_ret::ERR_INSTRUCTION_DECODE;
       }
 
-      int const sev{inst_is_log_call(pc_i, log_funcs, e.strtab)};
-      if (sev != -1) {
+      if (int const sev{inst_is_log_call(pc_i, log_funcs, e.strtab)};
+          NL_UNLIKELY(sev != -1)) {
+        if (!branch(pc_i.addr, path, s)) {
+          NL_LOG_DBG("  Stopping path: identical path state at already-seen log call\n");
+          break;
+        }
+
         if (!process_log_call(pc_i, path, nl_sec_hdr, sev, s, out_lca)) {
           return thumb2_analyze_func_ret::ERR_UNKNOWN_LOG_CALL_STRATEGY;
         }
