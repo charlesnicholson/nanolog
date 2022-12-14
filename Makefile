@@ -1,5 +1,4 @@
-ROOT_DIR := $(dir $(realpath $(lastword $(MAKEFILE_LIST))))
-BUILD_DIR := $(ROOT_DIR)build
+BUILD_DIR := build
 OS := $(shell uname)
 COMPILER_VERSION := $(shell $(CXX) --version)
 
@@ -13,7 +12,6 @@ UNCLOG_SRCS := unclog/unclog.cc \
 			   unclog/thumb2.cc \
 			   unclog/thumb2_inst.cc \
 			   nanolog.c
-UNCLOG_OBJS := $(UNCLOG_SRCS:%=$(BUILD_DIR)/%.o)
 
 # ----- Runtime unit tests
 
@@ -22,11 +20,14 @@ TESTS_BIN := $(BUILD_DIR)/nanolog_tests
 TESTS_SRCS := tests/unittest_main.cc \
 			  tests/test_nanolog.cc \
 			  nanolog.c
-TESTS_OBJS := $(TESTS_SRCS:%=$(BUILD_DIR)/%.o)
 
 # ----- Compiler flags
 
+ifneq '' '$(findstring g++,$(COMPILER_VERSION))'
+LDFLAGS = -flto=auto
+else
 LDFLAGS = -flto
+endif
 
 CFLAGS = --std=c17
 CXXFLAGS = --std=c++20
@@ -60,9 +61,11 @@ $(BUILD_DIR)/%.c.o: %.c
 $(BUILD_DIR)/%.cc.o: %.cc
 	mkdir -p $(dir $@) && $(CXX) $(CPPFLAGS) $(CXXFLAGS) -c $< -o $@
 
+UNCLOG_OBJS := $(UNCLOG_SRCS:%=$(BUILD_DIR)/%.o)
 $(UNCLOG_BIN): $(UNCLOG_OBJS)
 	mkdir -p $(dir $@) && $(CXX) $(LDFLAGS) $(UNCLOG_OBJS) -o $@
 
+TESTS_OBJS := $(TESTS_SRCS:%=$(BUILD_DIR)/%.o)
 $(TESTS_BIN): $(TESTS_OBJS)
 	mkdir -p $(dir $@) && $(CXX) $(LDFLAGS) $(TESTS_OBJS) -o $@
 
