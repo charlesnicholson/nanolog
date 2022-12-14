@@ -1,4 +1,5 @@
-BUILD_DIR := build
+ROOT_DIR := $(dir $(realpath $(lastword $(MAKEFILE_LIST))))
+BUILD_DIR := $(ROOT_DIR)build
 OS := $(shell uname)
 COMPILER_VERSION := $(shell $(CXX) --version)
 
@@ -28,8 +29,6 @@ TESTS_DEPS := $(TESTS_DEPS:.o=.d)
 # ----- Compiler flags
 
 LDFLAGS = -flto
-
-CPPFLAGS += -DNANOLOG_HOST_TOOL
 
 CFLAGS = --std=c17
 CXXFLAGS = --std=c++20
