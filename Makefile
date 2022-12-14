@@ -1,5 +1,4 @@
-#ROOT_DIR := $(dir $(realpath $(lastword $(MAKEFILE_LIST))))
-BUILD_DIR := build#$(ROOT_DIR)build
+BUILD_DIR := build
 OS := $(shell uname)
 COMPILER_VERSION := $(shell $(CXX) --version)
 
