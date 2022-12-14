@@ -22,7 +22,7 @@ jobs:
         with:
           submodules: recursive
       - name: Build
-        run: arm-none-eabi-gcc -march=armv7-m -c -Os -Wall -Wextra -I. nanolog.c -DNANOLOG_PROVIDE_ASSERT_MACROS
+        run: arm-none-eabi-gcc -march=armv7-m -Os -Wall -Wextra -DNANOLOG_PROVIDE_ASSERT_MACROS -c nanolog.c
 
   linux-gcc:
     runs-on: ubuntu-latest
