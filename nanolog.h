@@ -82,11 +82,11 @@ void nanolog_log_sev_ctx(char const *fmt, int sev, void* ctx, ...);
 #define NL_STR_EVAL(X) #X
 #define NL_STR(X) NL_STR_EVAL(X)
 
-#ifdef NANOLOG_HOST_TOOL
-#define NL_ATTR_SEC(SEV)
-#else
+#ifdef __arm__
 #define NL_ATTR_SEC(SEV) \
   __attribute__((section(".nanolog." #SEV "." NL_STR(__LINE__) "." NL_STR(__COUNTER__))))
+#else
+#define NL_ATTR_SEC(SEV)
 #endif
 
 #ifdef __GNUC__

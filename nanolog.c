@@ -1,11 +1,8 @@
 #include "nanolog.h"
-#include <assert.h>
-#include <stddef.h>
 
-#ifndef NANOLOG_HOST_TOOL
+#include <stddef.h>
 #include <stdint.h>
 #include <wchar.h>
-#endif
 
 static nanolog_handler_cb_t s_log_handler = NULL;
 static int s_log_threshold = NL_SEV_DEBUG;
@@ -97,9 +94,7 @@ void nanolog_log_assert_ctx(char const *fmt, void *ctx, ...) {
   va_list a; va_start(a, ctx); s_log_handler(ctx, NL_SEV_ASSERT, fmt, a); va_end(a);
 }
 
-#ifndef NANOLOG_HOST_TOOL // Only target code uses binary extraction runtime
-
-nanolog_ret_t nanolog_log_is_binary(char const *fmt, int *out_is_binary) {
+nanolog_ret_t nanolog_fmt_is_binary(char const *fmt, int *out_is_binary) {
   if (!fmt || !out_is_binary) { return NANOLOG_RET_ERR_BAD_ARG; }
   *out_is_binary = (fmt[0] == NL_BINARY_LOG_MARKER);
   return NANOLOG_RET_SUCCESS;
@@ -156,8 +151,8 @@ static void nanolog_extract_and_dispatch(nanolog_binary_field_handler_cb_t cb,
 
     case NL_ARG_TYPE_FIELD_WIDTH_STAR:
     case NL_ARG_TYPE_PRECISION_STAR: {
-      unsigned char vi[8];
-      int i = va_arg(args, int), vil = 0;
+      unsigned char vi[8], vil = 0;
+      int i = va_arg(args, int);
       do { vi[vil++] = (unsigned char)((i & 0x7F) | 0x80); i >>= 7; } while (i);
       vi[vil - 1] &= 0x7F;
       cb(ctx, type, vi, vil);
@@ -209,6 +204,7 @@ nanolog_ret_t nanolog_parse_binary_log(nanolog_binary_field_handler_cb_t cb,
 
 // ARMv7-M conventions
 
+#ifdef __arm__
 _Static_assert(sizeof(signed char) == 1, "");
 _Static_assert(sizeof(unsigned char) == 1, "");
 _Static_assert(sizeof(signed short) == 2, "");
@@ -223,6 +219,5 @@ _Static_assert(sizeof(long long) == 8, "");
 _Static_assert(sizeof(unsigned long long) == 8, "");
 _Static_assert(sizeof(intmax_t) == 8, "");
 _Static_assert(sizeof(uintmax_t) == 8, "");
-
-#endif // NANOLOG_HOST_TOOL
+#endif
 
