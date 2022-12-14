@@ -2,6 +2,8 @@ BUILD_DIR := build
 OS := $(shell uname)
 COMPILER_VERSION := $(shell $(CXX) --version)
 
+# ----- Unclog tool
+
 UNCLOG_BIN := $(BUILD_DIR)/bin/unclog
 UNCLOG_SRCS := unclog/unclog.cc \
 			   unclog/args.cc \
@@ -13,11 +15,17 @@ UNCLOG_SRCS := unclog/unclog.cc \
 UNCLOG_OBJS := $(UNCLOG_SRCS:%=$(BUILD_DIR)/%.o)
 UNCLOG_DEPS := $(UNCLOG_OBJS:.o=.d)
 
+# ----- Runtime unit tests
+
 TESTS_STAMP := $(BUILD_DIR)/nanolog_tests.timestamp
 TESTS_BIN := $(BUILD_DIR)/nanolog_tests
-TESTS_SRCS := tests/unittest_main.cc nanolog.c
+TESTS_SRCS := tests/unittest_main.cc \
+			  tests/test_nanolog.cc \
+			  nanolog.c
 TESTS_OBJS := $(TESTS_SRCS:%=$(BUILD_DIR)/%.o)
 TESTS_DEPS := $(TESTS_DEPS:.o=.d)
+
+# ----- Compiler flags
 
 LDFLAGS = -flto
 
@@ -25,7 +33,6 @@ CPPFLAGS += -DNANOLOG_HOST_TOOL
 
 CFLAGS = --std=c17
 CXXFLAGS = --std=c++20
-
 CPPFLAGS += -MMD -MP -g
 CPPFLAGS += -Os -flto
 CPPFLAGS += -Werror -Wall -Wextra
@@ -45,7 +52,10 @@ CFLAGS += -Wno-declaration-after-statement
 else
 CPPFLAGS += -Wconversion
 endif
+
 CPPFLAGS += -Wno-padded
+
+# ----- Targets and rules
 
 $(BUILD_DIR)/%.c.o: %.c Makefile
 	mkdir -p $(dir $@) && $(CC) $(CPPFLAGS) $(CFLAGS) -x c -c $< -o $@
