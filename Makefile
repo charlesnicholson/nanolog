@@ -24,7 +24,7 @@ TESTS_SRCS := tests/unittest_main.cc \
 
 # ----- Compiler flags
 
-ifneq '' '$(findstring gcc,$(COMPILER_VERSION))'
+ifneq '' '$(findstring g++,$(COMPILER_VERSION))'
 LDFLAGS = -flto=auto
 else
 LDFLAGS = -flto
