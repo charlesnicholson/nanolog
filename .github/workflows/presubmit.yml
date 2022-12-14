@@ -8,6 +8,22 @@ on:
     - cron: '0 2 * * 0'  # Weekly
 
 jobs:
+  armv7-m:
+    runs-on: ubuntu-latest
+
+    container:
+      image: ghcr.io/charlesnicholson/docker-image:latest
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          submodules: recursive
+      - name: Build
+        run: arm-none-eabi-gcc -march=armv7-m -c -Os -Wall -Wextra -I. nanolog.c -DNANOLOG_PROVIDE_ASSERT_MACROS
+
   linux-gcc:
     runs-on: ubuntu-latest
 
