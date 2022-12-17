@@ -167,6 +167,7 @@ static void nanolog_extract_and_dispatch(nanolog_binary_field_handler_cb_t cb,
     case NL_ARG_TYPE_LOG_START:
     case NL_ARG_TYPE_GUID:
     case NL_ARG_TYPE_STRING_LEN_VARINT:
+    case NL_ARG_TYPE_DYNAMIC_SEVERITY:
       break;
   }
 }

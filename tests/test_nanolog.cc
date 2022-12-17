@@ -1,6 +1,8 @@
 #include "../nanolog.h"
 #include "doctest.h"
 
+#include <vector>
+
 TEST_CASE("nanolog_set_threshold") {
   REQUIRE(nanolog_set_threshold(-123) == NANOLOG_RET_ERR_BAD_ARG);
   REQUIRE(nanolog_set_threshold(NL_SEV_DEBUG) == NANOLOG_RET_SUCCESS);
@@ -28,29 +30,68 @@ TEST_CASE("nanolog_get_threshold") {
 }
 
 TEST_CASE("nanolog_set_handler") {
-  static int s_calls;
+  static int s_calls{0};
   REQUIRE(nanolog_set_handler([](void *, int, char const *, va_list) { ++s_calls; })
           == NANOLOG_RET_SUCCESS);
-  s_calls = 0;
   nanolog_log_sev("", NL_SEV_ASSERT);
   REQUIRE(s_calls == 1);
 }
 
 TEST_CASE("nanolog_fmt_is_binary") {
-  int binary = 0;
+  int binary{9999};
   REQUIRE(nanolog_fmt_is_binary(nullptr, nullptr) == NANOLOG_RET_ERR_BAD_ARG);
   REQUIRE(nanolog_fmt_is_binary(nullptr, &binary) == NANOLOG_RET_ERR_BAD_ARG);
   REQUIRE(nanolog_fmt_is_binary("hello", nullptr) == NANOLOG_RET_ERR_BAD_ARG);
 
-  // only leading 0x1F bytes count as binary
   static_assert(NL_BINARY_LOG_MARKER == 0x1F);
-  REQUIRE(nanolog_fmt_is_binary("\x1f", &binary) == NANOLOG_RET_SUCCESS);
-  REQUIRE(binary == 1);
-  REQUIRE(nanolog_fmt_is_binary("hello", &binary) == NANOLOG_RET_SUCCESS);
-  REQUIRE(binary == 0);
-  REQUIRE(nanolog_fmt_is_binary("\x1f" "more stuff", &binary) == NANOLOG_RET_SUCCESS);
-  REQUIRE(binary == 1);
-  REQUIRE(nanolog_fmt_is_binary("stuff\x1f", &binary) == NANOLOG_RET_SUCCESS);
-  REQUIRE(binary == 0);
+
+  SUBCASE("empty string is not binary") {
+    REQUIRE(nanolog_fmt_is_binary("", &binary) == NANOLOG_RET_SUCCESS);
+    REQUIRE(binary == 0);
+  }
+
+  SUBCASE("1f is binary") {
+    REQUIRE(nanolog_fmt_is_binary("\x1f", &binary) == NANOLOG_RET_SUCCESS);
+    REQUIRE(binary == 1);
+  }
+
+  SUBCASE("ascii is not binary") {
+    REQUIRE(nanolog_fmt_is_binary("hello", &binary) == NANOLOG_RET_SUCCESS);
+    REQUIRE(binary == 0);
+  }
+
+  SUBCASE("leading 1f is binary") {
+    REQUIRE(nanolog_fmt_is_binary("\x1f" "more stuff", &binary) == NANOLOG_RET_SUCCESS);
+    REQUIRE(binary == 1);
+  }
+
+  SUBCASE("1f after ascii is not binary") {
+    REQUIRE(nanolog_fmt_is_binary("stuff\x1f", &binary) == NANOLOG_RET_SUCCESS);
+    REQUIRE(binary == 0);
+  }
 }
 
+TEST_CASE("nanolog_log_sev") {
+  static std::string *s_fmt{new std::string()};
+  static int s_sev{12345};
+  REQUIRE(nanolog_set_handler(
+    [](void *, int sev, char const *fmt, va_list) { *s_fmt = fmt; s_sev = sev; })
+    == NANOLOG_RET_SUCCESS);
+  nanolog_log_sev("logging is fun", NL_SEV_WARNING);
+  REQUIRE(*s_fmt == "logging is fun");
+  REQUIRE(s_sev == NL_SEV_WARNING);
+}
+
+TEST_CASE("nanolog_log_sev_ctx") {
+  struct Log { std::string fmt; int sev; };
+  std::vector<Log> captures;
+  REQUIRE(nanolog_set_handler(
+    [](void *ctx, int sev, char const *fmt, va_list) {
+      static_cast<std::vector<Log>*>(ctx)->emplace_back(Log{ .fmt=fmt, .sev=sev });
+    }) == NANOLOG_RET_SUCCESS);
+
+  nanolog_log_sev_ctx("hello", NL_SEV_ERROR, &captures);
+  REQUIRE(captures.size() == 1);
+  REQUIRE(captures[0].fmt == "hello");
+  REQUIRE(captures[0].sev == NL_SEV_ERROR);
+}
