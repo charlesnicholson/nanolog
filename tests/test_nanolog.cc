@@ -1,6 +1,7 @@
 #include "../nanolog.h"
 #include "doctest.h"
 
+#include <string>
 #include <vector>
 
 TEST_CASE("nanolog_set_threshold") {
