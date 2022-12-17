@@ -52,10 +52,13 @@ typedef enum {
 } nl_arg_type_t;
 
 // Set the runtime log threshold for enabled log calls
-nanolog_ret_t nanolog_set_threshold(int severity);
-int nanolog_get_threshold(void);
+nanolog_ret_t nanolog_set_threshold(unsigned severity);
+unsigned nanolog_get_threshold(void);
 
-typedef void (*nanolog_handler_cb_t)(void *ctx, int sev, char const *fmt, va_list args);
+typedef void (*nanolog_handler_cb_t)(void *ctx,
+                                     unsigned sev,
+                                     char const *fmt,
+                                     va_list args);
 
 // Install a handler to be called on every log macro invocation.
 nanolog_ret_t nanolog_set_handler(nanolog_handler_cb_t handler);
@@ -71,12 +74,13 @@ typedef void (*nanolog_binary_field_handler_cb_t)(void *ctx,
 // Calls |cb| with every arg. Serialize all non-NULL payloads as-is to your target.
 nanolog_ret_t nanolog_parse_binary_log(nanolog_binary_field_handler_cb_t cb,
                                        void *ctx,
+                                       unsigned sev,
                                        char const *fmt,
                                        va_list args);
 
 // Direct log functions, for dynamic runtime severity.
-void nanolog_log_sev(char const *fmt, int sev, ...);
-void nanolog_log_sev_ctx(char const *fmt, int sev, void* ctx, ...);
+void nanolog_log_sev(char const *fmt, unsigned sev, ...);
+void nanolog_log_sev_ctx(char const *fmt, unsigned sev, void* ctx, ...);
 
 // Boilerplate, has to be before the public logging macros
 
@@ -220,7 +224,10 @@ void nanolog_log_sev_ctx(char const *fmt, int sev, void* ctx, ...);
 
 // Implementation details
 
-enum { NL_BINARY_LOG_MARKER = 0x1F };  // starts replacement binary payloads
+enum {
+  NL_BINARY_LOG_MARKER = 0x1F,  // starts replacement binary payloads
+  NL_DYNAMIC_SEV_BIT = 1 << 7,  // or'd into severity from nanolog_log_sev
+};
 
 // Private logging API (use the macros, not these)
 

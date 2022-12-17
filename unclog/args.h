@@ -2,7 +2,7 @@
 #include "boilerplate.h"
 
 struct args {
-  int log_threshold = NL_SEV_WARNING;
+  unsigned log_threshold = NL_SEV_WARNING;
   char const *input_elf = nullptr;
   char const *output_elf = nullptr;
   char const *output_json = nullptr;

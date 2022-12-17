@@ -60,14 +60,20 @@ bool args_parse(char const *argv[], int const argc, args& out_args) {
         }
 
         if (!strcmp(argv[i], "-v")) {
-          --out_args.log_threshold;
-          if (out_args.log_threshold < 0) { ok = false; }
+          if (out_args.log_threshold == 0) {
+            ok = false;
+          } else {
+            --out_args.log_threshold;
+          }
           break;
         }
 
         if (!strcmp(argv[i], "-vv")) {
-          out_args.log_threshold -= 2;
-          if (out_args.log_threshold < 0) { ok = false; }
+          if (out_args.log_threshold < 2) {
+            ok = false;
+          } else {
+            out_args.log_threshold -= 2;
+          }
           break;
         }
 
