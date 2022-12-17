@@ -75,7 +75,7 @@ TEST_CASE("nanolog_log_sev") {
   static std::string *s_fmt{new std::string()};
   static int s_sev{12345};
   REQUIRE(nanolog_set_handler(
-    [](void *, int sev, char const *fmt, va_list) { *s_fmt = fmt; s_sev = sev; })
+    [](void *, int sev, char const *fmt, va_list) { *s_fmt=std::string{fmt}; s_sev=sev; })
     == NANOLOG_RET_SUCCESS);
   nanolog_log_sev("logging is fun", NL_SEV_WARNING);
   REQUIRE(*s_fmt == "logging is fun");
