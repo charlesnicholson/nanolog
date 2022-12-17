@@ -5,17 +5,15 @@
 #include <wchar.h>
 
 static nanolog_handler_cb_t s_log_handler = NULL;
-static int s_log_threshold = NL_SEV_DEBUG;
+static unsigned s_log_threshold = NL_SEV_DEBUG;
 
-nanolog_ret_t nanolog_set_threshold(int severity) {
-  if ((severity < NL_SEV_DEBUG) || (severity > NL_SEV_ASSERT)) {
-    return NANOLOG_RET_ERR_BAD_ARG;
-  }
+nanolog_ret_t nanolog_set_threshold(unsigned severity) {
+  if (severity > NL_SEV_ASSERT) { return NANOLOG_RET_ERR_BAD_ARG; }
   s_log_threshold = severity;
   return NANOLOG_RET_SUCCESS;
 }
 
-int nanolog_get_threshold(void) {
+unsigned nanolog_get_threshold(void) {
   return s_log_threshold;
 }
 
@@ -24,14 +22,18 @@ nanolog_ret_t nanolog_set_handler(nanolog_handler_cb_t handler) {
   return NANOLOG_RET_SUCCESS;
 }
 
-void nanolog_log_sev(char const *fmt, int sev, ...) {
+void nanolog_log_sev(char const *fmt, unsigned sev, ...) {
   if (!s_log_handler || (s_log_threshold > sev)) { return; }
-  va_list a; va_start(a, sev); s_log_handler(NULL, sev, fmt, a); va_end(a);
+  va_list a; va_start(a, sev);
+  s_log_handler(NULL, sev | NL_DYNAMIC_SEV_BIT, fmt, a);
+  va_end(a);
 }
 
-void nanolog_log_sev_ctx(char const *fmt, int sev, void* ctx, ...) {
+void nanolog_log_sev_ctx(char const *fmt, unsigned sev, void* ctx, ...) {
   if (!s_log_handler || (s_log_threshold > sev)) { return; }
-  va_list a; va_start(a, ctx); s_log_handler(ctx, sev, fmt, a); va_end(a);
+  va_list a; va_start(a, ctx);
+  s_log_handler(ctx, sev | NL_DYNAMIC_SEV_BIT, fmt, a);
+  va_end(a);
 }
 
 void nanolog_log_debug(char const *fmt, ...) {
@@ -174,8 +176,10 @@ static void nanolog_extract_and_dispatch(nanolog_binary_field_handler_cb_t cb,
 
 nanolog_ret_t nanolog_parse_binary_log(nanolog_binary_field_handler_cb_t cb,
                                        void *ctx,
+                                       unsigned sev,
                                        char const *fmt,
                                        va_list args) {
+  (void)sev;
   if (!cb || !fmt) { return NANOLOG_RET_ERR_BAD_ARG; }
 
   unsigned char const *src = (unsigned char const*)fmt;

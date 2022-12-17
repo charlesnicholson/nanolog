@@ -5,7 +5,7 @@
 #include <vector>
 
 TEST_CASE("nanolog_set_threshold") {
-  REQUIRE(nanolog_set_threshold(-123) == NANOLOG_RET_ERR_BAD_ARG);
+  REQUIRE(nanolog_set_threshold(99999) == NANOLOG_RET_ERR_BAD_ARG);
   REQUIRE(nanolog_set_threshold(NL_SEV_DEBUG) == NANOLOG_RET_SUCCESS);
   REQUIRE(nanolog_set_threshold(NL_SEV_INFO) == NANOLOG_RET_SUCCESS);
   REQUIRE(nanolog_set_threshold(NL_SEV_WARNING) == NANOLOG_RET_SUCCESS);
@@ -32,7 +32,7 @@ TEST_CASE("nanolog_get_threshold") {
 
 TEST_CASE("nanolog_set_handler") {
   static int s_calls{0};
-  REQUIRE(nanolog_set_handler([](void *, int, char const *, va_list) { ++s_calls; })
+  REQUIRE(nanolog_set_handler([](void *, unsigned, char const *, va_list) { ++s_calls; })
           == NANOLOG_RET_SUCCESS);
   nanolog_log_sev("", NL_SEV_ASSERT);
   REQUIRE(s_calls == 1);
@@ -74,25 +74,26 @@ TEST_CASE("nanolog_fmt_is_binary") {
 
 TEST_CASE("nanolog_log_sev") {
   static std::string *s_fmt{new std::string()};
-  static int s_sev{12345};
+  static unsigned s_sev{12345};
   REQUIRE(nanolog_set_handler(
-    [](void *, int sev, char const *fmt, va_list) { *s_fmt=std::string{fmt}; s_sev=sev; })
-    == NANOLOG_RET_SUCCESS);
+    [](void *, unsigned sev, char const *fmt, va_list) {
+      *s_fmt=std::string{fmt}; s_sev=sev;
+    }) == NANOLOG_RET_SUCCESS);
   nanolog_log_sev("logging is fun", NL_SEV_WARNING);
   REQUIRE(*s_fmt == "logging is fun");
-  REQUIRE(s_sev == NL_SEV_WARNING);
+  REQUIRE_EQ(s_sev,  NL_SEV_WARNING | NL_DYNAMIC_SEV_BIT);
 }
 
 TEST_CASE("nanolog_log_sev_ctx") {
-  struct Log { std::string fmt; int sev; };
+  struct Log { std::string fmt; unsigned sev; };
   std::vector<Log> captures;
   REQUIRE(nanolog_set_handler(
-    [](void *ctx, int sev, char const *fmt, va_list) {
+    [](void *ctx, unsigned sev, char const *fmt, va_list) {
       static_cast<std::vector<Log>*>(ctx)->emplace_back(Log{ .fmt=fmt, .sev=sev });
     }) == NANOLOG_RET_SUCCESS);
 
   nanolog_log_sev_ctx("hello", NL_SEV_ERROR, &captures);
   REQUIRE(captures.size() == 1);
   REQUIRE(captures[0].fmt == "hello");
-  REQUIRE(captures[0].sev == NL_SEV_ERROR);
+  REQUIRE_EQ(captures[0].sev, NL_SEV_ERROR | NL_DYNAMIC_SEV_BIT);
 }
