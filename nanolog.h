@@ -226,7 +226,7 @@ void nanolog_log_sev_ctx(char const *fmt, unsigned sev, void* ctx, ...);
 
 enum {
   NL_BINARY_LOG_MARKER = 0x1F,  // starts replacement binary payloads
-  NL_DYNAMIC_SEV_BIT = 1 << 7,  // or'd into severity from nanolog_log_sev
+  NL_DYNAMIC_SEV_BIT = 1 << 8,  // or'd into severity from nanolog_log_sev
 };
 
 // Private logging API (use the macros, not these)
