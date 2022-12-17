@@ -41,7 +41,7 @@ jobs:
         env:
           CC: /usr/bin/gcc
           CXX: /usr/bin/g++
-        run: make
+        run: make -j
 
   linux-clang:
     runs-on: ubuntu-latest
@@ -60,7 +60,7 @@ jobs:
         env:
           CC: /usr/bin/clang
           CXX: /usr/bin/clang++
-        run: make
+        run: make -j
 
   macos:
     runs-on: macos-latest
@@ -68,7 +68,7 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - name: Build
-        run: make
+        run: make -j
 
   win:
     runs-on: windows-latest
