@@ -4,6 +4,10 @@
 #include <stdint.h>
 #include <wchar.h>
 
+#ifdef _MSC_VER
+#include <assert.h> // _Static_assert on msvc
+#endif
+
 static nanolog_handler_cb_t s_log_handler = NULL;
 static unsigned s_log_threshold = NL_SEV_DEBUG;
 
