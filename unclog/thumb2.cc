@@ -129,8 +129,8 @@ int inst_is_log_call(inst const& i,
   u32 label;
   if (!inst_is_unconditional_branch(i, label)) { return -1; }
 
-  auto const found = std::find_if(std::begin(log_funcs), std::end(log_funcs),
-    [=](elf_symbol32 const *cand) { return (cand->st_value & ~1u) == label; });
+  auto const found{std::find_if(std::begin(log_funcs), std::end(log_funcs),
+    [=](elf_symbol32 const *cand) { return (cand->st_value & ~1u) == label; })};
   if (found == std::end(log_funcs)) { return -1; }
 
   char const *name{&strtab[(*found)->st_name]};
@@ -140,6 +140,7 @@ int inst_is_log_call(inst const& i,
   if (strstr(name, "_error")) { return NL_SEV_ERROR; }
   if (strstr(name, "_critical")) { return NL_SEV_CRITICAL; }
   if (strstr(name, "_assert")) { return NL_SEV_ASSERT; }
+  if (strstr(name, "_sev")) { return UNCLOG_SEV_DYNAMIC; }
   return -1;
 }
 

@@ -56,3 +56,4 @@ inline bytes_ptr alloc_bytes(unsigned align, unsigned len) {
   return bytes_ptr{static_cast<byte *>(mem)};
 }
 
+enum { UNCLOG_SEV_DYNAMIC = 1000 };

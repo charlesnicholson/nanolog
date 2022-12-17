@@ -48,6 +48,7 @@ char const *emit_severity(unsigned sev) {
     case NL_SEV_ERROR: return "error";
     case NL_SEV_CRITICAL: return "critical";
     case NL_SEV_ASSERT: return "assert";
+    case UNCLOG_SEV_DYNAMIC: return "dynamic";
     default: break;
   }
   return "unknown";
