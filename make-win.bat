@@ -1,5 +1,5 @@
 @echo off
-cl.exe /nologo /std:c++20 /std:c17 /W4 /WX /Osy /GL /EHsc /MP ^
+cl.exe /nologo /std:c++20 /W4 /WX /Osy /GL /EHsc /MP ^
     /D_CRT_SECURE_NO_WARNINGS ^
     /DNANOLOG_HOST_TOOL=1 ^
     nanolog.c ^
@@ -11,7 +11,7 @@ cl.exe /nologo /std:c++20 /std:c17 /W4 /WX /Osy /GL /EHsc /MP ^
     unclog/unclog.cc ^
     /link /out:unclog.exe || exit /b 1
 
-cl.exe /nologo /std:c++20 /std:c17 /W4 /WX /Osy /GL /EHsc /MP ^
+cl.exe /nologo /std:c++20 /W4 /WX /Osy /GL /EHsc /MP ^
     /D_CRT_SECURE_NO_WARNINGS ^
     /DNANOLOG_HOST_TOOL=1 ^
     nanolog.c ^
