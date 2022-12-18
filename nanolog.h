@@ -62,6 +62,7 @@ typedef void (*nanolog_handler_cb_t)(void *ctx,
 
 // Install a handler to be called on every log macro invocation.
 nanolog_ret_t nanolog_set_handler(nanolog_handler_cb_t handler);
+nanolog_handler_cb_t nanolog_get_handler(void);
 
 // Writes 1 to |out_is_binary| if fmt is a rewritten binary spec, 0 if ASCII.
 nanolog_ret_t nanolog_fmt_is_binary(char const *fmt, int *out_is_binary);
