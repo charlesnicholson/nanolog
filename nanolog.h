@@ -25,7 +25,8 @@ extern "C" {
 typedef enum {
   NANOLOG_RET_SUCCESS = 0,
   NANOLOG_RET_ERR_BAD_ARG,
-  NANOLOG_RET_INVALID_PAYLOAD,
+  NANOLOG_RET_ERR_INVALID_PAYLOAD,
+  NANOLOG_RET_ERR_EXHAUSTED,
 } nanolog_ret_t;
 
 typedef enum {
@@ -229,6 +230,15 @@ enum {
   NL_BINARY_LOG_MARKER = 0x1F,  // starts replacement binary payloads
   NL_DYNAMIC_SEV_BIT = 1 << 8,  // or'd into severity from nanolog_log_sev
 };
+
+// Internal helper functions
+
+nanolog_ret_t nanolog_varint_encode(unsigned val,
+                                    void *out_buf,
+                                    unsigned buf_max,
+                                    unsigned *out_len);
+
+nanolog_ret_t nanolog_varint_decode(void const *p, unsigned *out_val);
 
 // Private logging API (use the macros, not these)
 
