@@ -122,10 +122,16 @@ TEST_CASE("nanolog_varint_decode") {
     REQUIRE(val == 79);
   }
 
-  SUBCASE("127") {
+  SUBCASE("127 is the largest single-byte value") {
     unsigned char const buf[] = { 0x7F };
     REQUIRE(nanolog_varint_decode(buf, &val) == NANOLOG_RET_SUCCESS);
     REQUIRE(val == 127);
+  }
+
+  SUBCASE("128 is the smallest two-byte value") {
+    unsigned char const buf[] = { 0x81, 0x00 };
+    REQUIRE(nanolog_varint_decode(buf, &val) == NANOLOG_RET_SUCCESS);
+    REQUIRE(val == 128);
   }
 }
 

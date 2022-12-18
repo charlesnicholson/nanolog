@@ -230,7 +230,7 @@ nanolog_ret_t nanolog_parse_binary_log(nanolog_binary_field_handler_cb_t cb,
 nanolog_ret_t nanolog_varint_decode(void const *p, unsigned *out_val) {
   if (!p || !out_val) { return NANOLOG_RET_ERR_BAD_ARG; }
   unsigned val = 0;
-  for (unsigned char const *src = (unsigned char const *)p;; ++src) {
+  for (unsigned char const *src = (unsigned char const *)p; ; ++src) {
     val = (val << 7) | (*src & 0x7F);
     if (!(*src & 0x80)) { break; }
   }
@@ -252,7 +252,7 @@ nanolog_ret_t nanolog_varint_encode(unsigned val,
 
   unsigned char *dst = (unsigned char *)out_buf;
   do { *dst++ = (val & 0x7F) | 0x80; val >>= 7; } while (val);
-  *(dst - 1) &= ~0x80u;
+  *(dst - 1) &= (unsigned char)~0x80u;
   *out_len = (unsigned)(dst - (unsigned char *)out_buf);
   return NANOLOG_RET_SUCCESS;
 }
