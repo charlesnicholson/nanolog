@@ -197,7 +197,7 @@ nanolog_ret_t nanolog_parse_binary_log(nanolog_binary_field_handler_cb_t cb,
   if (!cb || !fmt) { return NANOLOG_RET_ERR_BAD_ARG; }
 
   unsigned char const *src = (unsigned char const *)fmt;
-  if (*src++ != NL_BINARY_LOG_MARKER) { return NANOLOG_RET_INVALID_PAYLOAD; }
+  if (*src++ != NL_BINARY_LOG_MARKER) { return NANOLOG_RET_ERR_INVALID_PAYLOAD; }
 
   // About to log, tell user so they can transmit timestamp etc
   cb(ctx, NL_ARG_TYPE_LOG_START, NULL, 0);
@@ -224,6 +224,36 @@ nanolog_ret_t nanolog_parse_binary_log(nanolog_binary_field_handler_cb_t cb,
     if (type == NL_ARG_TYPE_LOG_END) { break; }
   }
 
+  return NANOLOG_RET_SUCCESS;
+}
+
+nanolog_ret_t nanolog_varint_decode(void const *p, unsigned *out_val) {
+  if (!p || !out_val) { return NANOLOG_RET_ERR_BAD_ARG; }
+  unsigned val = 0;
+  for (unsigned char const *src = (unsigned char const *)p; ; ++src) {
+    val = (val << 7) | (*src & 0x7F);
+    if (!(*src & 0x80)) { break; }
+  }
+  *out_val = val;
+  return NANOLOG_RET_SUCCESS;
+}
+
+nanolog_ret_t nanolog_varint_encode(unsigned val,
+                                    void *out_buf,
+                                    unsigned buf_max,
+                                    unsigned *out_len) {
+  if (!out_buf || !out_len || !buf_max) { return NANOLOG_RET_ERR_BAD_ARG; }
+
+  { // make sure encoded payload fits before writing anything
+    unsigned val_len_test = val;
+    while (val_len_test && buf_max) { --buf_max; val_len_test >>= 7; }
+    if (val_len_test && !buf_max) { return NANOLOG_RET_ERR_EXHAUSTED; }
+  }
+
+  unsigned char *dst = (unsigned char *)out_buf;
+  do { *dst++ = (val & 0x7F) | 0x80; val >>= 7; } while (val);
+  *(dst - 1) &= (unsigned char)0x7F;
+  *out_len = (unsigned)(dst - (unsigned char *)out_buf);
   return NANOLOG_RET_SUCCESS;
 }
 
