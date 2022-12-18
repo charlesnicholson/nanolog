@@ -75,14 +75,13 @@ TEST_CASE("nanolog_fmt_is_binary") {
 TEST_CASE("nanolog_log_sev") {
   static std::string *s_fmt{new std::string()};
   static unsigned s_sev{12345};
-  REQUIRE(nanolog_set_handler(
-    [](void *, unsigned sev, char const *fmt, va_list) {
-      *s_fmt=std::string{fmt}; s_sev=sev;
-    }) == NANOLOG_RET_SUCCESS);
+  REQUIRE(nanolog_set_handler([](void *, unsigned sev, char const *fmt, va_list) {
+    *s_fmt=std::string{fmt}; s_sev=sev; }) == NANOLOG_RET_SUCCESS);
   nanolog_log_sev("logging is fun", NL_SEV_WARNING);
   REQUIRE(*s_fmt == "logging is fun");
   REQUIRE_EQ(s_sev, NL_SEV_WARNING | NL_DYNAMIC_SEV_BIT);
   delete s_fmt;
+  s_fmt = nullptr;
 }
 
 TEST_CASE("nanolog_log_sev_ctx") {
@@ -93,8 +92,45 @@ TEST_CASE("nanolog_log_sev_ctx") {
       static_cast<std::vector<Log>*>(ctx)->emplace_back(Log{ .fmt=fmt, .sev=sev });
     }) == NANOLOG_RET_SUCCESS);
 
-  nanolog_log_sev_ctx("hello", NL_SEV_ERROR, &captures);
-  REQUIRE(captures.size() == 1);
-  REQUIRE(captures[0].fmt == "hello");
-  REQUIRE_EQ(captures[0].sev, NL_SEV_ERROR | NL_DYNAMIC_SEV_BIT);
+  SUBCASE("marks severity as dynamic") {
+    nanolog_log_sev_ctx("hello", NL_SEV_ERROR, &captures);
+    REQUIRE(captures.size() == 1);
+    REQUIRE(captures[0].fmt == "hello");
+    REQUIRE_EQ(captures[0].sev, NL_SEV_ERROR | NL_DYNAMIC_SEV_BIT);
+  }
 }
+
+struct BinaryLog { nl_arg_type_t type; std::vector<unsigned char> payload; };
+
+void binary_handler(void *ctx, unsigned sev, char const *fmt, va_list args) {
+  int binary;
+  REQUIRE(nanolog_fmt_is_binary(fmt, &binary) == NANOLOG_RET_SUCCESS);
+  REQUIRE(binary == 1);
+  REQUIRE(nanolog_parse_binary_log(
+    [](void *ctx_, nl_arg_type_t type, void const *p, unsigned len) {
+      auto const *pc{static_cast<unsigned char const *>(p)};
+      static_cast<std::vector<BinaryLog>*>(ctx_)->emplace_back(
+        BinaryLog{.type=type, .payload=std::vector<unsigned char>(pc, pc+len)});
+    }, ctx, sev, fmt, args) == NANOLOG_RET_SUCCESS);
+}
+
+TEST_CASE("nanolog_parse_binary_log") {
+  nanolog_handler_cb_t const old_handler{nanolog_get_handler()};
+  nanolog_set_handler(&binary_handler);
+
+  std::vector<BinaryLog> logs;
+
+  SUBCASE("empty binlog emits start, guid, end") {
+    char const payload[] = { NL_BINARY_LOG_MARKER, 75, NL_ARG_TYPE_LOG_END };
+    nanolog_log_debug_ctx(payload, &logs);
+    REQUIRE(logs.size() == 3);
+    REQUIRE(logs[0].type == NL_ARG_TYPE_LOG_START);
+    REQUIRE(logs[1].type == NL_ARG_TYPE_GUID);
+    REQUIRE(logs[1].payload.size() == 1);
+    REQUIRE(logs[1].payload[0] == 75);
+    REQUIRE(logs[2].type == NL_ARG_TYPE_LOG_END);
+  }
+
+  nanolog_set_handler(old_handler);
+}
+

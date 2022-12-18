@@ -24,6 +24,8 @@ nanolog_ret_t nanolog_set_handler(nanolog_handler_cb_t handler) {
   return NANOLOG_RET_SUCCESS;
 }
 
+nanolog_handler_cb_t nanolog_get_handler(void) { return s_log_handler; }
+
 void nanolog_log_sev(char const *fmt, unsigned sev, ...) {
   if (!s_log_handler || (s_log_threshold > sev)) { return; }
   va_list a;
@@ -200,16 +202,16 @@ nanolog_ret_t nanolog_parse_binary_log(nanolog_binary_field_handler_cb_t cb,
   // About to log, tell user so they can transmit timestamp etc
   cb(ctx, NL_ARG_TYPE_LOG_START, NULL, 0);
 
-  if (sev & NL_DYNAMIC_SEV_BIT) { // nanolog_log_sev[_ctx]
-    _Static_assert(NL_DYNAMIC_SEV_BIT > 255, "");
-    uint8_t const sev_byte = (uint8_t)sev;
-    cb(ctx, NL_ARG_TYPE_DYNAMIC_SEVERITY, &sev_byte, 1);
-  }
-
   { // GUID is varint-encoded, ends at first byte w/o a high "continuation" bit (0x80)
     unsigned char const *guid = src;
     while (*src & 0x80) { ++src; }
     cb(ctx, NL_ARG_TYPE_GUID, guid, (unsigned)(++src - guid));
+  }
+
+  if (sev & NL_DYNAMIC_SEV_BIT) { // nanolog_log_sev[_ctx]
+    _Static_assert(NL_DYNAMIC_SEV_BIT > 255, "");
+    uint8_t const sev_byte = (uint8_t)sev;
+    cb(ctx, NL_ARG_TYPE_DYNAMIC_SEVERITY, &sev_byte, 1);
   }
 
   // Types are packed, two per byte, low nibble first.
