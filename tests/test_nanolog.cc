@@ -116,7 +116,13 @@ TEST_CASE("nanolog_varint_decode") {
     REQUIRE(val == 0);
   }
 
-  SUBCASE("less than 127") {
+  SUBCASE("stops at first byte that doesn't have high bit set") {
+    unsigned char const buf[] = { 0x01, 0xFF };
+    REQUIRE(nanolog_varint_decode(buf, &val) == NANOLOG_RET_SUCCESS);
+    REQUIRE(val == 1);
+  }
+
+  SUBCASE("one byte less than 127") {
     unsigned char const buf[] = { 79 };
     REQUIRE(nanolog_varint_decode(buf, &val) == NANOLOG_RET_SUCCESS);
     REQUIRE(val == 79);
@@ -133,6 +139,15 @@ TEST_CASE("nanolog_varint_decode") {
     REQUIRE(nanolog_varint_decode(buf, &val) == NANOLOG_RET_SUCCESS);
     REQUIRE(val == 128);
   }
+
+  SUBCASE("two bytes greater than 128") {
+    unsigned char const buf[] = { 0xAA, 0x45 };
+    REQUIRE(nanolog_varint_decode(buf, &val) == NANOLOG_RET_SUCCESS);
+    REQUIRE(val == 5445);
+  }
+}
+
+TEST_CASE("nanolog_varint_encode") {
 }
 
 TEST_CASE("nanolog_parse_binary_log") {
