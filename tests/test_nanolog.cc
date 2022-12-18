@@ -81,7 +81,7 @@ TEST_CASE("nanolog_log_sev") {
     }) == NANOLOG_RET_SUCCESS);
   nanolog_log_sev("logging is fun", NL_SEV_WARNING);
   REQUIRE(*s_fmt == "logging is fun");
-  REQUIRE_EQ(s_sev,  NL_SEV_WARNING | NL_DYNAMIC_SEV_BIT);
+  REQUIRE_EQ(s_sev, NL_SEV_WARNING | NL_DYNAMIC_SEV_BIT);
   delete s_fmt;
 }
 
