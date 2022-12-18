@@ -252,7 +252,7 @@ nanolog_ret_t nanolog_varint_encode(unsigned val,
 
   unsigned char *dst = (unsigned char *)out_buf;
   do { *dst++ = (val & 0x7F) | 0x80; val >>= 7; } while (val);
-  *(dst - 1) &= ~0x80;
+  *(dst - 1) &= ~0x80u;
   *out_len = (unsigned)(dst - (unsigned char *)out_buf);
   return NANOLOG_RET_SUCCESS;
 }
