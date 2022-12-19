@@ -56,7 +56,7 @@ CPPFLAGS += -Wno-padded
 # ----- Targets and rules
 
 $(BUILD_DIR)/%.c.o: %.c
-	mkdir -p $(dir $@) && $(CC) $(CPPFLAGS) $(CFLAGS) -x c -c $< -o $@
+	mkdir -p $(dir $@) && $(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
 
 $(BUILD_DIR)/%.cc.o: %.cc
 	mkdir -p $(dir $@) && $(CXX) $(CPPFLAGS) $(CXXFLAGS) -c $< -o $@

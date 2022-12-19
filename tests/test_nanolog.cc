@@ -1,6 +1,7 @@
 #include "../nanolog.h"
 #include "doctest.h"
 
+#include <cstring>
 #include <string>
 #include <vector>
 
@@ -103,7 +104,7 @@ TEST_CASE("nanolog_log_sev_ctx") {
 TEST_CASE("nanolog_varint_decode") {
   unsigned val = 99999999;
 
-  SUBCASE("bad argS") {
+  SUBCASE("bad args") {
     unsigned char c;
     REQUIRE(nanolog_varint_decode(nullptr, nullptr) == NANOLOG_RET_ERR_BAD_ARG);
     REQUIRE(nanolog_varint_decode(nullptr, &val) == NANOLOG_RET_ERR_BAD_ARG);
@@ -148,6 +149,23 @@ TEST_CASE("nanolog_varint_decode") {
 }
 
 TEST_CASE("nanolog_varint_encode") {
+  char buf[16];
+  memset(buf, 0, sizeof(buf));
+  unsigned len;
+
+  SUBCASE("bad args") {
+    REQUIRE(nanolog_varint_encode(0, nullptr, 0, nullptr) == NANOLOG_RET_ERR_BAD_ARG);
+    REQUIRE(nanolog_varint_encode(0, buf, 0, nullptr) == NANOLOG_RET_ERR_BAD_ARG);
+    REQUIRE(nanolog_varint_encode(0, buf, sizeof(buf), nullptr) == NANOLOG_RET_ERR_BAD_ARG);
+    REQUIRE(nanolog_varint_encode(0, buf, 0, &len) == NANOLOG_RET_ERR_BAD_ARG);
+  }
+
+  SUBCASE("exhaustion") {
+    REQUIRE(nanolog_varint_encode(1u << 7, buf, 1, &len) == NANOLOG_RET_ERR_EXHAUSTED);
+    REQUIRE(nanolog_varint_encode(1u << 14, buf, 2, &len) == NANOLOG_RET_ERR_EXHAUSTED);
+    REQUIRE(nanolog_varint_encode(1u << 21, buf, 3, &len) == NANOLOG_RET_ERR_EXHAUSTED);
+    REQUIRE(nanolog_varint_encode(1u << 28, buf, 4, &len) == NANOLOG_RET_ERR_EXHAUSTED);
+  }
 }
 
 TEST_CASE("nanolog_parse_binary_log") {
