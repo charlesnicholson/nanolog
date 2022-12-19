@@ -26,7 +26,15 @@ nanolog_ret_t nanolog_set_handler(nanolog_handler_cb_t handler) {
 
 nanolog_handler_cb_t nanolog_get_handler(void) { return s_log_handler; }
 
-void nanolog_log_sev(char const *fmt, unsigned sev, ...) {
+#ifdef _MSC_VER
+#define NL_NOINLINE __declspec(noinline)
+#elif defined(__GNUC__) || defined(__clang__)
+#define NL_NOINLINE __attribute__((noinline))
+#else
+#error Unrecognized compiler, please implement NL_NOINLINE
+#endif
+
+NL_NOINLINE void nanolog_log_sev(char const *fmt, unsigned sev, ...) {
   if (!s_log_handler || (s_log_threshold > sev)) { return; }
   va_list a;
   va_start(a, sev);
@@ -34,7 +42,7 @@ void nanolog_log_sev(char const *fmt, unsigned sev, ...) {
   va_end(a);
 }
 
-void nanolog_log_sev_ctx(char const *fmt, unsigned sev, void* ctx, ...) {
+NL_NOINLINE void nanolog_log_sev_ctx(char const *fmt, unsigned sev, void* ctx, ...) {
   if (!s_log_handler || (s_log_threshold > sev)) { return; }
   va_list a;
   va_start(a, ctx);
@@ -42,62 +50,62 @@ void nanolog_log_sev_ctx(char const *fmt, unsigned sev, void* ctx, ...) {
   va_end(a);
 }
 
-void nanolog_log_debug(char const *fmt, ...) {
+NL_NOINLINE void nanolog_log_debug(char const *fmt, ...) {
   if (!s_log_handler || (s_log_threshold > NL_SEV_DEBUG)) { return; }
   va_list a; va_start(a, fmt); s_log_handler(NULL, NL_SEV_DEBUG, fmt, a); va_end(a);
 }
 
-void nanolog_log_debug_ctx(char const *fmt, void *ctx, ...) {
+NL_NOINLINE void nanolog_log_debug_ctx(char const *fmt, void *ctx, ...) {
   if (!s_log_handler || (s_log_threshold > NL_SEV_DEBUG)) { return; }
   va_list a; va_start(a, ctx); s_log_handler(ctx, NL_SEV_DEBUG, fmt, a); va_end(a);
 }
 
-void nanolog_log_info(char const *fmt, ...) {
+NL_NOINLINE void nanolog_log_info(char const *fmt, ...) {
   if (!s_log_handler || (s_log_threshold > NL_SEV_INFO)) { return; }
   va_list a; va_start(a, fmt); s_log_handler(NULL, NL_SEV_INFO, fmt, a); va_end(a);
 }
 
-void nanolog_log_info_ctx(char const *fmt, void *ctx, ...) {
+NL_NOINLINE void nanolog_log_info_ctx(char const *fmt, void *ctx, ...) {
   if (!s_log_handler || (s_log_threshold > NL_SEV_INFO)) { return; }
   va_list a; va_start(a, ctx); s_log_handler(ctx, NL_SEV_INFO, fmt, a); va_end(a);
 }
 
-void nanolog_log_warning(char const *fmt, ...) {
+NL_NOINLINE void nanolog_log_warning(char const *fmt, ...) {
   if (!s_log_handler || (s_log_threshold > NL_SEV_WARNING)) { return; }
   va_list a; va_start(a, fmt); s_log_handler(NULL, NL_SEV_WARNING, fmt, a); va_end(a);
 }
 
-void nanolog_log_warning_ctx(char const *fmt, void *ctx, ...) {
+NL_NOINLINE void nanolog_log_warning_ctx(char const *fmt, void *ctx, ...) {
   if (!s_log_handler || (s_log_threshold > NL_SEV_WARNING)) { return; }
   va_list a; va_start(a, ctx); s_log_handler(ctx, NL_SEV_WARNING, fmt, a); va_end(a);
 }
 
-void nanolog_log_error(char const *fmt, ...) {
+NL_NOINLINE void nanolog_log_error(char const *fmt, ...) {
   if (!s_log_handler || (s_log_threshold > NL_SEV_ERROR)) { return; }
   va_list a; va_start(a, fmt); s_log_handler(NULL, NL_SEV_ERROR, fmt, a); va_end(a);
 }
 
-void nanolog_log_error_ctx(char const *fmt, void *ctx, ...) {
+NL_NOINLINE void nanolog_log_error_ctx(char const *fmt, void *ctx, ...) {
   if (!s_log_handler || (s_log_threshold > NL_SEV_ERROR)) { return; }
   va_list a; va_start(a, ctx); s_log_handler(ctx, NL_SEV_ERROR, fmt, a); va_end(a);
 }
 
-void nanolog_log_critical(char const *fmt, ...) {
+NL_NOINLINE void nanolog_log_critical(char const *fmt, ...) {
   if (!s_log_handler || (s_log_threshold > NL_SEV_CRITICAL)) { return; }
   va_list a; va_start(a, fmt); s_log_handler(NULL, NL_SEV_CRITICAL, fmt, a); va_end(a);
 }
 
-void nanolog_log_critical_ctx(char const *fmt, void *ctx, ...) {
+NL_NOINLINE void nanolog_log_critical_ctx(char const *fmt, void *ctx, ...) {
   if (!s_log_handler || (s_log_threshold > NL_SEV_CRITICAL)) { return; }
   va_list a; va_start(a, ctx); s_log_handler(ctx, NL_SEV_CRITICAL, fmt, a); va_end(a);
 }
 
-void nanolog_log_assert(char const *fmt, ...) {
+NL_NOINLINE void nanolog_log_assert(char const *fmt, ...) {
   if (!s_log_handler) { return; }
   va_list a; va_start(a, fmt); s_log_handler(NULL, NL_SEV_ASSERT, fmt, a); va_end(a);
 }
 
-void nanolog_log_assert_ctx(char const *fmt, void *ctx, ...) {
+NL_NOINLINE void nanolog_log_assert_ctx(char const *fmt, void *ctx, ...) {
   if (!s_log_handler) { return; }
   va_list a; va_start(a, ctx); s_log_handler(ctx, NL_SEV_ASSERT, fmt, a); va_end(a);
 }
