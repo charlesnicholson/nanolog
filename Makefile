@@ -63,7 +63,7 @@ $(BUILD_DIR)/%.cc.o: %.cc
 
 UNCLOG_OBJS := $(UNCLOG_SRCS:%=$(BUILD_DIR)/%.o)
 $(UNCLOG_BIN): $(UNCLOG_OBJS)
-	mkdir -p $(dir $@) && $(CXX) $(LDFLAGS) $(UNCLOG_OBJS) -o $@
+	mkdir -p $(dir $@) && $(CXX) $(LDFLAGS) $(UNCLOG_OBJS) -o $@ && strip $@
 
 TESTS_OBJS := $(TESTS_SRCS:%=$(BUILD_DIR)/%.o)
 $(TESTS_BIN): $(TESTS_OBJS)
