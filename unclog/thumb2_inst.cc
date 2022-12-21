@@ -913,6 +913,13 @@ bool decode_16bit_inst(u16 const w0, inst& out_inst) {
     return true;
   }
 
+  if ((w0 & 0xFE00u) == 0x5E00u) { // 4.6.65 LDRSH (reg), T1 encoding (pg 4-144)
+    out_inst.type = inst_type::LOAD_SIGNED_HALF_REG;
+    out_inst.i.load_signed_half_reg = { .shift = decode_imm_shift(0b00, 0),
+      .t = u8(w0 & 7u), .n = u8((w0 >> 3u) & 7u), .m = u8((w0 >> 6u) & 7u) };
+    return true;
+  }
+
   if ((w0 & 0xF800u) == 0) { // 4.6.68 LSL (imm), T1 encoding (pg 4-150)
     out_inst.type = inst_type::LSHIFT_LOG_IMM;
     out_inst.i.lshift_log_imm = { .shift = decode_imm_shift(0b00, u8((w0 >> 6u) & 0x1Fu)),
@@ -1186,7 +1193,8 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
     u8 const n{u8(w0 & 0xFu)}, d{u8((w1 >> 8u) & 0xFu)};
     u32 const i{(w0 >> 10u) & 1u}, imm3{(w1 >> 12u) & 7u}, imm8{w1 & 0xFFu},
       imm{(i << 11u) | (imm3 << 8u) | imm8};
-    if (n == 15) { // "SEE ADR on page 4-28"
+    if (n == 15) {
+      NL_LOG_ERR("SEE ADR on page 4-28");
       return false;
     }
     if (n == 13) { // 4.6.5 ADD (SP plus imm), T4 encoding (pg 4-24)
@@ -1418,10 +1426,12 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
   // 4.6.46 LDRB (imm), T3 encoding (pg 4-106)
   if (((w0 & 0xFFF0u) == 0xF810u) && ((w1 & 0x800u) == 0x800u)) {
     u8 const t{u8((w1 >> 12u) & 0xFu)}, n{u8(w0 & 0xFu)}, puw{u8((w1 >> 8u) & 3u)};
-    if (n == 15) { // "SEE LDRB (literal) on page 4-108"
+    if (n == 15) {
+      NL_LOG_ERR("SEE LDRB (literal) on page 4-108");
       return false;
     }
-    if ((t == 15) && (puw == 0b110)) { // "SEE LDRBT on page 4-112"
+    if ((t == 15) && (puw == 0b110)) {
+      NL_LOG_ERR("SEE LDRBT on page 4-112");
       return false;
     }
     out_inst.type = inst_type::LOAD_BYTE_IMM;
@@ -1433,11 +1443,13 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
   // 4.6.48 LDRB (reg), T2 encoding (pg 4-110)
   if (((w0 & 0xFFF0u) == 0xF810u) && ((w1 & 0xFC0u) == 0)) {
     u8 const t{u8((w1 >> 12u) & 0xFu)}, n{u8(w0 & 0xFu)};
-    if (t == 15) { // "SEE PLD (register) on page 4-203"
+    if (t == 15) {
+      NL_LOG_ERR("SEE PLD (register) on page 4-203");
       return false;
     }
-    if (n == 15) { // "SEE LDRB (literal) on page 4-108"
-      if (t == 15) { // "SEE PLD (immediate) on page 4-201"
+    if (n == 15) { // 4.6.47 LDRB (lit), T1 encoding (pg 4-108)
+      if (t == 15) {
+        NL_LOG_ERR("SEE PLD (immediate) on page 4-201");
         return false;
       }
       out_inst.type = inst_type::LOAD_BYTE_LIT;
@@ -1575,10 +1587,12 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
 
   if ((w0 & 0xFFF0u) == 0xF9B0u) { // 4.6.63 LDRSH (imm), T1 encoding (pg 4-140)
     u8 const n{u8(w0 & 0xFu)}, t{u8((w1 >> 12u) & 0xFu)};
-    if (n == 15) { // "SEE LDRSH (literal) on page 4-142"
+    if (n == 15) {
+      NL_LOG_ERR("SEE LDRSH (literal) on page 4-142");
       return false;
     }
-    if (t == 15) { // "SEE Memory hints on page 4-14"
+    if (t == 15) {
+      NL_LOG_ERR("SEE Memory hints on page 4-14");
       return false;
     }
     out_inst.type = inst_type::LOAD_SIGNED_HALF_IMM;
@@ -1612,10 +1626,12 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
   // 4.6.65 LDRSH (reg), T2 encoding (pg 4-144)
   if (((w0 & 0xFFF0u) == 0xF930u) && ((w1 & 0xFC0u) == 0)) {
     u8 const t{u8((w1 >> 12u) & 0xFu)}, n{u8(w0 & 0xFu)};
-    if (n == 15) { // "SEE LDRSH (literal) on page 4-142"
+    if (n == 15) {
+      NL_LOG_ERR("SEE LDRSH (literal) on page 4-142");
       return false;
     }
-    if (t == 15) { // "SEE Memory hints on page 4-14"
+    if (t == 15) {
+      NL_LOG_ERR("SEE Memory hints on page 4-14");
       return false;
     }
     out_inst.type = inst_type::LOAD_SIGNED_HALF_REG;
@@ -1896,7 +1912,8 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
   if (((w0 & 0xFFF0u) == 0xF840) && ((w1 & 0x800u) == 0x800u)) {
     u8 const t{u8((w1 >> 12u) & 0xFu)}, n{u8(w0 & 0xFu)}, imm8{u8(w1 & 0xFFu)},
       p{u8((w1 >> 10u) & 1u)}, u{u8((w1 >> 9u) & 1u)}, w{u8((w1 >> 8u) & 1u)};
-    if ((p == 1) && (u == 1) && (w == 0)) { // "SEE STRT on page 4-363"
+    if ((p == 1) && (u == 1) && (w == 0)) {
+      NL_LOG_ERR("SEE STRT on page 4-363");
       return false;
     }
     out_inst.type = inst_type::STORE_IMM;
@@ -1969,7 +1986,8 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
       out_inst.i.cmp_reg = { .shift = shift, .n = n, .m = m };
       return true;
     }
-    if (n == 13) { // "SEE SUB (SP minus register) on page 4-371"
+    if (n == 13) {
+      NL_LOG_ERR("SEE SUB (SP minus register) on page 4-371");
       return false;
     }
     out_inst.type = inst_type::SUB_REG;
@@ -2031,7 +2049,8 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
     u8 const n{u8(w0 & 0xFu)}, d{u8((w1 >> 8u) & 0xFu)};
     u16 const imm3{u8((w1 >> 12u) & 7u)}, imm8{u8(w1 & 0xFFu)}, i{u8((w0 >> 10u) & 1u)},
       imm{u16((i << 11u) | (imm3 << 8u) | imm8)};
-    if (n == 15) { // "SEE ADR on page 4-28"
+    if (n == 15) {
+      NL_LOG_ERR("SEE ADR on page 4-28");
       return false;
     }
     if (n == 13) { // 4.6.178 SUB (SP minus imm), T3 encoding, (pg 4-369)
