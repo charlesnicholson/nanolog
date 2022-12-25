@@ -1,4 +1,5 @@
 #include "../nanolog.h"
+#include "../unclog/boilerplate.h"
 #include "doctest.h"
 
 #include <cstring>
@@ -149,9 +150,10 @@ TEST_CASE("nanolog_varint_decode") {
 }
 
 TEST_CASE("nanolog_varint_encode") {
-  char buf[16];
+  byte buf[16];
+  size_t const bufsz{sizeof(buf)};
   memset(buf, 0, sizeof(buf));
-  unsigned len;
+  auto len{0u};
 
   SUBCASE("bad args") {
     REQUIRE(nanolog_varint_encode(0, nullptr, 0, nullptr) == NANOLOG_RET_ERR_BAD_ARG);
@@ -165,6 +167,38 @@ TEST_CASE("nanolog_varint_encode") {
     REQUIRE(nanolog_varint_encode(1u << 14, buf, 2, &len) == NANOLOG_RET_ERR_EXHAUSTED);
     REQUIRE(nanolog_varint_encode(1u << 21, buf, 3, &len) == NANOLOG_RET_ERR_EXHAUSTED);
     REQUIRE(nanolog_varint_encode(1u << 28, buf, 4, &len) == NANOLOG_RET_ERR_EXHAUSTED);
+  }
+
+  SUBCASE("zero") {
+    buf[0] = 0xFF;
+    REQUIRE(nanolog_varint_encode(0, buf, bufsz, &len) == NANOLOG_RET_SUCCESS);
+    REQUIRE(buf[0] == 0);
+    REQUIRE(len == 1);
+  }
+
+  SUBCASE("one") {
+    buf[0] = 0xFF;
+    REQUIRE(nanolog_varint_encode(1, buf, bufsz, &len) == NANOLOG_RET_SUCCESS);
+    REQUIRE(buf[0] == 1);
+    REQUIRE(len == 1);
+  }
+
+  SUBCASE("single-byte values") {
+    for (auto i{0u}; i < 127; ++i) {
+      buf[0] = 0xFF; len = 0;
+      REQUIRE(nanolog_varint_encode(i, buf, bufsz, &len) == NANOLOG_RET_SUCCESS);
+      REQUIRE(buf[0] == i);
+      REQUIRE(len == 1);
+    }
+  }
+
+  SUBCASE("128 is the smallest two-byte encoding") {
+    buf[0] = 0xFF;
+    buf[1] = 0xFF;
+    REQUIRE(nanolog_varint_encode(128, buf, bufsz, &len) == NANOLOG_RET_SUCCESS);
+    REQUIRE(buf[0] == 0x80);
+    REQUIRE(buf[1] == 1);
+    REQUIRE(len == 2);
   }
 }
 
