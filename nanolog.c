@@ -252,16 +252,17 @@ nanolog_ret_t nanolog_varint_encode(unsigned val,
                                     unsigned *out_len) {
   if (!out_buf || !out_len || !buf_max) { return NANOLOG_RET_ERR_BAD_ARG; }
 
-  { // make sure encoded payload fits before writing anything
-    unsigned val_len_test = val;
-    while (val_len_test && buf_max) { --buf_max; val_len_test >>= 7; }
-    if (val_len_test && !buf_max) { return NANOLOG_RET_ERR_EXHAUSTED; }
+  unsigned len = 0; { // precompute length and check that the encoding fits
+    unsigned val_tmp = val;
+    do { ++len; val_tmp >>= 7; } while (val_tmp && (len <= buf_max));
+    if (len > buf_max) { return NANOLOG_RET_ERR_EXHAUSTED; }
   }
 
   unsigned char *dst = (unsigned char *)out_buf;
-  do { *dst++ = (val & 0x7F) | 0x80; val >>= 7; } while (val);
-  *(dst - 1) &= 0x7F;
-  *out_len = (unsigned)(dst - (unsigned char *)out_buf);
+  unsigned i = len;
+  do { dst[--i] = (unsigned char)(val | 0x80); val >>= 7; } while (val);
+  dst[len - 1] &= 0x7F;
+  *out_len = len;
   return NANOLOG_RET_SUCCESS;
 }
 

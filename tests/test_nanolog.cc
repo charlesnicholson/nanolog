@@ -172,23 +172,23 @@ TEST_CASE("nanolog_varint_encode") {
   SUBCASE("zero") {
     buf[0] = 0xFF;
     REQUIRE(nanolog_varint_encode(0, buf, bufsz, &len) == NANOLOG_RET_SUCCESS);
-    REQUIRE(buf[0] == 0);
     REQUIRE(len == 1);
+    REQUIRE(buf[0] == 0);
   }
 
   SUBCASE("one") {
     buf[0] = 0xFF;
     REQUIRE(nanolog_varint_encode(1, buf, bufsz, &len) == NANOLOG_RET_SUCCESS);
-    REQUIRE(buf[0] == 1);
     REQUIRE(len == 1);
+    REQUIRE(buf[0] == 1);
   }
 
   SUBCASE("single-byte values") {
     for (auto i{0u}; i < 127; ++i) {
       buf[0] = 0xFF; len = 0;
       REQUIRE(nanolog_varint_encode(i, buf, bufsz, &len) == NANOLOG_RET_SUCCESS);
-      REQUIRE(buf[0] == i);
       REQUIRE(len == 1);
+      REQUIRE(buf[0] == i);
     }
   }
 
@@ -196,15 +196,35 @@ TEST_CASE("nanolog_varint_encode") {
     buf[0] = 0xFF;
     buf[1] = 0xFF;
     REQUIRE(nanolog_varint_encode(128, buf, bufsz, &len) == NANOLOG_RET_SUCCESS);
-    REQUIRE(buf[0] == 0x80);
-    REQUIRE(buf[1] == 1);
     REQUIRE(len == 2);
+    REQUIRE(buf[0] == 0x81);
+    REQUIRE(buf[1] == 0);
+  }
+
+  SUBCASE("two bytes greater than 128") {
+    buf[0] = 0xFF;
+    buf[1] = 0xFF;
+    REQUIRE(nanolog_varint_encode(5445, buf, bufsz, &len) == NANOLOG_RET_SUCCESS);
+    REQUIRE(len == 2);
+    REQUIRE(buf[0] == 0xAA);
+    REQUIRE(buf[1] == 0x45);
+  }
+}
+
+TEST_CASE("varint round-trip") {
+  byte buf[16];
+  unsigned len, val;
+  for (auto i{0u}; i < 65536u; ++i) {
+    REQUIRE(nanolog_varint_encode(i, buf, sizeof(buf), &len) == NANOLOG_RET_SUCCESS);
+    REQUIRE(nanolog_varint_decode(buf, &val) == NANOLOG_RET_SUCCESS);
+    REQUIRE(val == i);
   }
 }
 
 TEST_CASE("nanolog_parse_binary_log") {
-  struct BinaryLog { nl_arg_type_t type; std::vector<unsigned char> payload; };
   nanolog_handler_cb_t const old_handler{nanolog_get_handler()};
+
+  struct BinaryLog { nl_arg_type_t type; byte_vec payload; };
 
   nanolog_set_handler([](void *ctx, unsigned sev, char const *fmt, va_list args) {
     int binary;
@@ -214,7 +234,7 @@ TEST_CASE("nanolog_parse_binary_log") {
       [](void *ctx_, nl_arg_type_t type, void const *p, unsigned len) {
         auto const *pc{static_cast<unsigned char const *>(p)};
         static_cast<std::vector<BinaryLog>*>(ctx_)->emplace_back(
-          BinaryLog{.type=type, .payload=std::vector<unsigned char>(pc, pc+len)});
+          BinaryLog{.type=type, .payload=byte_vec(pc, pc+len)});
       }, ctx, sev, fmt, args) == NANOLOG_RET_SUCCESS);
   });
 
