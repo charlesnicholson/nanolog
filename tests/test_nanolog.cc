@@ -240,7 +240,7 @@ struct BinaryLog { nl_arg_type_t type; byte_vec payload; };
 std::vector<char> make_bin_payload(unsigned guid,
                                    std::vector<BinaryLog> const& contents = {}) {
   char guid_encoded[16];
-  unsigned guid_len;
+  unsigned guid_len{0};
   REQUIRE(nanolog_varint_encode(guid, guid_encoded, sizeof(guid_encoded), &guid_len)
     == NANOLOG_RET_SUCCESS);
 
