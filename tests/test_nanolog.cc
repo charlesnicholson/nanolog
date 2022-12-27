@@ -169,15 +169,15 @@ TEST_CASE("nanolog_varint_encode") {
     REQUIRE(nanolog_varint_encode(1u << 28, buf, 4, &len) == NANOLOG_RET_ERR_EXHAUSTED);
   }
 
+  buf[0] = buf[1] = 0xFF;
+
   SUBCASE("zero") {
-    buf[0] = 0xFF;
     REQUIRE(nanolog_varint_encode(0, buf, bufsz, &len) == NANOLOG_RET_SUCCESS);
     REQUIRE(len == 1);
     REQUIRE(buf[0] == 0);
   }
 
   SUBCASE("one") {
-    buf[0] = 0xFF;
     REQUIRE(nanolog_varint_encode(1, buf, bufsz, &len) == NANOLOG_RET_SUCCESS);
     REQUIRE(len == 1);
     REQUIRE(buf[0] == 1);
@@ -193,8 +193,6 @@ TEST_CASE("nanolog_varint_encode") {
   }
 
   SUBCASE("128 is the smallest two-byte encoding") {
-    buf[0] = 0xFF;
-    buf[1] = 0xFF;
     REQUIRE(nanolog_varint_encode(128, buf, bufsz, &len) == NANOLOG_RET_SUCCESS);
     REQUIRE(len == 2);
     REQUIRE(buf[0] == 0x81);
@@ -202,8 +200,6 @@ TEST_CASE("nanolog_varint_encode") {
   }
 
   SUBCASE("two bytes greater than 128") {
-    buf[0] = 0xFF;
-    buf[1] = 0xFF;
     REQUIRE(nanolog_varint_encode(5445, buf, bufsz, &len) == NANOLOG_RET_SUCCESS);
     REQUIRE(len == 2);
     REQUIRE(buf[0] == 0xAA);
@@ -221,10 +217,51 @@ TEST_CASE("varint round-trip") {
   }
 }
 
+void require_guid(void const *payload, unsigned guid) {
+  unsigned payload_guid;
+  REQUIRE(nanolog_varint_decode(payload, &payload_guid) == NANOLOG_RET_SUCCESS);
+  REQUIRE(payload_guid == guid);
+}
+
+void require_2byte(void const *payload, uint16_t expected) {
+  uint16_t actual; memcpy(&actual, payload, sizeof(actual)); REQUIRE(actual == expected);
+}
+
+void require_4byte(void const *payload, uint32_t expected) {
+  uint32_t actual; memcpy(&actual, payload, sizeof(actual)); REQUIRE(actual == expected);
+}
+
+void require_8byte(void const *payload, uint64_t expected) {
+  uint64_t actual; memcpy(&actual, payload, sizeof(actual)); REQUIRE(actual == expected);
+}
+
+struct BinaryLog { nl_arg_type_t type; byte_vec payload; };
+
+std::vector<char> make_bin_payload(unsigned guid,
+                                   std::vector<BinaryLog> const& contents = {}) {
+  char guid_encoded[16];
+  unsigned guid_len{0};
+  REQUIRE(nanolog_varint_encode(guid, guid_encoded, sizeof(guid_encoded), &guid_len)
+    == NANOLOG_RET_SUCCESS);
+
+  std::vector<char> bp;
+  bp.emplace_back(char(NL_BINARY_LOG_MARKER));
+  bp.insert(std::end(bp), guid_encoded, guid_encoded + guid_len);
+
+  char c{0};
+  bool lo{true};
+  for (auto const& entry : contents) {
+    c |= char(entry.type) << (lo ? 0 : 4);
+    if (!lo) { bp.emplace_back(c); c = 0; }
+    lo = !lo;
+  }
+  c |= char(NL_ARG_TYPE_LOG_END << (lo ? 0 : 4));
+  bp.emplace_back(c);
+  return bp;
+}
+
 TEST_CASE("nanolog_parse_binary_log") {
   nanolog_handler_cb_t const old_handler{nanolog_get_handler()};
-
-  struct BinaryLog { nl_arg_type_t type; byte_vec payload; };
 
   nanolog_set_handler([](void *ctx, unsigned sev, char const *fmt, va_list args) {
     int binary;
@@ -241,14 +278,74 @@ TEST_CASE("nanolog_parse_binary_log") {
   std::vector<BinaryLog> logs;
 
   SUBCASE("empty binlog emits start, guid, end") {
-    char const payload[] = { NL_BINARY_LOG_MARKER, 75, NL_ARG_TYPE_LOG_END };
-    nanolog_log_debug_ctx(payload, &logs);
+    nanolog_log_debug_ctx(make_bin_payload(75).data(), &logs);
     REQUIRE(logs.size() == 3);
     REQUIRE(logs[0].type == NL_ARG_TYPE_LOG_START);
+    REQUIRE(logs[0].payload.empty());
     REQUIRE(logs[1].type == NL_ARG_TYPE_GUID);
-    REQUIRE(logs[1].payload.size() == 1);
-    REQUIRE(logs[1].payload[0] == 75);
+    require_guid(logs[1].payload.data(), 75);
     REQUIRE(logs[2].type == NL_ARG_TYPE_LOG_END);
+    REQUIRE(logs[2].payload.empty());
+  }
+
+  SUBCASE("1-byte scalar") {
+    nanolog_log_debug_ctx(make_bin_payload(1234, {
+      {.type=NL_ARG_TYPE_SCALAR_1_BYTE, .payload={}}}).data(), &logs, 'f');
+    REQUIRE(logs.size() == 4);
+    REQUIRE(logs[0].type == NL_ARG_TYPE_LOG_START);
+    REQUIRE(logs[0].payload.empty());
+    REQUIRE(logs[1].type == NL_ARG_TYPE_GUID);
+    require_guid(logs[1].payload.data(), 1234);
+    REQUIRE(logs[2].type == NL_ARG_TYPE_SCALAR_1_BYTE);
+    REQUIRE(logs[2].payload.size() == 1);
+    REQUIRE(logs[2].payload[0] == 'f');
+    REQUIRE(logs[3].type == NL_ARG_TYPE_LOG_END);
+    REQUIRE(logs[3].payload.empty());
+  }
+
+  SUBCASE("2-byte scalar") {
+    nanolog_log_debug_ctx(make_bin_payload(777, {
+      {.type=NL_ARG_TYPE_SCALAR_2_BYTE, .payload={}}}).data(), &logs, 4321);
+    REQUIRE(logs.size() == 4);
+    REQUIRE(logs[0].type == NL_ARG_TYPE_LOG_START);
+    REQUIRE(logs[0].payload.empty());
+    REQUIRE(logs[1].type == NL_ARG_TYPE_GUID);
+    require_guid(logs[1].payload.data(), 777);
+    REQUIRE(logs[2].type == NL_ARG_TYPE_SCALAR_2_BYTE);
+    REQUIRE(logs[2].payload.size() == 2);
+    require_2byte(logs[2].payload.data(), 4321);
+    REQUIRE(logs[3].type == NL_ARG_TYPE_LOG_END);
+    REQUIRE(logs[3].payload.empty());
+  }
+
+  SUBCASE("4-byte scalar") {
+    nanolog_log_debug_ctx(make_bin_payload(2048, {
+      {.type=NL_ARG_TYPE_SCALAR_4_BYTE, .payload={}}}).data(), &logs, 0x12345678);
+    REQUIRE(logs.size() == 4);
+    REQUIRE(logs[0].type == NL_ARG_TYPE_LOG_START);
+    REQUIRE(logs[0].payload.empty());
+    REQUIRE(logs[1].type == NL_ARG_TYPE_GUID);
+    require_guid(logs[1].payload.data(), 2048);
+    REQUIRE(logs[2].type == NL_ARG_TYPE_SCALAR_4_BYTE);
+    REQUIRE(logs[2].payload.size() == 4);
+    require_4byte(logs[2].payload.data(), 0x12345678);
+    REQUIRE(logs[3].type == NL_ARG_TYPE_LOG_END);
+    REQUIRE(logs[3].payload.empty());
+  }
+
+  SUBCASE("8-byte scalar") {
+    nanolog_log_debug_ctx(make_bin_payload(10000, {
+      {.type=NL_ARG_TYPE_SCALAR_8_BYTE, .payload={}}}).data(), &logs, 0x12345678abcdef12);
+    REQUIRE(logs.size() == 4);
+    REQUIRE(logs[0].type == NL_ARG_TYPE_LOG_START);
+    REQUIRE(logs[0].payload.empty());
+    REQUIRE(logs[1].type == NL_ARG_TYPE_GUID);
+    require_guid(logs[1].payload.data(), 10000);
+    REQUIRE(logs[2].type == NL_ARG_TYPE_SCALAR_8_BYTE);
+    REQUIRE(logs[2].payload.size() == 8);
+    require_8byte(logs[2].payload.data(), 0x12345678abcdef12);
+    REQUIRE(logs[3].type == NL_ARG_TYPE_LOG_END);
+    REQUIRE(logs[3].payload.empty());
   }
 
   nanolog_set_handler(old_handler);
