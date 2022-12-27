@@ -255,7 +255,7 @@ std::vector<char> make_bin_payload(unsigned guid,
     if (!lo) { bp.emplace_back(c); c = 0; }
     lo = !lo;
   }
-  c |= char(NL_ARG_TYPE_LOG_END) << (lo ? 0 : 4);
+  c |= char(NL_ARG_TYPE_LOG_END << (lo ? 0 : 4));
   bp.emplace_back(c);
   return bp;
 }
