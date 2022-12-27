@@ -245,7 +245,7 @@ std::vector<char> make_bin_payload(unsigned guid,
     == NANOLOG_RET_SUCCESS);
 
   std::vector<char> bp;
-  bp.emplace_back(NL_BINARY_LOG_MARKER);
+  bp.emplace_back(char(NL_BINARY_LOG_MARKER));
   bp.insert(std::end(bp), guid_encoded, guid_encoded + guid_len);
 
   char c{0};
