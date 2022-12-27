@@ -358,7 +358,7 @@ TEST_CASE("nanolog_parse_binary_log") {
       REQUIRE(logs[1].type == NL_ARG_TYPE_GUID);
       require_varint(logs[1].payload.data(), 12345);
       REQUIRE(logs[2].type == NL_ARG_TYPE_STRING_LEN_VARINT);
-      require_varint(logs[2].payload.data(), strlen("hello world"));
+      require_varint(logs[2].payload.data(), unsigned(strlen("hello world")));
       REQUIRE(logs[3].type == NL_ARG_TYPE_STRING);
       REQUIRE(std::string{reinterpret_cast<char const *>(logs[3].payload.data()),
                           unsigned(logs[3].payload.size())} == "hello world");
