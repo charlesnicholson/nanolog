@@ -146,10 +146,7 @@ static void nanolog_extract_and_dispatch(nanolog_binary_field_handler_cb_t cb,
       char const *s = va_arg(args, char const *);
       unsigned sl = 0, vil = 0;
       for (char const *c = s; *c; ++c, ++sl); // gcc recognizes this as strlen
-      for (unsigned sl_vi = sl; sl_vi; ++vil, sl_vi >>= 7) {
-        vi[vil] = (unsigned char)((sl_vi & 0x7F) | 0x80);
-      }
-      vi[vil++] &= 0x7F;
+      nanolog_varint_encode(sl, vi, sizeof(vi), &vil); // TODO: error path
       cb(ctx, NL_ARG_TYPE_STRING_LEN_VARINT, vi, vil);
       cb(ctx, NL_ARG_TYPE_STRING, s, sl);
     } break;

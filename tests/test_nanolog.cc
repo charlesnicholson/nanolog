@@ -217,7 +217,7 @@ TEST_CASE("varint round-trip") {
   }
 }
 
-void require_guid(void const *payload, unsigned guid) {
+void require_varint(void const *payload, unsigned guid) {
   unsigned payload_guid;
   REQUIRE(nanolog_varint_decode(payload, &payload_guid) == NANOLOG_RET_SUCCESS);
   REQUIRE(payload_guid == guid);
@@ -283,7 +283,7 @@ TEST_CASE("nanolog_parse_binary_log") {
     REQUIRE(logs[0].type == NL_ARG_TYPE_LOG_START);
     REQUIRE(logs[0].payload.empty());
     REQUIRE(logs[1].type == NL_ARG_TYPE_GUID);
-    require_guid(logs[1].payload.data(), 75);
+    require_varint(logs[1].payload.data(), 75);
     REQUIRE(logs[2].type == NL_ARG_TYPE_LOG_END);
     REQUIRE(logs[2].payload.empty());
   }
@@ -295,7 +295,7 @@ TEST_CASE("nanolog_parse_binary_log") {
     REQUIRE(logs[0].type == NL_ARG_TYPE_LOG_START);
     REQUIRE(logs[0].payload.empty());
     REQUIRE(logs[1].type == NL_ARG_TYPE_GUID);
-    require_guid(logs[1].payload.data(), 1234);
+    require_varint(logs[1].payload.data(), 1234);
     REQUIRE(logs[2].type == NL_ARG_TYPE_SCALAR_1_BYTE);
     REQUIRE(logs[2].payload.size() == 1);
     REQUIRE(logs[2].payload[0] == 'f');
@@ -310,7 +310,7 @@ TEST_CASE("nanolog_parse_binary_log") {
     REQUIRE(logs[0].type == NL_ARG_TYPE_LOG_START);
     REQUIRE(logs[0].payload.empty());
     REQUIRE(logs[1].type == NL_ARG_TYPE_GUID);
-    require_guid(logs[1].payload.data(), 777);
+    require_varint(logs[1].payload.data(), 777);
     REQUIRE(logs[2].type == NL_ARG_TYPE_SCALAR_2_BYTE);
     REQUIRE(logs[2].payload.size() == 2);
     require_2byte(logs[2].payload.data(), 4321);
@@ -325,7 +325,7 @@ TEST_CASE("nanolog_parse_binary_log") {
     REQUIRE(logs[0].type == NL_ARG_TYPE_LOG_START);
     REQUIRE(logs[0].payload.empty());
     REQUIRE(logs[1].type == NL_ARG_TYPE_GUID);
-    require_guid(logs[1].payload.data(), 2048);
+    require_varint(logs[1].payload.data(), 2048);
     REQUIRE(logs[2].type == NL_ARG_TYPE_SCALAR_4_BYTE);
     REQUIRE(logs[2].payload.size() == 4);
     require_4byte(logs[2].payload.data(), 0x12345678);
@@ -340,12 +340,31 @@ TEST_CASE("nanolog_parse_binary_log") {
     REQUIRE(logs[0].type == NL_ARG_TYPE_LOG_START);
     REQUIRE(logs[0].payload.empty());
     REQUIRE(logs[1].type == NL_ARG_TYPE_GUID);
-    require_guid(logs[1].payload.data(), 10000);
+    require_varint(logs[1].payload.data(), 10000);
     REQUIRE(logs[2].type == NL_ARG_TYPE_SCALAR_8_BYTE);
     REQUIRE(logs[2].payload.size() == 8);
     require_8byte(logs[2].payload.data(), 0x12345678abcdef12);
     REQUIRE(logs[3].type == NL_ARG_TYPE_LOG_END);
     REQUIRE(logs[3].payload.empty());
+  }
+
+  SUBCASE("string") {
+    SUBCASE("unspecified length") {
+      nanolog_log_debug_ctx(make_bin_payload(12345, {
+        {.type=NL_ARG_TYPE_STRING, .payload={}}}).data(), &logs, "hello world");
+      REQUIRE(logs.size() == 5);
+      REQUIRE(logs[0].type == NL_ARG_TYPE_LOG_START);
+      REQUIRE(logs[0].payload.empty());
+      REQUIRE(logs[1].type == NL_ARG_TYPE_GUID);
+      require_varint(logs[1].payload.data(), 12345);
+      REQUIRE(logs[2].type == NL_ARG_TYPE_STRING_LEN_VARINT);
+      require_varint(logs[2].payload.data(), strlen("hello world"));
+      REQUIRE(logs[3].type == NL_ARG_TYPE_STRING);
+      REQUIRE(std::string{reinterpret_cast<char const *>(logs[3].payload.data()),
+                          logs[3].payload.size()} == "hello world");
+      REQUIRE(logs[4].type == NL_ARG_TYPE_LOG_END);
+      REQUIRE(logs[4].payload.empty());
+    }
   }
 
   nanolog_set_handler(old_handler);
