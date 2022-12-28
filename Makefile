@@ -32,7 +32,7 @@ endif
 CFLAGS = --std=c17
 CXXFLAGS = --std=c++20
 CPPFLAGS += -MMD -MP -g
-CPPFLAGS += -O0 #-Os -flto
+CPPFLAGS += -Os -flto
 CPPFLAGS += -Werror -Wall -Wextra
 
 ifneq '' '$(findstring clang,$(COMPILER_VERSION))'
