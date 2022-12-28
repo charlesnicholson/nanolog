@@ -28,8 +28,10 @@ nanolog_handler_cb_t nanolog_get_handler(void) { return s_log_handler; }
 
 #ifdef _MSC_VER
 #define NL_NOINLINE __declspec(noinline)
+#define NL_FALLTHROUGH
 #elif defined(__GNUC__) || defined(__clang__)
 #define NL_NOINLINE __attribute__((noinline))
+#define NL_FALLTHROUGH __attribute__((fallthrough))
 #else
 #error Unrecognized compiler, please implement NL_NOINLINE
 #endif
@@ -194,7 +196,7 @@ nanolog_ret_t nanolog_parse_binary_log(nanolog_binary_field_handler_cb_t cb,
 
       case NL_ARG_TYPE_PRECISION_STAR:
         have_star_prec = 1;
-        // fall through
+        NL_FALLTHROUGH;
       case NL_ARG_TYPE_FIELD_WIDTH_STAR: {
         unsigned char vi[8];
         unsigned vil = 0;
