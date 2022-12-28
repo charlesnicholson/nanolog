@@ -208,8 +208,10 @@ nanolog_ret_t nanolog_parse_binary_log(nanolog_binary_field_handler_cb_t cb,
       case NL_ARG_TYPE_STRING_PRECISION_LITERAL: {
         if (hi) { ++src; hi = 0; }
         unsigned len;
-        if (nanolog_varint_decode(src, &prec, &len) != NANOLOG_RET_SUCCESS) {
+        uint32_t val;
+        if (nanolog_varint_decode(src, &val, &len) != NANOLOG_RET_SUCCESS) {
           return NANOLOG_RET_ERR_INVALID_PAYLOAD; }
+        prec = val;
         have_prec = 1;
         src += len;
       } break;
