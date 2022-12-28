@@ -171,10 +171,10 @@ nanolog_ret_t nanolog_parse_binary_log(nanolog_binary_field_handler_cb_t cb,
       case NL_ARG_TYPE_STRING: {
         char const *s = va_arg(args, char const *);
         unsigned sl = 0, len_enc_len = 0;
-        unsigned char len_enc[8];
         for (char const *c = s; *c && (!have_star_prec || (sl < star_arg)); ++c, ++sl);
+        unsigned char len_enc[8];
         nanolog_varint_encode(sl, len_enc, sizeof(len_enc), &len_enc_len); // TODO: error path
-        cb(ctx, NL_ARG_TYPE_STRING_LEN_VARINT, len_enc, len_enc_len);
+        cb(ctx, NL_ARG_TYPE_STRING_LEN, len_enc, len_enc_len);
         cb(ctx, NL_ARG_TYPE_STRING, s, sl);
       } break;
 
@@ -213,7 +213,7 @@ nanolog_ret_t nanolog_parse_binary_log(nanolog_binary_field_handler_cb_t cb,
       // never happens
       case NL_ARG_TYPE_LOG_START:
       case NL_ARG_TYPE_GUID:
-      case NL_ARG_TYPE_STRING_LEN_VARINT:
+      case NL_ARG_TYPE_STRING_LEN:
       case NL_ARG_TYPE_DYNAMIC_SEVERITY:
         break;
     }
