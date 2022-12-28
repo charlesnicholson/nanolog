@@ -242,6 +242,10 @@ void require_8byte(void const *payload, uint64_t expected) {
   uint64_t actual; memcpy(&actual, payload, sizeof(actual)); REQUIRE(actual == expected);
 }
 
+void require_pointer(void const *payload, void *expected) {
+  void *actual; memcpy(&actual, payload, sizeof(actual)); REQUIRE(actual == expected);
+}
+
 struct BinaryLog { nl_arg_type_t type; byte_vec payload; };
 
 byte_vec varint_vec(unsigned val) {
@@ -352,6 +356,19 @@ TEST_CASE("nanolog_parse_binary_log") {
     REQUIRE(logs[2].type == NL_ARG_TYPE_SCALAR_8_BYTE);
     REQUIRE(logs[2].payload.size() == 8);
     require_8byte(logs[2].payload.data(), 0x12345678abcdef12);
+    REQUIRE(logs[3].type == NL_ARG_TYPE_LOG_END);
+  }
+
+  SUBCASE("pointer") {
+    int x; void *p{&x};
+    nanolog_log_debug_ctx(make_bin_payload(0, {
+      {.type=NL_ARG_TYPE_POINTER, .payload={}}}).data(), &logs, p);
+    REQUIRE(logs.size() == 4);
+    REQUIRE(logs[0].type == NL_ARG_TYPE_LOG_START);
+    REQUIRE(logs[1].type == NL_ARG_TYPE_GUID);
+    REQUIRE(logs[2].type == NL_ARG_TYPE_POINTER);
+    REQUIRE(logs[2].payload.size() == 8);
+    require_pointer(logs[2].payload.data(), p);
     REQUIRE(logs[3].type == NL_ARG_TYPE_LOG_END);
   }
 
