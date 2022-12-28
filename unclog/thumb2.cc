@@ -568,7 +568,7 @@ bool thumb2_patch_fmt_strs(elf const& e,
 
       switch (log_call.s) {
         case fmt_str_strat::DIRECT_LOAD: {
-          unsigned dst_ofs{func_ofs + (r0_mut.i.i.load_lit.addr - func_addr)};
+          unsigned const dst_ofs{func_ofs + (r0_mut.i.i.load_lit.addr - func_addr)};
           memcpy(&patched_elf[dst_ofs], &bin_addr, sizeof(u32));
         } break;
 
