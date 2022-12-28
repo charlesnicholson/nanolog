@@ -194,9 +194,7 @@ nanolog_ret_t nanolog_parse_binary_log(nanolog_binary_field_handler_cb_t cb,
         wint_t const w = va_arg(args, wint_t); cb(ctx, type, &w, sizeof(w));
       } break;
 
-      case NL_ARG_TYPE_PRECISION_STAR:
-        have_prec = 1;
-        NL_FALLTHROUGH;
+      case NL_ARG_TYPE_PRECISION_STAR: have_prec = 1; NL_FALLTHROUGH;
       case NL_ARG_TYPE_FIELD_WIDTH_STAR: {
         unsigned char vi[8];
         unsigned vil = 0;
