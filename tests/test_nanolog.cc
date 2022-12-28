@@ -246,7 +246,7 @@ struct BinaryLog { nl_arg_type_t type; byte_vec payload; };
 
 byte_vec varint_vec(unsigned val) {
   byte buf[32];
-  unsigned n;
+  unsigned n{0};
   REQUIRE(nanolog_varint_encode(val, buf, sizeof(buf), &n) == NANOLOG_RET_SUCCESS);
   return byte_vec{buf, buf+n};
 }
