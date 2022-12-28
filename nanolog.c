@@ -264,6 +264,10 @@ nanolog_ret_t nanolog_varint_encode(uint32_t val,
   return NANOLOG_RET_SUCCESS;
 }
 
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable: 4146)
+#endif
 uint32_t nanolog_zigzag_encode(int32_t val) {
   return ((uint32_t)val << 1) ^ -((uint32_t)val >> 31);
 }
@@ -271,6 +275,9 @@ uint32_t nanolog_zigzag_encode(int32_t val) {
 int32_t nanolog_zigzag_decode(uint32_t val) {
   return (int32_t)((val >> 1) ^ -(val & 1));
 }
+#ifdef _MSC_VER
+#pragma warning(pop)
+#endif
 
 // ARMv7-M conventions
 
