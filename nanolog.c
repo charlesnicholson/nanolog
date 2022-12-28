@@ -147,7 +147,7 @@ nanolog_ret_t nanolog_parse_binary_log(nanolog_binary_field_handler_cb_t cb,
   nl_arg_type_t type;
   do {
     type = (nl_arg_type_t)((*src >> (hi ? 4 : 0)) & 0xF);
-    if (!(hi = !hi)) { ++src; }
+    if ((hi = !hi) == 0) { ++src; }
 
     switch (type) {
       case NL_ARG_TYPE_SCALAR_1_BYTE: {
@@ -194,6 +194,7 @@ nanolog_ret_t nanolog_parse_binary_log(nanolog_binary_field_handler_cb_t cb,
 
       case NL_ARG_TYPE_PRECISION_STAR:
         have_star_prec = 1;
+        // fall through
       case NL_ARG_TYPE_FIELD_WIDTH_STAR: {
         unsigned char vi[8];
         unsigned vil = 0;
