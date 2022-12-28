@@ -252,7 +252,6 @@ nanolog_ret_t nanolog_varint_encode(uint32_t val,
                                     unsigned buf_max,
                                     unsigned *out_len) {
   if (!out_buf || !out_len || !buf_max) { return NANOLOG_RET_ERR_BAD_ARG; }
-
   unsigned len = 0; { // precompute length and check that the encoding fits
     unsigned val_tmp = val;
     do { ++len; val_tmp >>= 7; } while (val_tmp && (len <= buf_max));
