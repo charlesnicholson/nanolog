@@ -77,7 +77,8 @@ TEST_CASE("nanolog_fmt_is_binary") {
 }
 
 TEST_CASE("nanolog_log_sev") {
-  static std::string *s_fmt{new std::string()};
+  static std::string *s_fmt;
+  s_fmt = new std::string();
   static unsigned s_sev{12345};
   REQUIRE(nanolog_set_handler([](void *, unsigned sev, char const *fmt, va_list) {
     *s_fmt=std::string{fmt}; s_sev=sev; }) == NANOLOG_RET_SUCCESS);
