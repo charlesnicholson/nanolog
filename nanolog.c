@@ -231,9 +231,10 @@ nanolog_ret_t nanolog_parse_binary_log(nanolog_binary_field_handler_cb_t cb,
   return NANOLOG_RET_SUCCESS;
 }
 
-nanolog_ret_t nanolog_varint_decode(void const *p, unsigned *out_val, unsigned *out_len) {
+nanolog_ret_t nanolog_varint_decode(void const *p, uint32_t *out_val, unsigned *out_len) {
   if (!p || !out_val || !out_len) { return NANOLOG_RET_ERR_BAD_ARG; }
-  unsigned val = 0, len = 1;
+  uint32_t val = 0;
+  unsigned len = 1;
   for (unsigned char const *src = (unsigned char const *)p; ; ++src, ++len) {
     val = (val << 7) | (*src & 0x7F);
     if (!(*src & 0x80)) { break; }
@@ -243,7 +244,7 @@ nanolog_ret_t nanolog_varint_decode(void const *p, unsigned *out_val, unsigned *
   return NANOLOG_RET_SUCCESS;
 }
 
-nanolog_ret_t nanolog_varint_encode(unsigned val,
+nanolog_ret_t nanolog_varint_encode(uint32_t val,
                                     void *out_buf,
                                     unsigned buf_max,
                                     unsigned *out_len) {
@@ -261,6 +262,14 @@ nanolog_ret_t nanolog_varint_encode(unsigned val,
   dst[len - 1] &= 0x7F;
   *out_len = len;
   return NANOLOG_RET_SUCCESS;
+}
+
+uint32_t nanolog_zigzag_encode(int32_t val) {
+  return ((uint32_t)val << 1) ^ -((uint32_t)val >> 31);
+}
+
+int32_t nanolog_zigzag_decode(uint32_t val) {
+  return (int32_t)((val >> 1) ^ -(val & 1));
 }
 
 // ARMv7-M conventions
