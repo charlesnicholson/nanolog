@@ -440,7 +440,7 @@ TEST_CASE("nanolog_parse_binary_log") {
       REQUIRE(logs[0].type == NL_ARG_TYPE_LOG_START);
       REQUIRE(logs[1].type == NL_ARG_TYPE_GUID);
       REQUIRE(logs[2].type == NL_ARG_TYPE_FIELD_WIDTH_STAR);
-      require_varint(logs[2].payload.data(), 3000);
+      require_varint(logs[2].payload.data(), nanolog_zigzag_encode(3000));
       REQUIRE(logs[3].type == NL_ARG_TYPE_SCALAR_4_BYTE);
       require_4byte(logs[3].payload.data(), 12345);
       REQUIRE(logs[4].type == NL_ARG_TYPE_LOG_END);
@@ -454,7 +454,7 @@ TEST_CASE("nanolog_parse_binary_log") {
       REQUIRE(logs[0].type == NL_ARG_TYPE_LOG_START);
       REQUIRE(logs[1].type == NL_ARG_TYPE_GUID);
       REQUIRE(logs[2].type == NL_ARG_TYPE_PRECISION_STAR);
-      require_varint(logs[2].payload.data(), 4321);
+      require_varint(logs[2].payload.data(), nanolog_zigzag_encode(4321));
       REQUIRE(logs[3].type == NL_ARG_TYPE_SCALAR_4_BYTE);
       require_4byte(logs[3].payload.data(), 12345);
       REQUIRE(logs[4].type == NL_ARG_TYPE_LOG_END);
@@ -470,9 +470,9 @@ TEST_CASE("nanolog_parse_binary_log") {
       REQUIRE(logs[0].type == NL_ARG_TYPE_LOG_START);
       REQUIRE(logs[1].type == NL_ARG_TYPE_GUID);
       REQUIRE(logs[2].type == NL_ARG_TYPE_FIELD_WIDTH_STAR);
-      require_varint(logs[2].payload.data(), 1234);
+      require_varint(logs[2].payload.data(), nanolog_zigzag_encode(1234));
       REQUIRE(logs[3].type == NL_ARG_TYPE_PRECISION_STAR);
-      require_varint(logs[3].payload.data(), 4321);
+      require_varint(logs[3].payload.data(), nanolog_zigzag_encode(4321));
       REQUIRE(logs[4].type == NL_ARG_TYPE_SCALAR_4_BYTE);
       require_4byte(logs[4].payload.data(), 12345);
       REQUIRE(logs[5].type == NL_ARG_TYPE_LOG_END);
@@ -502,7 +502,7 @@ TEST_CASE("nanolog_parse_binary_log") {
       REQUIRE(logs[0].type == NL_ARG_TYPE_LOG_START);
       REQUIRE(logs[1].type == NL_ARG_TYPE_GUID);
       REQUIRE(logs[2].type == NL_ARG_TYPE_PRECISION_STAR);
-      require_varint(logs[2].payload.data(), 50);
+      require_varint(logs[2].payload.data(), nanolog_zigzag_encode(50));
       REQUIRE(logs[3].type == NL_ARG_TYPE_STRING_LEN);
       require_varint(logs[3].payload.data(), unsigned(strlen("hello world")));
       REQUIRE(logs[4].type == NL_ARG_TYPE_STRING);
@@ -519,12 +519,29 @@ TEST_CASE("nanolog_parse_binary_log") {
       REQUIRE(logs[0].type == NL_ARG_TYPE_LOG_START);
       REQUIRE(logs[1].type == NL_ARG_TYPE_GUID);
       REQUIRE(logs[2].type == NL_ARG_TYPE_PRECISION_STAR);
-      require_varint(logs[2].payload.data(), 5);
+      require_varint(logs[2].payload.data(), nanolog_zigzag_encode(5));
       REQUIRE(logs[3].type == NL_ARG_TYPE_STRING_LEN);
       require_varint(logs[3].payload.data(), 5);
       REQUIRE(logs[4].type == NL_ARG_TYPE_STRING);
       REQUIRE(std::string{reinterpret_cast<char const *>(logs[4].payload.data()),
                           unsigned(logs[4].payload.size())} == "hello");
+      REQUIRE(logs[5].type == NL_ARG_TYPE_LOG_END);
+    }
+
+    SUBCASE("negative star precision is ignored when computing local strlen") {
+      nanolog_log_debug_ctx(make_bin_payload(0, {
+        {.type=NL_ARG_TYPE_PRECISION_STAR, .payload={}},
+        {.type=NL_ARG_TYPE_STRING, .payload={}}}).data(), &logs, -1, "hello world");
+      REQUIRE(logs.size() == 6);
+      REQUIRE(logs[0].type == NL_ARG_TYPE_LOG_START);
+      REQUIRE(logs[1].type == NL_ARG_TYPE_GUID);
+      REQUIRE(logs[2].type == NL_ARG_TYPE_PRECISION_STAR);
+      require_varint(logs[2].payload.data(), nanolog_zigzag_encode(-1));
+      REQUIRE(logs[3].type == NL_ARG_TYPE_STRING_LEN);
+      require_varint(logs[3].payload.data(), unsigned(strlen("hello world")));
+      REQUIRE(logs[4].type == NL_ARG_TYPE_STRING);
+      REQUIRE(std::string{reinterpret_cast<char const *>(logs[4].payload.data()),
+                          unsigned(logs[4].payload.size())} == "hello world");
       REQUIRE(logs[5].type == NL_ARG_TYPE_LOG_END);
     }
 
