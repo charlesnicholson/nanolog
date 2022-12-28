@@ -2,6 +2,7 @@
 #define NANOLOG_H
 
 #include <stdarg.h>
+#include <stdint.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -234,12 +235,15 @@ enum {
 
 // Internal helper functions
 
-nanolog_ret_t nanolog_varint_encode(unsigned val,
+uint32_t nanolog_zigzag_encode(int32_t val);
+int32_t nanolog_zigzag_decode(uint32_t val);
+
+nanolog_ret_t nanolog_varint_encode(uint32_t val,
                                     void *out_buf,
                                     unsigned buf_max,
                                     unsigned *out_len);
 
-nanolog_ret_t nanolog_varint_decode(void const *p, unsigned *out_val, unsigned *out_len);
+nanolog_ret_t nanolog_varint_decode(void const *p, uint32_t *out_val, unsigned *out_len);
 
 // Private logging API (use the macros, not these)
 

@@ -226,6 +226,30 @@ TEST_CASE("varint round-trip") {
   }
 }
 
+TEST_CASE("zigzag") {
+  SUBCASE("nanolog_zigzag_encode") {
+    REQUIRE(nanolog_zigzag_encode(0) == 0);
+    REQUIRE(nanolog_zigzag_encode(-1) == 1);
+    REQUIRE(nanolog_zigzag_encode(1) == 2);
+    REQUIRE(nanolog_zigzag_encode(-2) == 3);
+    REQUIRE(nanolog_zigzag_encode(2) == 4);
+  }
+
+  SUBCASE("nanolog_zigzag_decode") {
+    REQUIRE(nanolog_zigzag_decode(0) == 0);
+    REQUIRE(nanolog_zigzag_decode(1) == -1);
+    REQUIRE(nanolog_zigzag_decode(2) == 1);
+    REQUIRE(nanolog_zigzag_decode(3) == -2);
+    REQUIRE(nanolog_zigzag_decode(4) == 2);
+  }
+
+  SUBCASE("round-trip") {
+    for (auto i{-65535}; i < 65536; ++i) {
+      REQUIRE(nanolog_zigzag_decode(nanolog_zigzag_encode(i)) == i);
+    }
+  }
+}
+
 void require_varint(void const *payload, unsigned guid) {
   unsigned payload_guid, len;
   REQUIRE(nanolog_varint_decode(payload, &payload_guid, &len) == NANOLOG_RET_SUCCESS);
