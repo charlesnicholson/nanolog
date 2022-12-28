@@ -343,7 +343,7 @@ TEST_CASE("nanolog_parse_binary_log") {
       REQUIRE(logs.size() == 5);
       REQUIRE(logs[0].type == NL_ARG_TYPE_LOG_START);
       REQUIRE(logs[1].type == NL_ARG_TYPE_GUID);
-      REQUIRE(logs[2].type == NL_ARG_TYPE_STRING_LEN_VARINT);
+      REQUIRE(logs[2].type == NL_ARG_TYPE_STRING_LEN);
       require_varint(logs[2].payload.data(), unsigned(strlen("hello world")));
       REQUIRE(logs[3].type == NL_ARG_TYPE_STRING);
       REQUIRE(std::string{reinterpret_cast<char const *>(logs[3].payload.data()),
@@ -360,7 +360,7 @@ TEST_CASE("nanolog_parse_binary_log") {
       REQUIRE(logs[1].type == NL_ARG_TYPE_GUID);
       REQUIRE(logs[2].type == NL_ARG_TYPE_PRECISION_STAR);
       require_varint(logs[2].payload.data(), 50);
-      REQUIRE(logs[3].type == NL_ARG_TYPE_STRING_LEN_VARINT);
+      REQUIRE(logs[3].type == NL_ARG_TYPE_STRING_LEN);
       require_varint(logs[3].payload.data(), unsigned(strlen("hello world")));
       REQUIRE(logs[4].type == NL_ARG_TYPE_STRING);
       REQUIRE(std::string{reinterpret_cast<char const *>(logs[4].payload.data()),
@@ -377,7 +377,7 @@ TEST_CASE("nanolog_parse_binary_log") {
       REQUIRE(logs[1].type == NL_ARG_TYPE_GUID);
       REQUIRE(logs[2].type == NL_ARG_TYPE_PRECISION_STAR);
       require_varint(logs[2].payload.data(), 5);
-      REQUIRE(logs[3].type == NL_ARG_TYPE_STRING_LEN_VARINT);
+      REQUIRE(logs[3].type == NL_ARG_TYPE_STRING_LEN);
       require_varint(logs[3].payload.data(), 5);
       REQUIRE(logs[4].type == NL_ARG_TYPE_STRING);
       REQUIRE(std::string{reinterpret_cast<char const *>(logs[4].payload.data()),

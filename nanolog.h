@@ -48,7 +48,7 @@ typedef enum {
   // Synthetic values emitted by runtime, not packed into binary
   NL_ARG_TYPE_LOG_START = 0xAA,
   NL_ARG_TYPE_GUID = 0xAB,
-  NL_ARG_TYPE_STRING_LEN_VARINT = 0xAC,
+  NL_ARG_TYPE_STRING_LEN = 0xAC,
   NL_ARG_TYPE_DYNAMIC_SEVERITY = 0xAD,
 } nl_arg_type_t;
 
