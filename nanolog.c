@@ -144,8 +144,8 @@ nanolog_ret_t nanolog_parse_binary_log(nanolog_binary_field_handler_cb_t cb,
   }
 
   // Types are packed, two per byte, low nibble first.
-  int hi = 0, have_star_prec = 0;
-  unsigned star_arg = 0;
+  int hi = 0, have_prec = 0;
+  unsigned prec = 0;
   nl_arg_type_t type;
   do {
     type = (nl_arg_type_t)((*src >> (hi ? 4 : 0)) & 0xF);
@@ -171,7 +171,7 @@ nanolog_ret_t nanolog_parse_binary_log(nanolog_binary_field_handler_cb_t cb,
       case NL_ARG_TYPE_STRING: {
         char const *s = va_arg(args, char const *);
         unsigned sl = 0, len_enc_len = 0;
-        for (char const *c = s; *c && (!have_star_prec || (sl < star_arg)); ++c, ++sl);
+        for (char const *c = s; *c && (!have_prec || (sl < prec)); ++c, ++sl);
         unsigned char len_enc[8];
         nanolog_varint_encode(sl, len_enc, sizeof(len_enc), &len_enc_len); // TODO: error path
         cb(ctx, NL_ARG_TYPE_STRING_LEN, len_enc, len_enc_len);
@@ -195,18 +195,23 @@ nanolog_ret_t nanolog_parse_binary_log(nanolog_binary_field_handler_cb_t cb,
       } break;
 
       case NL_ARG_TYPE_PRECISION_STAR:
-        have_star_prec = 1;
+        have_prec = 1;
         NL_FALLTHROUGH;
       case NL_ARG_TYPE_FIELD_WIDTH_STAR: {
         unsigned char vi[8];
         unsigned vil = 0;
-        star_arg = va_arg(args, unsigned); // TODO: handle negative
-        nanolog_varint_encode((unsigned)star_arg, vi, sizeof(vi), &vil); // TODO: error path
+        prec = va_arg(args, unsigned); // TODO: handle negative
+        nanolog_varint_encode((unsigned)prec, vi, sizeof(vi), &vil); // TODO: error path
         cb(ctx, type, vi, vil);
       } break;
 
-      case NL_ARG_TYPE_STRING_PRECISION_LITERAL:
-        break;
+      case NL_ARG_TYPE_STRING_PRECISION_LITERAL: {
+        if (hi) { ++src; hi = 0; }
+        unsigned len;
+        nanolog_varint_decode(src, &prec, &len); // TODO: error path
+        have_prec = 1;
+        src += len;
+      } break;
 
       case NL_ARG_TYPE_LOG_END: cb(ctx, type, NULL, 0); break;
 
@@ -218,20 +223,22 @@ nanolog_ret_t nanolog_parse_binary_log(nanolog_binary_field_handler_cb_t cb,
         break;
     }
 
-    if (type != NL_ARG_TYPE_PRECISION_STAR) { have_star_prec = 0; }
+    if ((type != NL_ARG_TYPE_PRECISION_STAR) &&
+        (type != NL_ARG_TYPE_STRING_PRECISION_LITERAL)) { have_prec = 0; }
   } while (type != NL_ARG_TYPE_LOG_END);
 
   return NANOLOG_RET_SUCCESS;
 }
 
-nanolog_ret_t nanolog_varint_decode(void const *p, unsigned *out_val) {
-  if (!p || !out_val) { return NANOLOG_RET_ERR_BAD_ARG; }
-  unsigned val = 0;
-  for (unsigned char const *src = (unsigned char const *)p; ; ++src) {
+nanolog_ret_t nanolog_varint_decode(void const *p, unsigned *out_val, unsigned *out_len) {
+  if (!p || !out_val || !out_len) { return NANOLOG_RET_ERR_BAD_ARG; }
+  unsigned val = 0, len = 1;
+  for (unsigned char const *src = (unsigned char const *)p; ; ++src, ++len) {
     val = (val << 7) | (*src & 0x7F);
     if (!(*src & 0x80)) { break; }
   }
   *out_val = val;
+  *out_len = len;
   return NANOLOG_RET_SUCCESS;
 }
 
