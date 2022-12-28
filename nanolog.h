@@ -27,6 +27,7 @@ typedef enum {
   NANOLOG_RET_ERR_BAD_ARG,
   NANOLOG_RET_ERR_INVALID_PAYLOAD,
   NANOLOG_RET_ERR_EXHAUSTED,
+  NANOLOG_RET_ERR_INTERNAL,
 } nanolog_ret_t;
 
 typedef enum {
