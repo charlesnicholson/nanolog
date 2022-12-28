@@ -180,9 +180,11 @@ void nanolog_log_sev_ctx(char const *fmt, unsigned sev, void* ctx, ...);
   } while(0)
 
 #ifdef __GNUC__
+#define NL_LIKELY(COND) __builtin_expect(!!(COND), 1)
 #define NL_UNLIKELY(COND) __builtin_expect(!!(COND), 0)
 #define NL_EXPECT(COND, VAL) __builtin_expect(COND, VAL)
 #else
+#define NL_LIKELY(COND) COND
 #define NL_UNLIKELY(COND) COND
 #define NL_EXPECT(COND, VAL) COND
 #endif

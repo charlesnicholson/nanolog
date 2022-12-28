@@ -62,7 +62,7 @@ std::string& emit_python(char const *s, std::string& out) {
     npf_format_spec_t fs;
     int const n{(*s != '%') ? 0 : npf_parse_format_spec(s, &fs)};
 
-    if (!n) {
+    if (NL_LIKELY(!n)) {
       switch (*s) {
         case '{': out += "{{"; break;
         case '}': out += "}}"; break;
@@ -140,7 +140,7 @@ std::string& emit_format_specifiers(char const *s, std::string& out) {
     npf_format_spec_t fs;
     int const n{(*s != '%') ? 0 : npf_parse_format_spec(s, &fs)};
     s += n;
-    if (!n) { ++s; continue; }
+    if (NL_LIKELY(!n)) { ++s; continue; }
     if (fs.conv_spec == NPF_FMT_SPEC_CONV_PERCENT) { continue; }
 
     out += ",\n";
@@ -278,18 +278,19 @@ void emit_bin_fmt_strs(std::vector<char const *> const& fmt_strs,
 
     fmt_bin_mem.push_back(NL_BINARY_LOG_MARKER);
 
-    do { // varint encode
-      fmt_bin_mem.push_back(u8((guid & 0x7Fu) | 0x80));
-      guid >>= 7u;
-    } while (guid);
-    fmt_bin_mem[fmt_bin_mem.size() - 1] &= ~0x80;
+    { // guid
+      char guid_enc[16];
+      unsigned guid_enc_len;
+      nanolog_varint_encode(guid, guid_enc, sizeof(guid_enc), &guid_enc_len);
+      fmt_bin_mem.insert(fmt_bin_mem.end(), guid_enc, guid_enc + guid_enc_len);
+    }
 
     int field_count{0};
     char const *cur{str};
     while (*cur) {
       npf_format_spec_t fs;
       int const n{(*cur != '%') ? 0 : npf_parse_format_spec(cur, &fs)};
-      if (!n) { ++cur; continue; }
+      if (NL_LIKELY(!n)) { ++cur; continue; }
       cur += n;
 
       if ((fs.conv_spec == NPF_FMT_SPEC_CONV_WRITEBACK) ||
