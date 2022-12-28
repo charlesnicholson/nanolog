@@ -278,92 +278,111 @@ TEST_CASE("nanolog_parse_binary_log") {
   std::vector<BinaryLog> logs;
 
   SUBCASE("empty binlog emits start, guid, end") {
-    nanolog_log_debug_ctx(make_bin_payload(75).data(), &logs);
+    nanolog_log_debug_ctx(make_bin_payload(12345).data(), &logs);
     REQUIRE(logs.size() == 3);
     REQUIRE(logs[0].type == NL_ARG_TYPE_LOG_START);
     REQUIRE(logs[0].payload.empty());
     REQUIRE(logs[1].type == NL_ARG_TYPE_GUID);
-    require_varint(logs[1].payload.data(), 75);
+    require_varint(logs[1].payload.data(), 12345);
     REQUIRE(logs[2].type == NL_ARG_TYPE_LOG_END);
     REQUIRE(logs[2].payload.empty());
   }
 
   SUBCASE("1-byte scalar") {
-    nanolog_log_debug_ctx(make_bin_payload(1234, {
+    nanolog_log_debug_ctx(make_bin_payload(0, {
       {.type=NL_ARG_TYPE_SCALAR_1_BYTE, .payload={}}}).data(), &logs, 'f');
     REQUIRE(logs.size() == 4);
     REQUIRE(logs[0].type == NL_ARG_TYPE_LOG_START);
-    REQUIRE(logs[0].payload.empty());
     REQUIRE(logs[1].type == NL_ARG_TYPE_GUID);
-    require_varint(logs[1].payload.data(), 1234);
     REQUIRE(logs[2].type == NL_ARG_TYPE_SCALAR_1_BYTE);
     REQUIRE(logs[2].payload.size() == 1);
     REQUIRE(logs[2].payload[0] == 'f');
     REQUIRE(logs[3].type == NL_ARG_TYPE_LOG_END);
-    REQUIRE(logs[3].payload.empty());
   }
 
   SUBCASE("2-byte scalar") {
-    nanolog_log_debug_ctx(make_bin_payload(777, {
+    nanolog_log_debug_ctx(make_bin_payload(0, {
       {.type=NL_ARG_TYPE_SCALAR_2_BYTE, .payload={}}}).data(), &logs, 4321);
     REQUIRE(logs.size() == 4);
     REQUIRE(logs[0].type == NL_ARG_TYPE_LOG_START);
-    REQUIRE(logs[0].payload.empty());
     REQUIRE(logs[1].type == NL_ARG_TYPE_GUID);
-    require_varint(logs[1].payload.data(), 777);
     REQUIRE(logs[2].type == NL_ARG_TYPE_SCALAR_2_BYTE);
     REQUIRE(logs[2].payload.size() == 2);
     require_2byte(logs[2].payload.data(), 4321);
     REQUIRE(logs[3].type == NL_ARG_TYPE_LOG_END);
-    REQUIRE(logs[3].payload.empty());
   }
 
   SUBCASE("4-byte scalar") {
-    nanolog_log_debug_ctx(make_bin_payload(2048, {
+    nanolog_log_debug_ctx(make_bin_payload(0, {
       {.type=NL_ARG_TYPE_SCALAR_4_BYTE, .payload={}}}).data(), &logs, 0x12345678);
     REQUIRE(logs.size() == 4);
     REQUIRE(logs[0].type == NL_ARG_TYPE_LOG_START);
-    REQUIRE(logs[0].payload.empty());
     REQUIRE(logs[1].type == NL_ARG_TYPE_GUID);
-    require_varint(logs[1].payload.data(), 2048);
     REQUIRE(logs[2].type == NL_ARG_TYPE_SCALAR_4_BYTE);
     REQUIRE(logs[2].payload.size() == 4);
     require_4byte(logs[2].payload.data(), 0x12345678);
     REQUIRE(logs[3].type == NL_ARG_TYPE_LOG_END);
-    REQUIRE(logs[3].payload.empty());
   }
 
   SUBCASE("8-byte scalar") {
-    nanolog_log_debug_ctx(make_bin_payload(10000, {
+    nanolog_log_debug_ctx(make_bin_payload(0, {
       {.type=NL_ARG_TYPE_SCALAR_8_BYTE, .payload={}}}).data(), &logs, 0x12345678abcdef12);
     REQUIRE(logs.size() == 4);
     REQUIRE(logs[0].type == NL_ARG_TYPE_LOG_START);
-    REQUIRE(logs[0].payload.empty());
     REQUIRE(logs[1].type == NL_ARG_TYPE_GUID);
-    require_varint(logs[1].payload.data(), 10000);
     REQUIRE(logs[2].type == NL_ARG_TYPE_SCALAR_8_BYTE);
     REQUIRE(logs[2].payload.size() == 8);
     require_8byte(logs[2].payload.data(), 0x12345678abcdef12);
     REQUIRE(logs[3].type == NL_ARG_TYPE_LOG_END);
-    REQUIRE(logs[3].payload.empty());
   }
 
   SUBCASE("string") {
     SUBCASE("unspecified length") {
-      nanolog_log_debug_ctx(make_bin_payload(12345, {
+      nanolog_log_debug_ctx(make_bin_payload(0, {
         {.type=NL_ARG_TYPE_STRING, .payload={}}}).data(), &logs, "hello world");
       REQUIRE(logs.size() == 5);
       REQUIRE(logs[0].type == NL_ARG_TYPE_LOG_START);
-      REQUIRE(logs[0].payload.empty());
       REQUIRE(logs[1].type == NL_ARG_TYPE_GUID);
-      require_varint(logs[1].payload.data(), 12345);
       REQUIRE(logs[2].type == NL_ARG_TYPE_STRING_LEN_VARINT);
       require_varint(logs[2].payload.data(), unsigned(strlen("hello world")));
       REQUIRE(logs[3].type == NL_ARG_TYPE_STRING);
       REQUIRE(std::string{reinterpret_cast<char const *>(logs[3].payload.data()),
                           unsigned(logs[3].payload.size())} == "hello world");
       REQUIRE(logs[4].type == NL_ARG_TYPE_LOG_END);
-      REQUIRE(logs[4].payload.empty());
+    }
+
+    SUBCASE("star precision greater than string length") {
+      nanolog_log_debug_ctx(make_bin_payload(0, {
+        {.type=NL_ARG_TYPE_PRECISION_STAR, .payload={}},
+        {.type=NL_ARG_TYPE_STRING, .payload={}}}).data(), &logs, 50, "hello world");
+      REQUIRE(logs.size() == 6);
+      REQUIRE(logs[0].type == NL_ARG_TYPE_LOG_START);
+      REQUIRE(logs[1].type == NL_ARG_TYPE_GUID);
+      REQUIRE(logs[2].type == NL_ARG_TYPE_PRECISION_STAR);
+      require_varint(logs[2].payload.data(), 50);
+      REQUIRE(logs[3].type == NL_ARG_TYPE_STRING_LEN_VARINT);
+      require_varint(logs[3].payload.data(), unsigned(strlen("hello world")));
+      REQUIRE(logs[4].type == NL_ARG_TYPE_STRING);
+      REQUIRE(std::string{reinterpret_cast<char const *>(logs[4].payload.data()),
+                          unsigned(logs[4].payload.size())} == "hello world");
+      REQUIRE(logs[5].type == NL_ARG_TYPE_LOG_END);
+    }
+
+    SUBCASE("star precision smaller than string length") {
+      nanolog_log_debug_ctx(make_bin_payload(0, {
+        {.type=NL_ARG_TYPE_PRECISION_STAR, .payload={}},
+        {.type=NL_ARG_TYPE_STRING, .payload={}}}).data(), &logs, 5, "hello world");
+      REQUIRE(logs.size() == 6);
+      REQUIRE(logs[0].type == NL_ARG_TYPE_LOG_START);
+      REQUIRE(logs[1].type == NL_ARG_TYPE_GUID);
+      REQUIRE(logs[2].type == NL_ARG_TYPE_PRECISION_STAR);
+      require_varint(logs[2].payload.data(), 5);
+      REQUIRE(logs[3].type == NL_ARG_TYPE_STRING_LEN_VARINT);
+      require_varint(logs[3].payload.data(), 5);
+      REQUIRE(logs[4].type == NL_ARG_TYPE_STRING);
+      REQUIRE(std::string{reinterpret_cast<char const *>(logs[4].payload.data()),
+                          unsigned(logs[4].payload.size())} == "hello");
+      REQUIRE(logs[5].type == NL_ARG_TYPE_LOG_END);
     }
   }
 

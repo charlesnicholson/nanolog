@@ -116,84 +116,6 @@ nanolog_ret_t nanolog_fmt_is_binary(char const *fmt, int *out_is_binary) {
   return NANOLOG_RET_SUCCESS;
 }
 
-static void nanolog_extract_and_dispatch(nanolog_binary_field_handler_cb_t cb,
-                                         void *ctx,
-                                         nl_arg_type_t type,
-                                         va_list args) {
-  switch (type) {
-    case NL_ARG_TYPE_SCALAR_1_BYTE: {
-      char const c = (char)va_arg(args, int);
-      cb(ctx, type, &c, sizeof(c));
-    } break;
-
-    case NL_ARG_TYPE_SCALAR_2_BYTE: {
-      short const s = (short)va_arg(args, int);
-      cb(ctx, type, &s, sizeof(s));
-    } break;
-
-    case NL_ARG_TYPE_SCALAR_4_BYTE: {
-      int const i = va_arg(args, int);
-      cb(ctx, type, &i, sizeof(i));
-    } break;
-
-    case NL_ARG_TYPE_SCALAR_8_BYTE: {
-      long long const ll = va_arg(args, long long);
-      cb(ctx, type, &ll, sizeof(ll));
-    } break;
-
-    case NL_ARG_TYPE_STRING: {
-      unsigned char vi[8];
-      char const *s = va_arg(args, char const *);
-      unsigned sl = 0, vil = 0;
-      for (char const *c = s; *c; ++c, ++sl); // gcc recognizes this as strlen
-      nanolog_varint_encode(sl, vi, sizeof(vi), &vil); // TODO: error path
-      cb(ctx, NL_ARG_TYPE_STRING_LEN_VARINT, vi, vil);
-      cb(ctx, NL_ARG_TYPE_STRING, s, sl);
-    } break;
-
-    case NL_ARG_TYPE_POINTER: {
-      void *const v = va_arg(args, void *);
-      cb(ctx, type, &v, sizeof(v));
-    } break;
-
-    case NL_ARG_TYPE_DOUBLE: {
-      double const d = va_arg(args, double);
-      cb(ctx, type, &d, sizeof(d));
-    } break;
-
-    case NL_ARG_TYPE_LONG_DOUBLE: {
-      long double const ld = va_arg(args, long double);
-      cb(ctx, type, &ld, sizeof(ld));
-    } break;
-
-    case NL_ARG_TYPE_WINT_T: {
-      wint_t const w = va_arg(args, wint_t);
-      cb(ctx, type, &w, sizeof(w));
-    } break;
-
-    case NL_ARG_TYPE_FIELD_WIDTH_STAR:
-    case NL_ARG_TYPE_PRECISION_STAR: {
-      unsigned char vi[8], vil = 0;
-      int i = va_arg(args, int);
-      do { vi[vil++] = (unsigned char)((i & 0x7F) | 0x80); i >>= 7; } while (i);
-      vi[vil - 1] &= 0x7F;
-      cb(ctx, type, vi, vil);
-    } break;
-
-    case NL_ARG_TYPE_STRING_PRECISION_LITERAL:
-      break;
-
-    case NL_ARG_TYPE_LOG_END: cb(ctx, type, NULL, 0); break;
-
-    // never happens
-    case NL_ARG_TYPE_LOG_START:
-    case NL_ARG_TYPE_GUID:
-    case NL_ARG_TYPE_STRING_LEN_VARINT:
-    case NL_ARG_TYPE_DYNAMIC_SEVERITY:
-      break;
-  }
-}
-
 nanolog_ret_t nanolog_parse_binary_log(nanolog_binary_field_handler_cb_t cb,
                                        void *ctx,
                                        unsigned sev,
@@ -220,14 +142,81 @@ nanolog_ret_t nanolog_parse_binary_log(nanolog_binary_field_handler_cb_t cb,
   }
 
   // Types are packed, two per byte, low nibble first.
-  for (;; ++src) {
-    nl_arg_type_t type = (nl_arg_type_t)(*src & 0xF);
-    nanolog_extract_and_dispatch(cb, ctx, type, args);
-    if (type == NL_ARG_TYPE_LOG_END) { break; }
-    type = (nl_arg_type_t)(*src >> 4);
-    nanolog_extract_and_dispatch(cb, ctx, type, args);
-    if (type == NL_ARG_TYPE_LOG_END) { break; }
-  }
+  int hi = 0, have_star_prec = 0;
+  unsigned star_arg = 0;
+  nl_arg_type_t type;
+  do {
+    type = (nl_arg_type_t)((*src >> (hi ? 4 : 0)) & 0xF);
+    if (!(hi = !hi)) { ++src; }
+
+    switch (type) {
+      case NL_ARG_TYPE_SCALAR_1_BYTE: {
+        char const c = (char)va_arg(args, int); cb(ctx, type, &c, sizeof(c));
+      } break;
+
+      case NL_ARG_TYPE_SCALAR_2_BYTE: {
+        short const s = (short)va_arg(args, int); cb(ctx, type, &s, sizeof(s));
+      } break;
+
+      case NL_ARG_TYPE_SCALAR_4_BYTE: {
+        int const i = va_arg(args, int); cb(ctx, type, &i, sizeof(i));
+      } break;
+
+      case NL_ARG_TYPE_SCALAR_8_BYTE: {
+        long long const ll = va_arg(args, long long); cb(ctx, type, &ll, sizeof(ll));
+      } break;
+
+      case NL_ARG_TYPE_STRING: {
+        char const *s = va_arg(args, char const *);
+        unsigned sl = 0, len_enc_len = 0;
+        unsigned char len_enc[8];
+        for (char const *c = s; *c && (!have_star_prec || (sl < star_arg)); ++c, ++sl);
+        nanolog_varint_encode(sl, len_enc, sizeof(len_enc), &len_enc_len); // TODO: error path
+        cb(ctx, NL_ARG_TYPE_STRING_LEN_VARINT, len_enc, len_enc_len);
+        cb(ctx, NL_ARG_TYPE_STRING, s, sl);
+      } break;
+
+      case NL_ARG_TYPE_POINTER: {
+        void *const v = va_arg(args, void *); cb(ctx, type, &v, sizeof(v));
+      } break;
+
+      case NL_ARG_TYPE_DOUBLE: {
+        double const d = va_arg(args, double); cb(ctx, type, &d, sizeof(d));
+      } break;
+
+      case NL_ARG_TYPE_LONG_DOUBLE: {
+        long double const ld = va_arg(args, long double); cb(ctx, type, &ld, sizeof(ld));
+      } break;
+
+      case NL_ARG_TYPE_WINT_T: {
+        wint_t const w = va_arg(args, wint_t); cb(ctx, type, &w, sizeof(w));
+      } break;
+
+      case NL_ARG_TYPE_PRECISION_STAR:
+        have_star_prec = 1;
+      case NL_ARG_TYPE_FIELD_WIDTH_STAR: {
+        unsigned char vi[8];
+        unsigned vil = 0;
+        star_arg = va_arg(args, unsigned); // TODO: handle negative
+        nanolog_varint_encode((unsigned)star_arg, vi, sizeof(vi), &vil); // TODO: error path
+        cb(ctx, type, vi, vil);
+      } break;
+
+      case NL_ARG_TYPE_STRING_PRECISION_LITERAL:
+        break;
+
+      case NL_ARG_TYPE_LOG_END: cb(ctx, type, NULL, 0); break;
+
+      // never happens
+      case NL_ARG_TYPE_LOG_START:
+      case NL_ARG_TYPE_GUID:
+      case NL_ARG_TYPE_STRING_LEN_VARINT:
+      case NL_ARG_TYPE_DYNAMIC_SEVERITY:
+        break;
+    }
+
+    if (type != NL_ARG_TYPE_PRECISION_STAR) { have_star_prec = 0; }
+  } while (type != NL_ARG_TYPE_LOG_END);
 
   return NANOLOG_RET_SUCCESS;
 }
