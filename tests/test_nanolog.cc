@@ -103,49 +103,56 @@ TEST_CASE("nanolog_log_sev_ctx") {
 }
 
 TEST_CASE("nanolog_varint_decode") {
-  unsigned val = 99999999;
+  unsigned val = 99999999, len = 99999999;
 
   SUBCASE("bad args") {
     unsigned char c;
-    REQUIRE(nanolog_varint_decode(nullptr, nullptr) == NANOLOG_RET_ERR_BAD_ARG);
-    REQUIRE(nanolog_varint_decode(nullptr, &val) == NANOLOG_RET_ERR_BAD_ARG);
-    REQUIRE(nanolog_varint_decode(&c, nullptr) == NANOLOG_RET_ERR_BAD_ARG);
+    REQUIRE(nanolog_varint_decode(nullptr, nullptr, nullptr) == NANOLOG_RET_ERR_BAD_ARG);
+    REQUIRE(nanolog_varint_decode(nullptr, nullptr, &len) == NANOLOG_RET_ERR_BAD_ARG);
+    REQUIRE(nanolog_varint_decode(nullptr, &val, nullptr) == NANOLOG_RET_ERR_BAD_ARG);
+    REQUIRE(nanolog_varint_decode(&c, nullptr, nullptr) == NANOLOG_RET_ERR_BAD_ARG);
   }
 
   SUBCASE("zero") {
     unsigned char const buf[] = { 0 };
-    REQUIRE(nanolog_varint_decode(buf, &val) == NANOLOG_RET_SUCCESS);
+    REQUIRE(nanolog_varint_decode(buf, &val, &len) == NANOLOG_RET_SUCCESS);
     REQUIRE(val == 0);
+    REQUIRE(len == 1);
   }
 
   SUBCASE("stops at first byte that doesn't have high bit set") {
     unsigned char const buf[] = { 0x01, 0xFF };
-    REQUIRE(nanolog_varint_decode(buf, &val) == NANOLOG_RET_SUCCESS);
+    REQUIRE(nanolog_varint_decode(buf, &val, &len) == NANOLOG_RET_SUCCESS);
     REQUIRE(val == 1);
+    REQUIRE(len == 1);
   }
 
   SUBCASE("one byte less than 127") {
     unsigned char const buf[] = { 79 };
-    REQUIRE(nanolog_varint_decode(buf, &val) == NANOLOG_RET_SUCCESS);
+    REQUIRE(nanolog_varint_decode(buf, &val, &len) == NANOLOG_RET_SUCCESS);
     REQUIRE(val == 79);
+    REQUIRE(len == 1);
   }
 
   SUBCASE("127 is the largest single-byte value") {
     unsigned char const buf[] = { 0x7F };
-    REQUIRE(nanolog_varint_decode(buf, &val) == NANOLOG_RET_SUCCESS);
+    REQUIRE(nanolog_varint_decode(buf, &val, &len) == NANOLOG_RET_SUCCESS);
     REQUIRE(val == 127);
+    REQUIRE(len == 1);
   }
 
   SUBCASE("128 is the smallest two-byte value") {
     unsigned char const buf[] = { 0x81, 0x00 };
-    REQUIRE(nanolog_varint_decode(buf, &val) == NANOLOG_RET_SUCCESS);
+    REQUIRE(nanolog_varint_decode(buf, &val, &len) == NANOLOG_RET_SUCCESS);
     REQUIRE(val == 128);
+    REQUIRE(len == 2);
   }
 
   SUBCASE("two bytes greater than 128") {
     unsigned char const buf[] = { 0xAA, 0x45 };
-    REQUIRE(nanolog_varint_decode(buf, &val) == NANOLOG_RET_SUCCESS);
+    REQUIRE(nanolog_varint_decode(buf, &val, &len) == NANOLOG_RET_SUCCESS);
     REQUIRE(val == 5445);
+    REQUIRE(len == 2);
   }
 }
 
@@ -212,14 +219,14 @@ TEST_CASE("varint round-trip") {
   unsigned len, val;
   for (auto i{0u}; i < 65536u; ++i) {
     REQUIRE(nanolog_varint_encode(i, buf, sizeof(buf), &len) == NANOLOG_RET_SUCCESS);
-    REQUIRE(nanolog_varint_decode(buf, &val) == NANOLOG_RET_SUCCESS);
+    REQUIRE(nanolog_varint_decode(buf, &val, &len) == NANOLOG_RET_SUCCESS);
     REQUIRE(val == i);
   }
 }
 
 void require_varint(void const *payload, unsigned guid) {
-  unsigned payload_guid;
-  REQUIRE(nanolog_varint_decode(payload, &payload_guid) == NANOLOG_RET_SUCCESS);
+  unsigned payload_guid, len;
+  REQUIRE(nanolog_varint_decode(payload, &payload_guid, &len) == NANOLOG_RET_SUCCESS);
   REQUIRE(payload_guid == guid);
 }
 
@@ -237,6 +244,13 @@ void require_8byte(void const *payload, uint64_t expected) {
 
 struct BinaryLog { nl_arg_type_t type; byte_vec payload; };
 
+byte_vec varint_vec(unsigned val) {
+  byte buf[32];
+  unsigned n{0};
+  REQUIRE(nanolog_varint_encode(val, buf, sizeof(buf), &n) == NANOLOG_RET_SUCCESS);
+  return byte_vec{buf, buf+n};
+}
+
 std::vector<char> make_bin_payload(unsigned guid,
                                    std::vector<BinaryLog> const& contents = {}) {
   char guid_encoded[16];
@@ -250,10 +264,15 @@ std::vector<char> make_bin_payload(unsigned guid,
 
   char c{0};
   bool lo{true};
-  for (auto const& entry : contents) {
-    c |= char(entry.type) << (lo ? 0 : 4);
-    if (!lo) { bp.emplace_back(c); c = 0; }
-    lo = !lo;
+  for (auto const& [type, payload] : contents) {
+    c |= char(type) << (lo ? 0 : 4);
+    if (!lo || !payload.empty()) { bp.emplace_back(c); c = 0; }
+    if (!payload.empty()) {
+      bp.insert(bp.end(), payload.begin(), payload.end());
+      lo = true;
+    } else {
+      lo = !lo;
+    }
   }
   c |= char(NL_ARG_TYPE_LOG_END << (lo ? 0 : 4));
   bp.emplace_back(c);
@@ -383,6 +402,37 @@ TEST_CASE("nanolog_parse_binary_log") {
       REQUIRE(std::string{reinterpret_cast<char const *>(logs[4].payload.data()),
                           unsigned(logs[4].payload.size())} == "hello");
       REQUIRE(logs[5].type == NL_ARG_TYPE_LOG_END);
+    }
+
+    SUBCASE("literal precision greater than string length") {
+      auto const bin_payload = make_bin_payload(0, {
+        {.type=NL_ARG_TYPE_STRING_PRECISION_LITERAL, .payload=varint_vec(100)},
+        {.type=NL_ARG_TYPE_STRING, .payload={}}});
+      nanolog_log_debug_ctx(bin_payload.data(), &logs, "hello world");
+      REQUIRE(logs.size() == 5);
+      REQUIRE(logs[0].type == NL_ARG_TYPE_LOG_START);
+      REQUIRE(logs[1].type == NL_ARG_TYPE_GUID);
+      REQUIRE(logs[2].type == NL_ARG_TYPE_STRING_LEN);
+      require_varint(logs[2].payload.data(), unsigned(strlen("hello world")));
+      REQUIRE(logs[3].type == NL_ARG_TYPE_STRING);
+      REQUIRE(std::string{reinterpret_cast<char const *>(logs[3].payload.data()),
+                          unsigned(logs[3].payload.size())} == "hello world");
+      REQUIRE(logs[4].type == NL_ARG_TYPE_LOG_END);
+    }
+
+    SUBCASE("literal precision less than string length") {
+      nanolog_log_debug_ctx(make_bin_payload(0, {
+        {.type=NL_ARG_TYPE_STRING_PRECISION_LITERAL, .payload=varint_vec(4)},
+        {.type=NL_ARG_TYPE_STRING, .payload={}}}).data(), &logs, "hello world");
+      REQUIRE(logs.size() == 5);
+      REQUIRE(logs[0].type == NL_ARG_TYPE_LOG_START);
+      REQUIRE(logs[1].type == NL_ARG_TYPE_GUID);
+      REQUIRE(logs[2].type == NL_ARG_TYPE_STRING_LEN);
+      require_varint(logs[2].payload.data(), 4);
+      REQUIRE(logs[3].type == NL_ARG_TYPE_STRING);
+      REQUIRE(std::string{reinterpret_cast<char const *>(logs[3].payload.data()),
+                          unsigned(logs[3].payload.size())} == "hell");
+      REQUIRE(logs[4].type == NL_ARG_TYPE_LOG_END);
     }
   }
 

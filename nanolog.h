@@ -96,14 +96,6 @@ void nanolog_log_sev_ctx(char const *fmt, unsigned sev, void* ctx, ...);
 #define NL_ATTR_SEC(SEV)
 #endif
 
-#ifdef __GNUC__
-#define NL_UNLIKELY(COND) __builtin_expect(!!(COND), 0)
-#define NL_EXPECT(COND, VAL) __builtin_expect(COND, VAL)
-#else
-#define NL_UNLIKELY(COND) COND
-#define NL_EXPECT(COND, VAL) COND
-#endif
-
 // Public logging macros
 
 #if NL_LOG_SEVERITY_THRESHOLD <= NL_SEV_DEBUG
@@ -185,6 +177,14 @@ void nanolog_log_sev_ctx(char const *fmt, unsigned sev, void* ctx, ...);
     nanolog_log_assert_ctx(s_nanolog_fmt_str, (void *)(CTX), ##__VA_ARGS__); \
   } while(0)
 
+#ifdef __GNUC__
+#define NL_UNLIKELY(COND) __builtin_expect(!!(COND), 0)
+#define NL_EXPECT(COND, VAL) __builtin_expect(COND, VAL)
+#else
+#define NL_UNLIKELY(COND) COND
+#define NL_EXPECT(COND, VAL) COND
+#endif
+
 // Optional top-level minimal-footprint assert macros
 
 #ifdef NANOLOG_PROVIDE_ASSERT_MACROS
@@ -238,7 +238,7 @@ nanolog_ret_t nanolog_varint_encode(unsigned val,
                                     unsigned buf_max,
                                     unsigned *out_len);
 
-nanolog_ret_t nanolog_varint_decode(void const *p, unsigned *out_val);
+nanolog_ret_t nanolog_varint_decode(void const *p, unsigned *out_val, unsigned *out_len);
 
 // Private logging API (use the macros, not these)
 
