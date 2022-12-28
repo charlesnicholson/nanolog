@@ -145,7 +145,7 @@ nanolog_ret_t nanolog_parse_binary_log(nanolog_binary_field_handler_cb_t cb,
 
   // Types are packed, two per byte, low nibble first.
   int hi = 0, have_prec = 0;
-  unsigned prec = 0;
+  int32_t prec = 0;
   nl_arg_type_t type;
   do {
     type = (nl_arg_type_t)((*src >> (hi ? 4 : 0)) & 0xF);
@@ -171,7 +171,7 @@ nanolog_ret_t nanolog_parse_binary_log(nanolog_binary_field_handler_cb_t cb,
       case NL_ARG_TYPE_STRING: {
         char const *s = va_arg(args, char const *);
         unsigned sl = 0, len_enc_len = 0;
-        for (char const *c = s; *c && (!have_prec || (sl < prec)); ++c, ++sl);
+        for (char const *c = s; *c && (!have_prec || (sl < (unsigned)prec)); ++c, ++sl);
         unsigned char len_enc[8];
         if (nanolog_varint_encode(sl, len_enc, sizeof(len_enc), &len_enc_len)
           != NANOLOG_RET_SUCCESS) { return NANOLOG_RET_ERR_INTERNAL; }
@@ -199,9 +199,10 @@ nanolog_ret_t nanolog_parse_binary_log(nanolog_binary_field_handler_cb_t cb,
       case NL_ARG_TYPE_FIELD_WIDTH_STAR: {
         unsigned char vi[8];
         unsigned vil = 0;
-        prec = va_arg(args, unsigned); // TODO: handle negative
-        if (nanolog_varint_encode((unsigned)prec, vi, sizeof(vi), &vil)
+        prec = (int32_t)va_arg(args, int);
+        if (nanolog_varint_encode(nanolog_zigzag_encode(prec), vi, sizeof(vi), &vil)
           != NANOLOG_RET_SUCCESS) { return NANOLOG_RET_ERR_INTERNAL; }
+        if (have_prec && (prec < 0)) { have_prec = 0; }
         cb(ctx, type, vi, vil);
       } break;
 
@@ -211,7 +212,7 @@ nanolog_ret_t nanolog_parse_binary_log(nanolog_binary_field_handler_cb_t cb,
         uint32_t val;
         if (nanolog_varint_decode(src, &val, &len) != NANOLOG_RET_SUCCESS) {
           return NANOLOG_RET_ERR_INVALID_PAYLOAD; }
-        prec = val;
+        prec = (int32_t)val;
         have_prec = 1;
         src += len;
       } break;
