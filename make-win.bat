@@ -10,13 +10,10 @@ cl.exe /nologo /std:c++20 /W4 /WX /Osy /GL /EHsc /MP /c ^
 
 lib.exe /out:libunclog.lib *.obj
 
-dir
-
 cl.exe /nologo /std:c++20 /W4 /WX /Osy /GL /EHsc /MP ^
     /D_CRT_SECURE_NO_WARNINGS ^
     unclog/args.cc ^
     unclog/unclog.cc ^
-    nanolog.obj ^
     libunclog.lib ^
     /link /out:unclog.exe || exit /b 1
 
@@ -24,7 +21,6 @@ cl.exe /nologo /std:c++20 /W4 /WX /Osy /GL /EHsc /MP ^
     /D_CRT_SECURE_NO_WARNINGS ^
     tests/unittest_main.cc ^
     tests/test_nanolog.cc ^
-    nanolog.obj ^
     libunclog.lib ^
     /link /out:nanolog_unittests.exe || exit /b 1
 
