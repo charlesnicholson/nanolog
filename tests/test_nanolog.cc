@@ -1,5 +1,5 @@
 #include "../nanolog.h"
-#include "../unclog/boilerplate.h"
+#include "../unclog/emit.h"
 
 #define DOCTEST_CONFIG_SUPER_FAST_ASSERTS
 #include "doctest.h"
