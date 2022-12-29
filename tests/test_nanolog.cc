@@ -248,10 +248,10 @@ TEST_CASE("zigzag") {
   }
 }
 
-void require_varint(void const *payload, unsigned guid) {
-  unsigned payload_guid, len;
-  REQUIRE(nanolog_varint_decode(payload, &payload_guid, &len) == NANOLOG_RET_SUCCESS);
-  REQUIRE(payload_guid == guid);
+void require_varint(void const *payload, unsigned expected_val) {
+  unsigned actual_val, len;
+  REQUIRE(nanolog_varint_decode(payload, &actual_val, &len) == NANOLOG_RET_SUCCESS);
+  REQUIRE(actual_val == expected_val);
 }
 
 void require_2byte(void const *payload, uint16_t expected) {
@@ -418,8 +418,8 @@ TEST_CASE("nanolog_parse_binary_log") {
       REQUIRE(logs[4].type == NL_ARG_TYPE_LOG_END);
     }
 
-#if 0
     SUBCASE("field and precision") {
+      nanolog_log_debug_ctx((char const *)make_bin_payload("%*.*d", 0).data(), &logs, 1234, 4321, 12345);
       REQUIRE(logs.size() == 6);
       REQUIRE(logs[0].type == NL_ARG_TYPE_LOG_START);
       REQUIRE(logs[1].type == NL_ARG_TYPE_GUID);
@@ -431,7 +431,6 @@ TEST_CASE("nanolog_parse_binary_log") {
       require_4byte(logs[4].payload.data(), 12345);
       REQUIRE(logs[5].type == NL_ARG_TYPE_LOG_END);
     }
-#endif
   }
 
   SUBCASE("string") {

@@ -292,7 +292,7 @@ void emit_bin_fmt_str(char const *str, unsigned guid, byte_vec& fmt_bin_mem) {
 
     if (fs.field_width_opt == NPF_FMT_SPEC_OPT_STAR) {
       if (field_count++ & 1) {
-        fmt_bin_mem[fmt_bin_mem.size() - 1] |= byte(NL_ARG_TYPE_FIELD_WIDTH_STAR);
+        fmt_bin_mem[fmt_bin_mem.size() - 1] |= byte(NL_ARG_TYPE_FIELD_WIDTH_STAR << 4u);
       } else {
         fmt_bin_mem.push_back(byte(NL_ARG_TYPE_FIELD_WIDTH_STAR));
       }
@@ -300,7 +300,7 @@ void emit_bin_fmt_str(char const *str, unsigned guid, byte_vec& fmt_bin_mem) {
 
     if (fs.prec_opt == NPF_FMT_SPEC_OPT_STAR) {
       if (field_count++ & 1) {
-        fmt_bin_mem[fmt_bin_mem.size() - 1] |= byte(NL_ARG_TYPE_PRECISION_STAR);
+        fmt_bin_mem[fmt_bin_mem.size() - 1] |= byte(NL_ARG_TYPE_PRECISION_STAR << 4u);
       } else {
         fmt_bin_mem.push_back(byte(NL_ARG_TYPE_PRECISION_STAR));
       }
