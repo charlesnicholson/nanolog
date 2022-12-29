@@ -248,6 +248,7 @@ TEST_CASE("zigzag") {
   }
 }
 
+namespace {
 void require_varint(void const *payload, unsigned expected_val) {
   unsigned actual_val, len;
   REQUIRE(nanolog_varint_decode(payload, &actual_val, &len) == NANOLOG_RET_SUCCESS);
@@ -281,6 +282,7 @@ char const *make_bin_payload(char const *fmt, unsigned guid, byte_vec& storage) 
   storage.clear();
   emit_bin_fmt_str(fmt, guid, storage);
   return reinterpret_cast<char const *>(storage.data());
+}
 }
 
 TEST_CASE("nanolog_parse_binary_log") {
@@ -519,6 +521,35 @@ TEST_CASE("nanolog_parse_binary_log") {
                           unsigned(logs[3].payload.size())} == "hell");
       REQUIRE(logs[4].type == NL_ARG_TYPE_LOG_END);
     }
+  }
+
+  SUBCASE("large full string") {
+    nanolog_log_debug_ctx(make_bin_payload("abc %*.*d def %*.*u ghi %.2s %f", 6789, buf),
+                          &logs, 123, 456, 100, 789, 222, 200, "hello world", 3.141);
+    REQUIRE(logs.size() == 12);
+    REQUIRE(logs[0].type == NL_ARG_TYPE_LOG_START);
+    REQUIRE(logs[1].type == NL_ARG_TYPE_GUID);
+    require_varint(logs[1].payload.data(), 6789);
+    REQUIRE(logs[2].type == NL_ARG_TYPE_FIELD_WIDTH_STAR);
+    require_varint(logs[2].payload.data(), nanolog_zigzag_encode(123));
+    REQUIRE(logs[3].type == NL_ARG_TYPE_PRECISION_STAR);
+    require_varint(logs[3].payload.data(), nanolog_zigzag_encode(456));
+    REQUIRE(logs[4].type == NL_ARG_TYPE_SCALAR_4_BYTE);
+    require_varint(logs[4].payload.data(), 100);
+    REQUIRE(logs[5].type == NL_ARG_TYPE_FIELD_WIDTH_STAR);
+    require_varint(logs[5].payload.data(), nanolog_zigzag_encode(789));
+    REQUIRE(logs[6].type == NL_ARG_TYPE_PRECISION_STAR);
+    require_varint(logs[6].payload.data(), nanolog_zigzag_encode(222));
+    REQUIRE(logs[7].type == NL_ARG_TYPE_SCALAR_4_BYTE);
+    require_4byte(logs[7].payload.data(), 200);
+    REQUIRE(logs[8].type == NL_ARG_TYPE_STRING_LEN);
+    require_varint(logs[8].payload.data(), 2);
+    REQUIRE(logs[9].type == NL_ARG_TYPE_STRING);
+    REQUIRE(std::string{reinterpret_cast<char const *>(logs[9].payload.data()),
+                        unsigned(logs[3].payload.size())} == "he");
+    REQUIRE(logs[10].type == NL_ARG_TYPE_DOUBLE);
+    require_double(logs[10].payload.data(), 3.141);
+    REQUIRE(logs[11].type == NL_ARG_TYPE_LOG_END);
   }
 
   nanolog_set_handler(old_handler);
