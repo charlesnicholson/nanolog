@@ -10,6 +10,8 @@ cl.exe /nologo /std:c++20 /W4 /WX /Osy /GL /EHsc /MP /c ^
 
 lib.exe /out:libunclog.lib *.o
 
+dir
+
 cl.exe /nologo /std:c++20 /W4 /WX /Osy /GL /EHsc /MP ^
     /D_CRT_SECURE_NO_WARNINGS ^
     unclog/args.cc ^
