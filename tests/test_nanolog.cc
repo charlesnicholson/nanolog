@@ -277,10 +277,10 @@ void require_double(void const *payload, double expected) {
 
 struct BinaryLog { nl_arg_type_t type; byte_vec payload; };
 
-byte_vec make_bin_payload(char const *fmt, unsigned guid) {
-  byte_vec bin_mem;
-  emit_bin_fmt_str(fmt, guid, bin_mem);
-  return bin_mem;
+char const *make_bin_payload(char const *fmt, unsigned guid, byte_vec& storage) {
+  storage.clear();
+  emit_bin_fmt_str(fmt, guid, storage);
+  return reinterpret_cast<char const *>(storage.data());
 }
 
 TEST_CASE("nanolog_parse_binary_log") {
@@ -299,9 +299,11 @@ TEST_CASE("nanolog_parse_binary_log") {
   });
 
   std::vector<BinaryLog> logs;
+  byte_vec buf;
+  buf.reserve(128);
 
   SUBCASE("empty binlog emits start, guid, end") {
-    nanolog_log_debug_ctx((char const *)make_bin_payload("", 12345).data(), &logs);
+    nanolog_log_debug_ctx(make_bin_payload("", 12345, buf), &logs);
     REQUIRE(logs.size() == 3);
     REQUIRE(logs[0].type == NL_ARG_TYPE_LOG_START);
     REQUIRE(logs[0].payload.empty());
@@ -312,7 +314,7 @@ TEST_CASE("nanolog_parse_binary_log") {
   }
 
   SUBCASE("1-byte scalar") {
-    nanolog_log_debug_ctx((char const *)make_bin_payload("%c", 0).data(), &logs, 'f');
+    nanolog_log_debug_ctx(make_bin_payload("%c", 0, buf), &logs, 'f');
     REQUIRE(logs.size() == 4);
     REQUIRE(logs[0].type == NL_ARG_TYPE_LOG_START);
     REQUIRE(logs[1].type == NL_ARG_TYPE_GUID);
@@ -323,7 +325,7 @@ TEST_CASE("nanolog_parse_binary_log") {
   }
 
   SUBCASE("2-byte scalar") {
-    nanolog_log_debug_ctx((char const *)make_bin_payload("%hd", 0).data(), &logs, 4321);
+    nanolog_log_debug_ctx(make_bin_payload("%hd", 0, buf), &logs, 4321);
     REQUIRE(logs.size() == 4);
     REQUIRE(logs[0].type == NL_ARG_TYPE_LOG_START);
     REQUIRE(logs[1].type == NL_ARG_TYPE_GUID);
@@ -334,7 +336,7 @@ TEST_CASE("nanolog_parse_binary_log") {
   }
 
   SUBCASE("4-byte scalar") {
-    nanolog_log_debug_ctx((char const *)make_bin_payload("%u", 0).data(), &logs, 0x12345678);
+    nanolog_log_debug_ctx(make_bin_payload("%u", 0, buf), &logs, 0x12345678);
     REQUIRE(logs.size() == 4);
     REQUIRE(logs[0].type == NL_ARG_TYPE_LOG_START);
     REQUIRE(logs[1].type == NL_ARG_TYPE_GUID);
@@ -345,7 +347,7 @@ TEST_CASE("nanolog_parse_binary_log") {
   }
 
   SUBCASE("8-byte scalar") {
-    nanolog_log_debug_ctx((char const *)make_bin_payload("%llu", 0).data(), &logs, 0x12345678abcdef12);
+    nanolog_log_debug_ctx(make_bin_payload("%llu", 0, buf), &logs, 0x12345678abcdef12);
     REQUIRE(logs.size() == 4);
     REQUIRE(logs[0].type == NL_ARG_TYPE_LOG_START);
     REQUIRE(logs[1].type == NL_ARG_TYPE_GUID);
@@ -356,19 +358,19 @@ TEST_CASE("nanolog_parse_binary_log") {
   }
 
   SUBCASE("pointer") {
-    int x; void *p{&x};
-    nanolog_log_debug_ctx((char const *)make_bin_payload("%p", 0).data(), &logs, p);
+    int x;
+    nanolog_log_debug_ctx(make_bin_payload("%p", 0, buf), &logs, &x);
     REQUIRE(logs.size() == 4);
     REQUIRE(logs[0].type == NL_ARG_TYPE_LOG_START);
     REQUIRE(logs[1].type == NL_ARG_TYPE_GUID);
     REQUIRE(logs[2].type == NL_ARG_TYPE_POINTER);
     REQUIRE(logs[2].payload.size() == sizeof(void*));
-    require_pointer(logs[2].payload.data(), p);
+    require_pointer(logs[2].payload.data(), &x);
     REQUIRE(logs[3].type == NL_ARG_TYPE_LOG_END);
   }
 
   SUBCASE("double") {
-    nanolog_log_debug_ctx((char const *)make_bin_payload("%f", 0).data(), &logs, 3.14159265359);
+    nanolog_log_debug_ctx(make_bin_payload("%f", 0, buf), &logs, 3.14159265359);
     REQUIRE(logs.size() == 4);
     REQUIRE(logs[0].type == NL_ARG_TYPE_LOG_START);
     REQUIRE(logs[1].type == NL_ARG_TYPE_GUID);
@@ -379,7 +381,7 @@ TEST_CASE("nanolog_parse_binary_log") {
   }
 
   SUBCASE("wint_t") {
-    nanolog_log_debug_ctx((char const *)make_bin_payload("%lc", 0).data(), &logs, wint_t(1234));
+    nanolog_log_debug_ctx(make_bin_payload("%lc", 0, buf), &logs, wint_t(1234));
     REQUIRE(logs.size() == 4);
     REQUIRE(logs[0].type == NL_ARG_TYPE_LOG_START);
     REQUIRE(logs[1].type == NL_ARG_TYPE_GUID);
@@ -395,7 +397,7 @@ TEST_CASE("nanolog_parse_binary_log") {
 
   SUBCASE("stars") {
     SUBCASE("field width") {
-      nanolog_log_debug_ctx((char const *)make_bin_payload("%*d", 0).data(), &logs, 3000, 12345);
+      nanolog_log_debug_ctx(make_bin_payload("%*d", 0, buf), &logs, 3000, 12345);
       REQUIRE(logs.size() == 5);
       REQUIRE(logs[0].type == NL_ARG_TYPE_LOG_START);
       REQUIRE(logs[1].type == NL_ARG_TYPE_GUID);
@@ -407,7 +409,7 @@ TEST_CASE("nanolog_parse_binary_log") {
     }
 
     SUBCASE("precision") {
-      nanolog_log_debug_ctx((char const *)make_bin_payload("%.*d", 0).data(), &logs, 4321, 12345);
+      nanolog_log_debug_ctx(make_bin_payload("%.*d", 0, buf), &logs, 4321, 12345);
       REQUIRE(logs.size() == 5);
       REQUIRE(logs[0].type == NL_ARG_TYPE_LOG_START);
       REQUIRE(logs[1].type == NL_ARG_TYPE_GUID);
@@ -419,7 +421,7 @@ TEST_CASE("nanolog_parse_binary_log") {
     }
 
     SUBCASE("field and precision") {
-      nanolog_log_debug_ctx((char const *)make_bin_payload("%*.*d", 0).data(), &logs, 1234, 4321, 12345);
+      nanolog_log_debug_ctx(make_bin_payload("%*.*d", 0, buf), &logs, 1234, 4321, 12345);
       REQUIRE(logs.size() == 6);
       REQUIRE(logs[0].type == NL_ARG_TYPE_LOG_START);
       REQUIRE(logs[1].type == NL_ARG_TYPE_GUID);
@@ -435,7 +437,7 @@ TEST_CASE("nanolog_parse_binary_log") {
 
   SUBCASE("string") {
     SUBCASE("unspecified length") {
-      nanolog_log_debug_ctx((char const *)make_bin_payload("%s", 0).data(), &logs, "hello world");
+      nanolog_log_debug_ctx(make_bin_payload("%s", 0, buf), &logs, "hello world");
       REQUIRE(logs.size() == 5);
       REQUIRE(logs[0].type == NL_ARG_TYPE_LOG_START);
       REQUIRE(logs[1].type == NL_ARG_TYPE_GUID);
@@ -448,7 +450,7 @@ TEST_CASE("nanolog_parse_binary_log") {
     }
 
     SUBCASE("star precision greater than string length") {
-      nanolog_log_debug_ctx((char const *)make_bin_payload("%.*s", 0).data(), &logs, 50, "hello world");
+      nanolog_log_debug_ctx(make_bin_payload("%.*s", 0, buf), &logs, 50, "hello world");
       REQUIRE(logs.size() == 6);
       REQUIRE(logs[0].type == NL_ARG_TYPE_LOG_START);
       REQUIRE(logs[1].type == NL_ARG_TYPE_GUID);
@@ -463,7 +465,7 @@ TEST_CASE("nanolog_parse_binary_log") {
     }
 
     SUBCASE("star precision smaller than string length") {
-      nanolog_log_debug_ctx((char const *)make_bin_payload("%.*s", 0).data(), &logs, 5, "hello world");
+      nanolog_log_debug_ctx(make_bin_payload("%.*s", 0, buf), &logs, 5, "hello world");
       REQUIRE(logs.size() == 6);
       REQUIRE(logs[0].type == NL_ARG_TYPE_LOG_START);
       REQUIRE(logs[1].type == NL_ARG_TYPE_GUID);
@@ -478,7 +480,7 @@ TEST_CASE("nanolog_parse_binary_log") {
     }
 
     SUBCASE("negative star precision is ignored when computing local strlen") {
-      nanolog_log_debug_ctx((char const *)make_bin_payload("%.*s", 0).data(), &logs, -1, "hello world");
+      nanolog_log_debug_ctx(make_bin_payload("%.*s", 0, buf), &logs, -1, "hello world");
       REQUIRE(logs.size() == 6);
       REQUIRE(logs[0].type == NL_ARG_TYPE_LOG_START);
       REQUIRE(logs[1].type == NL_ARG_TYPE_GUID);
@@ -493,7 +495,7 @@ TEST_CASE("nanolog_parse_binary_log") {
     }
 
     SUBCASE("literal precision greater than string length") {
-      nanolog_log_debug_ctx((char const *)make_bin_payload("%.100s", 0).data(), &logs, "hello world");
+      nanolog_log_debug_ctx(make_bin_payload("%.100s", 0, buf), &logs, "hello world");
       REQUIRE(logs.size() == 5);
       REQUIRE(logs[0].type == NL_ARG_TYPE_LOG_START);
       REQUIRE(logs[1].type == NL_ARG_TYPE_GUID);
@@ -506,7 +508,7 @@ TEST_CASE("nanolog_parse_binary_log") {
     }
 
     SUBCASE("literal precision less than string length") {
-      nanolog_log_debug_ctx((char const *)make_bin_payload("%.4s", 0).data(), &logs, "hello world");
+      nanolog_log_debug_ctx(make_bin_payload("%.4s", 0, buf), &logs, "hello world");
       REQUIRE(logs.size() == 5);
       REQUIRE(logs[0].type == NL_ARG_TYPE_LOG_START);
       REQUIRE(logs[1].type == NL_ARG_TYPE_GUID);
