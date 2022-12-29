@@ -2,26 +2,34 @@ BUILD_DIR := build
 OS := $(shell uname)
 COMPILER_VERSION := $(shell $(CXX) --version)
 
+# ----- Unclog lib (for testing)
+
+LIBUNCLOG_LIB := $(BUILD_DIR)/libunclog.a
+LIBUNCLOG_SRCS := \
+	unclog/emit.cc \
+	unclog/elf.cc \
+	unclog/thumb2.cc \
+	unclog/thumb2_inst.cc \
+	nanolog.c
+
 # ----- Unclog tool
 
 UNCLOG_BIN := $(BUILD_DIR)/bin/unclog
-UNCLOG_SRCS := unclog/unclog.cc \
-			   unclog/args.cc \
-			   unclog/elf.cc \
-			   unclog/emit.cc \
-			   unclog/thumb2.cc \
-			   unclog/thumb2_inst.cc \
-			   nanolog.c
+UNCLOG_SRCS := unclog/args.cc unclog/unclog.cc
 
 # ----- Runtime unit tests
 
 TESTS_STAMP := $(BUILD_DIR)/nanolog_tests.timestamp
 TESTS_BIN := $(BUILD_DIR)/nanolog_tests
-TESTS_SRCS := tests/unittest_main.cc \
-			  tests/test_nanolog.cc \
-			  nanolog.c
+TESTS_SRCS := tests/unittest_main.cc tests/test_nanolog.cc nanolog.c
 
 # ----- Compiler flags
+
+ifeq 'Darwin' '$(OS)'
+AR := libtool -static -o
+else
+AR := ar rcs
+endif
 
 ifneq '' '$(findstring g++,$(COMPILER_VERSION))'
 LDFLAGS = -flto=auto
@@ -61,13 +69,17 @@ $(BUILD_DIR)/%.c.o: %.c
 $(BUILD_DIR)/%.cc.o: %.cc
 	mkdir -p $(dir $@) && $(CXX) $(CPPFLAGS) $(CXXFLAGS) -c $< -o $@
 
+LIBUNCLOG_OBJS := $(LIBUNCLOG_SRCS:%=$(BUILD_DIR)/%.o)
+$(LIBUNCLOG_LIB): $(LIBUNCLOG_OBJS)
+	mkdir -p $(dir $@) && $(AR) $@ $(LIBUNCLOG_OBJS)
+
 UNCLOG_OBJS := $(UNCLOG_SRCS:%=$(BUILD_DIR)/%.o)
-$(UNCLOG_BIN): $(UNCLOG_OBJS)
-	mkdir -p $(dir $@) && $(CXX) $(LDFLAGS) $(UNCLOG_OBJS) -o $@ && strip $@
+$(UNCLOG_BIN): $(UNCLOG_OBJS) $(LIBUNCLOG_LIB)
+	mkdir -p $(dir $@) && $(CXX) $(LDFLAGS) $(UNCLOG_OBJS) $(LIBUNCLOG_LIB) -o $@ && strip $@
 
 TESTS_OBJS := $(TESTS_SRCS:%=$(BUILD_DIR)/%.o)
-$(TESTS_BIN): $(TESTS_OBJS)
-	mkdir -p $(dir $@) && $(CXX) $(LDFLAGS) $(TESTS_OBJS) -o $@
+$(TESTS_BIN): $(TESTS_OBJS) $(LIBUNCLOG_LIB)
+	mkdir -p $(dir $@) && $(CXX) $(LDFLAGS) $(TESTS_OBJS) $(LIBUNCLOG_LIB) -o $@
 
 $(TESTS_STAMP): $(TESTS_BIN)
 	$(TESTS_BIN) -m && touch $(TESTS_STAMP)
