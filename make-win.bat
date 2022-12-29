@@ -8,7 +8,7 @@ cl.exe /nologo /std:c++20 /W4 /WX /Osy /GL /EHsc /MP /c ^
     unclog/thumb2.cc ^
     unclog/thumb2_inst.cc || exit /b 1
 
-lib.exe /out:libunclog.lib *.o
+lib.exe /out:libunclog.lib *.obj
 
 dir
 
