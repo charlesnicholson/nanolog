@@ -2,6 +2,7 @@
 
 #include "boilerplate.h"
 
+void emit_bin_fmt_str(char const *str, unsigned guid, byte_vec& fmt_bin_mem);
 void emit_bin_fmt_strs(std::vector<char const *> const& fmt_strs,
                        u32_vec& fmt_bin_addrs,
                        byte_vec& fmt_bin_mem);
