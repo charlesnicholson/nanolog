@@ -37,7 +37,7 @@ else
 LDFLAGS = -flto
 endif
 
-CFLAGS = --std=c17
+CFLAGS = --std=c17 -fexceptions
 CXXFLAGS = --std=c++20
 CPPFLAGS += -MMD -MP -g
 CPPFLAGS += -Os -flto
@@ -64,7 +64,7 @@ CPPFLAGS += -Wno-padded
 # ----- Targets and rules
 
 $(BUILD_DIR)/%.c.o: %.c
-	mkdir -p $(dir $@) && $(CC) $(CPPFLAGS) $(CFLAGS) -fexceptions -c $< -o $@
+	mkdir -p $(dir $@) && $(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
 
 $(BUILD_DIR)/%.cc.o: %.cc
 	mkdir -p $(dir $@) && $(CXX) $(CPPFLAGS) $(CXXFLAGS) -c $< -o $@
