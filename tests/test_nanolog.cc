@@ -505,7 +505,6 @@ TEST_CASE("nanolog_parse_binary_log") {
       REQUIRE(logs[4].type == NL_ARG_TYPE_LOG_END);
     }
 
-#if 0
     SUBCASE("literal precision less than string length") {
       nanolog_log_debug_ctx((char const *)make_bin_payload("%.4s", 0).data(), &logs, "hello world");
       REQUIRE(logs.size() == 5);
@@ -518,7 +517,6 @@ TEST_CASE("nanolog_parse_binary_log") {
                           unsigned(logs[3].payload.size())} == "hell");
       REQUIRE(logs[4].type == NL_ARG_TYPE_LOG_END);
     }
-#endif
   }
 
   nanolog_set_handler(old_handler);

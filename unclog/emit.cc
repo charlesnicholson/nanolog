@@ -269,6 +269,17 @@ bool emit_json_manifest(std::vector<char const *> const& fmt_strs,
   return true;
 }
 
+namespace {
+void emit_nibble(byte val, byte_vec& v, bool& lo_nibble) {
+  if (lo_nibble) {
+    v.push_back(val);
+  } else {
+    v[v.size() - 1] |= byte(val << 4u);
+  }
+  lo_nibble = !lo_nibble;
+}
+}
+
 void emit_bin_fmt_str(char const *str, unsigned guid, byte_vec& fmt_bin_mem) {
   fmt_bin_mem.push_back(NL_BINARY_LOG_MARKER);
 
@@ -279,7 +290,7 @@ void emit_bin_fmt_str(char const *str, unsigned guid, byte_vec& fmt_bin_mem) {
     fmt_bin_mem.insert(fmt_bin_mem.end(), guid_enc, guid_enc + guid_enc_len);
   }
 
-  int field_count{0};
+  bool lo_nibble{true};
   char const *cur{str};
   while (*cur) {
     npf_format_spec_t fs;
@@ -291,33 +302,37 @@ void emit_bin_fmt_str(char const *str, unsigned guid, byte_vec& fmt_bin_mem) {
         (fs.conv_spec == NPF_FMT_SPEC_CONV_PERCENT)) { continue; }
 
     if (fs.field_width_opt == NPF_FMT_SPEC_OPT_STAR) {
-      if (field_count++ & 1) {
-        fmt_bin_mem[fmt_bin_mem.size() - 1] |= byte(NL_ARG_TYPE_FIELD_WIDTH_STAR << 4u);
-      } else {
-        fmt_bin_mem.push_back(byte(NL_ARG_TYPE_FIELD_WIDTH_STAR));
-      }
+      emit_nibble(NL_ARG_TYPE_FIELD_WIDTH_STAR, fmt_bin_mem, lo_nibble);
     }
 
     if (fs.prec_opt == NPF_FMT_SPEC_OPT_STAR) {
-      if (field_count++ & 1) {
-        fmt_bin_mem[fmt_bin_mem.size() - 1] |= byte(NL_ARG_TYPE_PRECISION_STAR << 4u);
-      } else {
-        fmt_bin_mem.push_back(byte(NL_ARG_TYPE_PRECISION_STAR));
-      }
+      emit_nibble(NL_ARG_TYPE_PRECISION_STAR, fmt_bin_mem, lo_nibble);
     }
-
-    byte field{0xFF};
 
     switch (fs.conv_spec) {
       case NPF_FMT_SPEC_CONV_CHAR:
         switch (fs.length_modifier) {
-          case NPF_FMT_SPEC_LEN_MOD_NONE: field = byte(NL_ARG_TYPE_SCALAR_1_BYTE); break;
-          case NPF_FMT_SPEC_LEN_MOD_LONG: field = byte(NL_ARG_TYPE_WINT_T); break;
+          case NPF_FMT_SPEC_LEN_MOD_NONE:
+            emit_nibble(NL_ARG_TYPE_SCALAR_1_BYTE, fmt_bin_mem, lo_nibble); break;
+          case NPF_FMT_SPEC_LEN_MOD_LONG:
+            emit_nibble(NL_ARG_TYPE_WINT_T, fmt_bin_mem, lo_nibble); break;
           default: break;
         } break;
 
-      case NPF_FMT_SPEC_CONV_POINTER: field = byte(NL_ARG_TYPE_POINTER); break;
-      case NPF_FMT_SPEC_CONV_STRING: field = byte(NL_ARG_TYPE_STRING); break;
+      case NPF_FMT_SPEC_CONV_POINTER:
+        emit_nibble(NL_ARG_TYPE_POINTER, fmt_bin_mem, lo_nibble); break;
+
+      case NPF_FMT_SPEC_CONV_STRING:
+        if (fs.prec_opt == NPF_FMT_SPEC_OPT_LITERAL) {
+          char lit_enc[16];
+          unsigned lit_enc_len{0};
+          nanolog_varint_encode(unsigned(fs.prec), lit_enc, sizeof(lit_enc), &lit_enc_len);
+          emit_nibble(NL_ARG_TYPE_STRING_PRECISION_LITERAL, fmt_bin_mem, lo_nibble);
+          fmt_bin_mem.insert(fmt_bin_mem.end(), lit_enc, lit_enc + lit_enc_len);
+          lo_nibble = true;
+        }
+        emit_nibble(NL_ARG_TYPE_STRING, fmt_bin_mem, lo_nibble);
+        break;
 
       case NPF_FMT_SPEC_CONV_BINARY:
       case NPF_FMT_SPEC_CONV_OCTAL:
@@ -325,16 +340,18 @@ void emit_bin_fmt_str(char const *str, unsigned guid, byte_vec& fmt_bin_mem) {
       case NPF_FMT_SPEC_CONV_UNSIGNED_INT:
       case NPF_FMT_SPEC_CONV_SIGNED_INT:
         switch (fs.length_modifier) {
-          case NPF_FMT_SPEC_LEN_MOD_CHAR: field = byte(NL_ARG_TYPE_SCALAR_1_BYTE); break;
-          case NPF_FMT_SPEC_LEN_MOD_SHORT: field = byte(NL_ARG_TYPE_SCALAR_2_BYTE); break;
+          case NPF_FMT_SPEC_LEN_MOD_CHAR:
+            emit_nibble(NL_ARG_TYPE_SCALAR_1_BYTE, fmt_bin_mem, lo_nibble); break;
+          case NPF_FMT_SPEC_LEN_MOD_SHORT:
+            emit_nibble(NL_ARG_TYPE_SCALAR_2_BYTE, fmt_bin_mem, lo_nibble); break;
           case NPF_FMT_SPEC_LEN_MOD_NONE:
           case NPF_FMT_SPEC_LEN_MOD_LONG:
           case NPF_FMT_SPEC_LEN_MOD_LARGE_SIZET:
           case NPF_FMT_SPEC_LEN_MOD_LARGE_PTRDIFFT:
-            field = byte(NL_ARG_TYPE_SCALAR_4_BYTE); break;
+            emit_nibble(NL_ARG_TYPE_SCALAR_4_BYTE, fmt_bin_mem, lo_nibble); break;
           case NPF_FMT_SPEC_LEN_MOD_LARGE_LONG_LONG:
           case NPF_FMT_SPEC_LEN_MOD_LARGE_INTMAX:
-            field = byte(NL_ARG_TYPE_SCALAR_8_BYTE); break;
+            emit_nibble(NL_ARG_TYPE_SCALAR_8_BYTE, fmt_bin_mem, lo_nibble); break;
           default: break;
         } break;
 
@@ -343,28 +360,18 @@ void emit_bin_fmt_str(char const *str, unsigned guid, byte_vec& fmt_bin_mem) {
       case NPF_FMT_SPEC_CONV_FLOAT_SHORTEST:
       case NPF_FMT_SPEC_CONV_FLOAT_HEX:
         switch (fs.length_modifier) {
-          case NPF_FMT_SPEC_LEN_MOD_NONE: field = byte(NL_ARG_TYPE_DOUBLE); break;
-          case NPF_FMT_SPEC_LEN_MOD_LONG: field = byte(NL_ARG_TYPE_LONG_DOUBLE); break;
+          case NPF_FMT_SPEC_LEN_MOD_NONE:
+            emit_nibble(NL_ARG_TYPE_DOUBLE, fmt_bin_mem, lo_nibble); break;
+          case NPF_FMT_SPEC_LEN_MOD_LONG:
+            emit_nibble(NL_ARG_TYPE_LONG_DOUBLE, fmt_bin_mem, lo_nibble); break;
           default: break;
         } break;
 
       default: break;
     }
-
-    if (field != 0xFF) {
-      if (field_count++ & 1) {
-        fmt_bin_mem[fmt_bin_mem.size() - 1] |= byte(field << 4u);
-      } else {
-        fmt_bin_mem.push_back(byte(field));
-      }
-    }
   }
 
-  if (field_count & 1) {
-    fmt_bin_mem[fmt_bin_mem.size() - 1] |= byte(NL_ARG_TYPE_LOG_END << 4u);
-  } else {
-    fmt_bin_mem.push_back(byte(NL_ARG_TYPE_LOG_END));
-  }
+  emit_nibble(NL_ARG_TYPE_LOG_END, fmt_bin_mem, lo_nibble);
 }
 
 void emit_bin_fmt_strs(std::vector<char const *> const& fmt_strs,
