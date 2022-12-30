@@ -58,8 +58,9 @@ CFLAGS += -Wno-declaration-after-statement
 else
 CPPFLAGS += -Wconversion
 endif
-
 CPPFLAGS += -Wno-padded
+
+CPPFLAGS += -DNANOLOG_PROVIDE_ASSERT_MACROS
 
 # ----- Targets and rules
 
