@@ -2435,10 +2435,7 @@ bool inst_decode(byte const *text, u32 func_addr, u32 pc_addr, inst& out_inst) {
   out_inst.w1 = 0;
 
   memcpy(&out_inst.w0, &text[pc_addr], 2);
-  if (is_16bit_inst(out_inst.w0)) {
-    return decode_16bit_inst(out_inst.w0, out_inst);
-  }
-
+  if (is_16bit_inst(out_inst.w0)) { return decode_16bit_inst(out_inst.w0, out_inst); }
   memcpy(&out_inst.w1, &text[pc_addr + 2], 2);
   return decode_32bit_inst(out_inst.w0, out_inst.w1, out_inst);
 }
