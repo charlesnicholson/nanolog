@@ -135,7 +135,7 @@ std::string& emit_python(char const *s, std::string& out) {
 
 std::string& emit_format_specifiers(char const *s, std::string& out) {
   out.clear();
-  bool first = true;
+  bool first{true};
   while (*s) {
     npf_format_spec_t fs;
     int const n{(*s != '%') ? 0 : npf_parse_format_spec(s, &fs)};
@@ -262,7 +262,6 @@ bool emit_json_manifest(std::vector<char const *> const& fmt_strs,
       emit_escaped_json(emit_python(fmt_strs[i], lang).c_str(), json).c_str());
 
     std::fprintf(f.get(), "%s", emit_format_specifiers(fmt_strs[i], lang).c_str());
-
     std::fprintf(f.get(), "  }%s\n", (i < (n - 1)) ? "," : "");
   }
   std::fprintf(f.get(), "]\n");
@@ -324,10 +323,9 @@ void emit_bin_fmt_str(char const *str, unsigned guid, byte_vec& fmt_bin_mem) {
 
       case NPF_FMT_SPEC_CONV_STRING:
         if (fs.prec_opt == NPF_FMT_SPEC_OPT_LITERAL) {
-          char lit_enc[16];
-          unsigned lit_enc_len{0};
-          nanolog_varint_encode(unsigned(fs.prec), lit_enc, sizeof(lit_enc), &lit_enc_len);
           emit_nibble(NL_ARG_TYPE_STRING_PRECISION_LITERAL, fmt_bin_mem, lo_nibble);
+          char lit_enc[16]; unsigned lit_enc_len{0};
+          nanolog_varint_encode(unsigned(fs.prec), lit_enc, sizeof(lit_enc), &lit_enc_len);
           fmt_bin_mem.insert(fmt_bin_mem.end(), lit_enc, lit_enc + lit_enc_len);
           lo_nibble = true;
         }
