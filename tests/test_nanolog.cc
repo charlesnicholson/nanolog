@@ -527,6 +527,19 @@ TEST_CASE("nanolog_parse_binary_log") {
     }
   }
 
+  SUBCASE("buffer") {
+    char const bin_buf[16] = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
+    nanolog_log_buf(NL_SEV_DEBUG, &logs, bin_buf, sizeof(bin_buf),
+      make_bin_payload("", 0, buf));
+    REQUIRE(logs.size() == 5);
+    REQUIRE(logs[0].type == NL_ARG_TYPE_LOG_START);
+    REQUIRE(logs[1].type == NL_ARG_TYPE_GUID);
+    REQUIRE(logs[2].type == NL_ARG_TYPE_DYNAMIC_SEVERITY);
+    REQUIRE(logs[3].type == NL_ARG_TYPE_BUFFER);
+    REQUIRE(logs[3].payload == byte_vec{bin_buf, bin_buf+sizeof(bin_buf)});
+    REQUIRE(logs[4].type == NL_ARG_TYPE_LOG_END);
+  }
+
   SUBCASE("large full string") {
     nanolog_log_debug_ctx(&logs,
       make_bin_payload("abc %*.*d def %*.*u ghi %.2s %f", 6789, buf),

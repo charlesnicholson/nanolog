@@ -93,9 +93,9 @@ void nanolog_log_sev_ctx(unsigned sev, void *ctx, char const *fmt, ...);
 
 // Log a binary buffer with an associated format string.
 void nanolog_log_buf(unsigned sev,
+                     void *ctx,
                      void const *buf,
                      unsigned len,
-                     void *ctx,
                      char const *fmt,
                      ...);
 
