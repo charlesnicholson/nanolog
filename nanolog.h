@@ -83,8 +83,16 @@ nanolog_ret_t nanolog_parse_binary_log(nanolog_binary_field_handler_cb_t cb,
                                        va_list args);
 
 // Direct log functions, for dynamic runtime severity.
-void nanolog_log_sev(char const *fmt, unsigned sev, ...);
-void nanolog_log_sev_ctx(char const *fmt, unsigned sev, void* ctx, ...);
+void nanolog_log_sev(unsigned sev, char const *fmt, ...);
+void nanolog_log_sev_ctx(unsigned sev, void *ctx, char const *fmt, ...);
+
+// Log a binary buffer with an associated format string.
+void nanolog_log_buf(unsigned sev,
+                     void const *buf,
+                     unsigned len,
+                     void *ctx,
+                     char const *fmt,
+                     ...);
 
 // Boilerplate, has to be before the public logging macros
 
@@ -107,7 +115,7 @@ void nanolog_log_sev_ctx(char const *fmt, unsigned sev, void* ctx, ...);
   } while(0)
 #define NL_LOG_DBG_CTX(CTX, FMT, ...) do { \
     static char const NL_ATTR_SEC(DEBUG) s_nanolog_fmt_str[] = FMT; \
-    nanolog_log_debug_ctx(s_nanolog_fmt_str, (void *)(CTX), ##__VA_ARGS__); \
+    nanolog_log_debug_ctx((void *)(CTX), s_nanolog_fmt_str, ##__VA_ARGS__); \
   } while(0)
 #else
 #define NL_LOG_DBG(FMT, ...) (void)sizeof((FMT, ##__VA_ARGS__))
@@ -121,7 +129,7 @@ void nanolog_log_sev_ctx(char const *fmt, unsigned sev, void* ctx, ...);
   } while(0)
 #define NL_LOG_INF_CTX(CTX, FMT, ...) do { \
     static char const NL_ATTR_SEC(INFO) s_nanolog_fmt_str[] = FMT; \
-    nanolog_log_info_ctx(s_nanolog_fmt_str, (void *)(CTX), ##__VA_ARGS__); \
+    nanolog_log_info_ctx((void *)(CTX), s_nanolog_fmt_str, ##__VA_ARGS__); \
   } while(0)
 #else
 #define NL_LOG_INF(FMT, ...) (void)sizeof((FMT, ##__VA_ARGS__))
@@ -135,7 +143,7 @@ void nanolog_log_sev_ctx(char const *fmt, unsigned sev, void* ctx, ...);
   } while(0)
 #define NL_LOG_WRN_CTX(CTX, FMT, ...) do { \
     static char const NL_ATTR_SEC(WARNING) s_nanolog_fmt_str[] = FMT; \
-    nanolog_log_warning_ctx(s_nanolog_fmt_str, (void *)(CTX), ##__VA_ARGS__); \
+    nanolog_log_warning_ctx((void *)(CTX), s_nanolog_fmt_str, ##__VA_ARGS__); \
   } while(0)
 #else
 #define NL_LOG_WRN(FMT, ...) (void)sizeof((FMT, ##__VA_ARGS__))
@@ -149,7 +157,7 @@ void nanolog_log_sev_ctx(char const *fmt, unsigned sev, void* ctx, ...);
   } while(0)
 #define NL_LOG_ERR_CTX(CTX, FMT, ...) do { \
     static char const NL_ATTR_SEC(ERROR) s_nanolog_fmt_str[] = FMT; \
-    nanolog_log_error_ctx(s_nanolog_fmt_str, (void *)(CTX), ##__VA_ARGS__); \
+    nanolog_log_error_ctx((void *)(CTX), s_nanolog_fmt_str, ##__VA_ARGS__); \
   } while(0)
 #else
 #define NL_LOG_ERR(FMT, ...) (void)sizeof((FMT, ##__VA_ARGS__))
@@ -163,7 +171,7 @@ void nanolog_log_sev_ctx(char const *fmt, unsigned sev, void* ctx, ...);
   } while(0)
 #define NL_LOG_CRT_CTX(CTX, FMT, ...) do { \
     static char const NL_ATTR_SEC(CRITICAL) s_nanolog_fmt_str[] = FMT; \
-    nanolog_log_critical(s_nanolog_fmt_str, (void *)(CTX), ##__VA_ARGS__); \
+    nanolog_log_critical((void *)(CTX), s_nanolog_fmt_str, ##__VA_ARGS__); \
   } while(0)
 #else
 #define NL_LOG_CRT(FMT, ...) (void)sizeof((FMT, ##__VA_ARGS__))
@@ -176,7 +184,7 @@ void nanolog_log_sev_ctx(char const *fmt, unsigned sev, void* ctx, ...);
   } while(0)
 #define NL_LOG_ASSERT_CTX(CTX, FMT, ...) do { \
     static char const NL_ATTR_SEC(ASSERT) s_nanolog_fmt_str[] = FMT; \
-    nanolog_log_assert_ctx(s_nanolog_fmt_str, (void *)(CTX), ##__VA_ARGS__); \
+    nanolog_log_assert_ctx((void *)(CTX), s_nanolog_fmt_str, ##__VA_ARGS__); \
   } while(0)
 
 #ifdef __GNUC__
@@ -250,17 +258,17 @@ nanolog_ret_t nanolog_varint_decode(void const *p, uint32_t *out_val, unsigned *
 // Private logging API (use the macros, not these)
 
 void nanolog_log_debug(char const *fmt, ...);
-void nanolog_log_debug_ctx(char const *fmt, void *ctx, ...);
+void nanolog_log_debug_ctx(void *ctx, char const *fmt, ...);
 void nanolog_log_info(char const *fmt, ...);
-void nanolog_log_info_ctx(char const *fmt, void *ctx, ...);
+void nanolog_log_info_ctx(void *ctx, char const *fmt, ...);
 void nanolog_log_warning(char const *fmt, ...);
-void nanolog_log_warning_ctx(char const *fmt, void *ctx, ...);
+void nanolog_log_warning_ctx(void *ctx, char const *fmt, ...);
 void nanolog_log_error(char const *fmt, ...);
-void nanolog_log_error_ctx(char const *fmt, void *ctx, ...);
+void nanolog_log_error_ctx(void *ctx, char const *fmt, ...);
 void nanolog_log_critical(char const *fmt, ...);
-void nanolog_log_critical_ctx(char const *fmt, void *ctx, ...);
+void nanolog_log_critical_ctx(void *ctx, char const *fmt, ...);
 void nanolog_log_assert(char const *fmt, ...);
-void nanolog_log_assert_ctx(char const *fmt, void *ctx, ...);
+void nanolog_log_assert_ctx(void *ctx, char const *fmt, ...);
 
 #ifdef __cplusplus
 }
