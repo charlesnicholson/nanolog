@@ -4,8 +4,6 @@
 #include "thumb2.h"
 #include "stats.h"
 
-#include <unordered_map>
-
 namespace {
 
 struct state {
