@@ -52,6 +52,7 @@ typedef enum {
   NL_ARG_TYPE_GUID = 0xAB,
   NL_ARG_TYPE_STRING_LEN = 0xAC,
   NL_ARG_TYPE_DYNAMIC_SEVERITY = 0xAD,
+  NL_ARG_TYPE_BUFFER = 0xAE,
 } nl_arg_type_t;
 
 // Set the runtime log threshold for enabled log calls
@@ -60,6 +61,8 @@ unsigned nanolog_get_threshold(void);
 
 typedef void (*nanolog_handler_cb_t)(void *ctx,
                                      unsigned sev,
+                                     void const *buf,  // nanolog_log_buf
+                                     unsigned buf_len, // nanolog_log_buf
                                      char const *fmt,
                                      va_list args);
 
@@ -79,6 +82,8 @@ typedef void (*nanolog_binary_field_handler_cb_t)(void *ctx,
 nanolog_ret_t nanolog_parse_binary_log(nanolog_binary_field_handler_cb_t cb,
                                        void *ctx,
                                        unsigned sev,
+                                       void const *buf,  // nanolog_log_buf
+                                       unsigned buf_len, // nanolog_log_buf
                                        char const *fmt,
                                        va_list args);
 
@@ -88,9 +93,9 @@ void nanolog_log_sev_ctx(unsigned sev, void *ctx, char const *fmt, ...);
 
 // Log a binary buffer with an associated format string.
 void nanolog_log_buf(unsigned sev,
+                     void *ctx,
                      void const *buf,
                      unsigned len,
-                     void *ctx,
                      char const *fmt,
                      ...);
 
