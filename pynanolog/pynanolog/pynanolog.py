@@ -2,6 +2,7 @@ import collections
 import pathlib
 import json
 import struct
+import sys
 
 
 def varint_decode(payload, idx):
@@ -117,7 +118,8 @@ def format_str(json_manifest, binary_payload):
 
 
 if __name__ == '__main__':
-    json_manifest = load_json_manifest('fi_module.binlog.json')
+    print(sys.argv)
+    json_manifest = load_json_manifest(sys.argv[1])
 
     payload = bytearray()
     payload.append(5)  # GUID
