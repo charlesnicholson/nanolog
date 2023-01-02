@@ -4,10 +4,12 @@ unclog.txt
 *.elf
 *.json
 
+# Python
+*.egg-info
+
 # Prerequisites
 *.dSYM
 *.d
-
 
 # Compiled Object files
 *.slo
