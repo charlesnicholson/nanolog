@@ -340,7 +340,7 @@ void print(inst_mul_accum const& m) {
 }
 
 void print(inst_mul_accum_signed_half const& m) {
-  NL_LOG_DBG("SMLA%c%c %s, %s, %s, %s", m.n_high ? 'T' : 'B', m.m_high ? 'T' : 'B',
+  NL_LOG_DBG("SMLA%c%c %s, %s, %s, %s", "BT"[m.n_high], "BT"[m.m_high],
     s_rn[m.d], s_rn[m.n], s_rn[m.m], s_rn[m.a]);
 }
 
@@ -350,6 +350,11 @@ void print(inst_mul_accum_signed_long const& m) {
 
 void print(inst_mul_accum_unsigned_long const& m) {
   NL_LOG_DBG("UMLAL %s, %s, %s, %s", s_rn[m.dlo], s_rn[m.dhi], s_rn[m.n], s_rn[m.m]);
+}
+
+void print(inst_mul_signed_half const& m) {
+  NL_LOG_DBG("SMUL%c%c %s, %s, %s", "BT"[m.n_high], "BT"[m.m_high], s_rn[m.d], s_rn[m.n],
+    s_rn[m.m]);
 }
 
 void print(inst_mul_signed_long const& m) {
@@ -1863,8 +1868,11 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
     u8 const d{u8((w1 >> 8u) & 0xFu)}, m{u8(w1 & 0xFu)}, n{u8(w0 & 0xFu)},
       a{u8((w1 >> 12u) & 0xFu)}, M{u8((w1 >> 4u) & 1u)}, N{u8((w1 >> 5u) & 1u)};
     if (a == 15) {
-      printf("SEE SMULBB, SMULBT, SMULTB, SMULTT on page 4-311\n");
-      return false;
+      // 4.6.149 SMULBB, SMULBT, SMULTB, SMULTT, T1 encoding (pg 4-311)
+      out_inst.type = inst_type::MUL_SIGNED_HALF;
+      out_inst.i.mul_signed_half = { .d = d, .n = n, .m = m, .n_high = N,
+        .m_high = M };
+      return true;
     }
     out_inst.type = inst_type::MUL_ACCUM_SIGNED_HALF;
     out_inst.i.mul_accum_signed_half = { .d = d, .n = n, .m = m, .a = a, .n_high = N,
