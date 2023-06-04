@@ -15,14 +15,14 @@ struct reg_state {
   u16 cmp_imm_present = 0;
 };
 
-void print(reg_state const& rs) {
-  for (auto i = 0u; i < 16; ++i) {
-    if ((rs.known >> i) & 1) {
-      NL_LOG_DBG("R%u=%x ", unsigned(i), rs.regs[i]);
-    }
-  }
-  NL_LOG_DBG("\n");
-}
+//void print(reg_state const& rs) {
+//  for (auto i = 0u; i < 16; ++i) {
+//    if ((rs.known >> i) & 1) {
+//      NL_LOG_DBG("R%u=%x ", unsigned(i), rs.regs[i]);
+//    }
+//  }
+//  NL_LOG_DBG("\n");
+//}
 
 struct path_state {
   reg_state rs;
