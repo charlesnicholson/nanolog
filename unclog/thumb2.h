@@ -53,6 +53,7 @@ struct func_log_call_analysis {
 
 enum thumb2_analyze_func_ret {
   SUCCESS,
+  ERR_INFINITE_LOOP,
   ERR_RAN_OFF_END_OF_FUNC,
   ERR_INSTRUCTION_DECODE,
   ERR_SIMULATE_LOGIC_INCOMPLETE,

@@ -15,11 +15,14 @@ struct reg_state {
   u16 cmp_imm_present = 0;
 };
 
-//void print(reg_state const& rs) {
-//  for (auto i = 0u; i < 16; ++i) {
-//    NL_LOG_DBG("R%u %u %x\n", unsigned(i), unsigned((rs.known >> i) & 1), rs.regs[i]);
-//  }
-//}
+void print(reg_state const& rs) {
+  for (auto i = 0u; i < 16; ++i) {
+    if ((rs.known >> i) & 1) {
+      NL_LOG_DBG("R%u=%x ", unsigned(i), rs.regs[i]);
+    }
+  }
+  NL_LOG_DBG("\n");
+}
 
 struct path_state {
   reg_state rs;
@@ -381,11 +384,28 @@ simulate_results simulate(inst const& i,
       if (i.i.pop.reg_list & (1u << reg::PC)) { return simulate_results::TERMINATE_PATH; }
       break;
 
+    case inst_type::SUB_REV_IMM: {
+      auto const& sub{i.i.sub_rev_imm};
+      path.rs.regs[sub.d] = sub.imm - path.rs.regs[sub.n];
+      copy_reg_known(path.rs.known, sub.d, sub.n);
+      reg_muts.emplace_back(reg_mut_node(i, path.rs.mut_node_idxs[sub.n]));
+      path.rs.mut_node_idxs[sub.d] = u32(reg_muts.size() - 1u);
+    } break;
+
     case inst_type::SUB_IMM: {
       auto const& sub{i.i.sub_imm};
       path.rs.regs[sub.d] = path.rs.regs[sub.n] - sub.imm;
       copy_reg_known(path.rs.known, sub.d, sub.n);
       reg_muts.emplace_back(reg_mut_node(i, path.rs.mut_node_idxs[sub.n]));
+      path.rs.mut_node_idxs[sub.d] = u32(reg_muts.size() - 1u);
+    } break;
+
+    case inst_type::SUB_REG: {
+      auto const& sub{i.i.sub_reg};
+      path.rs.regs[sub.d] = path.rs.regs[sub.n] - path.rs.regs[sub.m]; // shift
+      union_reg_known(path.rs.known, sub.d, sub.n, sub.m);
+      reg_muts.emplace_back(
+        reg_mut_node(i, path.rs.mut_node_idxs[sub.n], path.rs.mut_node_idxs[sub.m]));
       path.rs.mut_node_idxs[sub.d] = u32(reg_muts.size() - 1u);
     } break;
 
@@ -492,7 +512,13 @@ thumb2_analyze_func_ret thumb2_analyze_func(
 
   bool const debug{nanolog_get_threshold() == NL_SEV_DEBUG};
 
+  auto path_count{0};
   while (!s.paths.empty()) { // recurse through the function
+    if (++path_count > 1024) {
+      NL_LOG_ERR("  Stopping analysis, infinite loop.");
+      return thumb2_analyze_func_ret::ERR_INFINITE_LOOP;
+    }
+
     path_state path{s.paths.top()};
     s.paths.pop();
 
