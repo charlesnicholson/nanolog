@@ -258,10 +258,10 @@ simulate_results simulate(inst const& i,
     case inst_type::ADR: {
       auto const& adr{i.i.adr};
       u32 const base{inst_align(path.rs.regs[reg::PC], 4) + 4};
-      path.rs.regs[adr.d] = adr.add ? (base + adr.imm) : (base - adr.imm);
-      mark_reg_known(path.rs.known, adr.d);
+      path.rs.regs[i.d] = adr.add ? (base + adr.imm) : (base - adr.imm);
+      mark_reg_known(path.rs.known, u8(i.d));
       reg_muts.emplace_back(reg_mut_node(i));
-      path.rs.mut_node_idxs[adr.d] = u32(reg_muts.size() - 1u);
+      path.rs.mut_node_idxs[i.d] = u32(reg_muts.size() - 1u);
     } break;
 
     case inst_type::BRANCH: {
