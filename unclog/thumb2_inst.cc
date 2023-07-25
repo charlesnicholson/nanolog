@@ -76,75 +76,310 @@ void inst_print(inst const& i) {
       NL_LOG_DBG("AND_IMM %s, %s, #%d", s_rn[a.d], s_rn[a.n], int(a.imm));
     } break;
 
-    case inst_type::BIT_CLEAR_IMM: break;
-    case inst_type::BIT_CLEAR_REG: break;
-    case inst_type::BITFIELD_CLEAR: break;
-    case inst_type::BITFIELD_EXTRACT_UNSIGNED: break;
-    case inst_type::BITFIELD_EXTRACT_SIGNED: break;
-    case inst_type::BITFIELD_INSERT: break;
-    case inst_type::BRANCH: break;
-    case inst_type::BRANCH_LINK: break;
-    case inst_type::BRANCH_LINK_XCHG_REG: break;
-    case inst_type::BRANCH_XCHG: break;
-    case inst_type::BREAKPOINT: break;
-    case inst_type::BYTE_REV_PACKED_HALF: break;
-    case inst_type::BYTE_REV_SIGNED_HALF: break;
-    case inst_type::BYTE_REV_WORD: break;
-    case inst_type::CBNZ: break;
-    case inst_type::CBZ: break;
-    case inst_type::CHANGE_PROC_STATE: break;
-    case inst_type::CMP_IMM: break;
-    case inst_type::CMP_NEG_IMM: break;
-    case inst_type::CMP_REG: break;
-    case inst_type::COUNT_LEADING_ZEROS: break;
-    case inst_type::DIV_SIGNED: break;
-    case inst_type::DIV_UNSIGNED: break;
-    case inst_type::EXCL_OR_IMM: break;
-    case inst_type::EXCL_OR_REG: break;
-    case inst_type::EXTEND_ADD_SIGNED_BYTE: break;
-    case inst_type::EXTEND_ADD_SIGNED_HALF: break;
-    case inst_type::EXTEND_ADD_UNSIGNED_BYTE: break;
-    case inst_type::EXTEND_SIGNED_BYTE: break;
-    case inst_type::EXTEND_SIGNED_HALF: break;
-    case inst_type::EXTEND_UNSIGNED_BYTE: break;
-    case inst_type::EXTEND_UNSIGNED_HALF: break;
-    case inst_type::EXTEND_ADD_UNSIGNED_HALF: break;
-    case inst_type::IF_THEN: break;
-    case inst_type::LOAD_BYTE_IMM: break;
-    case inst_type::LOAD_BYTE_LIT: break;
-    case inst_type::LOAD_BYTE_REG: break;
-    case inst_type::LOAD_DBL_REG: break;
-    case inst_type::LOAD_EXCL: break;
-    case inst_type::LOAD_HALF_IMM: break;
-    case inst_type::LOAD_HALF_REG: break;
-    case inst_type::LOAD_SIGNED_BYTE_IMM: break;
-    case inst_type::LOAD_SIGNED_BYTE_REG: break;
-    case inst_type::LOAD_SIGNED_HALF_IMM: break;
-    case inst_type::LOAD_SIGNED_HALF_REG: break;
-    case inst_type::LOAD_IMM: break;
-    case inst_type::LOAD_LIT: break;
-    case inst_type::LOAD_MULT_DEC_BEFORE: break;
-    case inst_type::LOAD_MULT_INC_AFTER: break;
-    case inst_type::LOAD_REG: break;
-    case inst_type::LSHIFT_LOG_IMM: break;
-    case inst_type::LSHIFT_LOG_REG: break;
-    case inst_type::MOV_REG: break;
-    case inst_type::MOV_IMM: break;
-    case inst_type::MOV_NEG_IMM: break;
-    case inst_type::MOV_NEG_REG: break;
-    case inst_type::MUL: break;
-    case inst_type::MUL_ACCUM: break;
-    case inst_type::MUL_ACCUM_SIGNED_HALF: break;
-    case inst_type::MUL_ACCUM_SIGNED_LONG: break;
-    case inst_type::MUL_ACCUM_UNSIGNED_LONG: break;
-    case inst_type::MUL_SIGNED_HALF: break;
-    case inst_type::MUL_SIGNED_LONG: break;
-    case inst_type::MUL_SUB: break;
-    case inst_type::MUL_UNSIGNED_LONG: break;
+    case inst_type::BIT_CLEAR_IMM: {
+      auto const& b{i.i.bit_clear_imm};
+      NL_LOG_DBG("BIC_IMM %s, %s, #%d", s_rn[b.d], s_rn[b.n], int(b.imm));
+    } break;
+
+    case inst_type::BIT_CLEAR_REG: {
+      auto const& b{i.i.bit_clear_reg};
+      NL_LOG_DBG("BIC_REG %s, %s, %s, <%s #%d>", s_rn[b.d], s_rn[b.n], s_rn[b.m],
+        s_sn[int(b.shift.t)], int(b.shift.n));
+    } break;
+
+    case inst_type::BITFIELD_CLEAR: {
+      auto const& b{i.i.bitfield_clear};
+      NL_LOG_DBG("BFC %s, #%d, #%d", s_rn[b.d], int(b.lsbit), int(b.msbit - b.lsbit));
+    } break;
+
+    case inst_type::BITFIELD_EXTRACT_UNSIGNED: {
+      auto const& b{i.i.bitfield_extract_unsigned};
+      NL_LOG_DBG("UBFX %s, %s, #%d, #%d", s_rn[b.d], s_rn[b.n], int(b.lsbit),
+        int(b.widthminus1 + 1));
+    } break;
+
+    case inst_type::BITFIELD_EXTRACT_SIGNED: {
+      auto const& b{i.i.bitfield_extract_signed};
+      NL_LOG_DBG("SBFX %s, %s, #%d, #%d", s_rn[b.d], s_rn[b.n], int(b.lsbit),
+        int(b.widthminus1 + 1));
+    } break;
+
+    case inst_type::BITFIELD_INSERT: {
+      auto const& b{i.i.bitfield_insert};
+      NL_LOG_DBG("BFI %s, %s, #%d, #%d", s_rn[b.d], s_rn[b.n], int(b.lsbit),
+        int(b.msbit - b.lsbit));
+    } break;
+
+    case inst_type::BRANCH: {
+      auto const& b{i.i.branch};
+      NL_LOG_DBG("B%s #%d (%x)", b.cc >= cond_code::AL1 ? "" : cond_code_name(b.cc),
+        int(i32(b.imm)), unsigned(b.addr));
+    } break;
+
+    case inst_type::BRANCH_LINK: {
+      auto const& b{i.i.branch_link};
+      NL_LOG_DBG("BL #%d (%x)", unsigned(b.imm), unsigned(b.addr));
+    } break;
+
+    case inst_type::BRANCH_LINK_XCHG_REG: {
+      auto const& b{i.i.branch_link_xchg_reg};
+      NL_LOG_DBG("BLX %s", s_rn[b.reg]);
+    } break;
+
+    case inst_type::BRANCH_XCHG: {
+      auto const& b{i.i.branch_xchg};
+      NL_LOG_DBG("BX %s", s_rn[int(b.m)]);
+    } break;
+
+    case inst_type::BREAKPOINT: {
+      auto const& b{i.i.breakpoint};
+      NL_LOG_DBG("BKPT 0x%04hx", b.imm);
+    } break;
+
+    case inst_type::BYTE_REV_PACKED_HALF: {
+      auto const& b{i.i.byte_rev_packed_half};
+      NL_LOG_DBG("REV16 %s, %s", s_rn[b.d], s_rn[b.m]);
+    } break;
+
+    case inst_type::BYTE_REV_SIGNED_HALF: {
+      auto const& b{i.i.byte_rev_signed_half};
+      NL_LOG_DBG("REVSH %s, %s", s_rn[b.d], s_rn[b.m]);
+    } break;
+
+    case inst_type::BYTE_REV_WORD: {
+      auto const& b{i.i.byte_rev_word};
+      NL_LOG_DBG("REV %s, %s", s_rn[b.d], s_rn[b.m]);
+    } break;
+
+    case inst_type::CBNZ: {
+      auto const& c{i.i.cmp_branch_nz};
+      NL_LOG_DBG("CBNZ %s, #%d (%x)", s_rn[c.n], unsigned(c.imm), unsigned(c.addr));
+    } break;
+
+    case inst_type::CBZ: {
+      auto const& c{i.i.cmp_branch_z};
+      NL_LOG_DBG("CBZ %s, #%d (%x)", s_rn[c.n], unsigned(c.imm), unsigned(c.addr));
+    } break;
+
+    case inst_type::CHANGE_PROC_STATE: {
+      auto const& c{i.i.change_proc_state};
+      NL_LOG_DBG("CPS%s %s%s%s", c.en ? "IE" : (c.dis ? "ID" : ""),
+        c.aff_a ? "A" : "", c.aff_f ? "F" : "", c.aff_i ? "I" : "");
+    } break;
+
+    case inst_type::CMP_IMM: {
+      auto const& c{i.i.cmp_imm};
+      NL_LOG_DBG("CMP_IMM %s, #%d", s_rn[c.n], int(c.imm));
+    } break;
+
+    case inst_type::CMP_NEG_IMM: {
+      auto const& c{i.i.cmp_neg_imm};
+      NL_LOG_DBG("CMN_IMM %s, #%d", s_rn[c.n], int(c.imm));
+    } break;
+
+    case inst_type::CMP_REG: {
+      auto const& c{i.i.cmp_reg};
+      NL_LOG_DBG("CMP_REG %s, %s <%s #%d>", s_rn[c.n], s_rn[c.m], s_sn[int(c.shift.t)],
+        int(c.shift.n));
+    } break;
+
+    case inst_type::COUNT_LEADING_ZEROS: {
+      auto const& c{i.i.count_leading_zeros};
+      NL_LOG_DBG("CLZ %s, %s", s_rn[c.d], s_rn[c.m]);
+    } break;
+
+    case inst_type::DIV_SIGNED: {
+      auto const& d{i.i.div_signed};
+      NL_LOG_DBG("SDIV %s, %s, %s", s_rn[d.d], s_rn[d.n], s_rn[d.m]);
+    } break;
+
+    case inst_type::DIV_UNSIGNED: {
+      auto const& d{i.i.div_unsigned};
+      NL_LOG_DBG("UDIV %s, %s, %s", s_rn[d.d], s_rn[d.n], s_rn[d.m]);
+    } break;
+
+    case inst_type::EXCL_OR_IMM: {
+      auto const& e{i.i.excl_or_imm};
+      NL_LOG_DBG("EOR_IMM %s, %s, #%d", s_rn[e.d], s_rn[e.n], int(e.imm));
+    } break;
+
+    case inst_type::EXCL_OR_REG: {
+      auto const& e{i.i.excl_or_reg};
+      NL_LOG_DBG("EOR_REG %s, %s, %s, <%s #%d>", s_rn[e.d], s_rn[e.n], s_rn[e.m],
+        s_sn[int(e.shift.t)], int(e.shift.n));
+    } break;
+
+    case inst_type::EXTEND_ADD_SIGNED_BYTE: {
+      auto const& e{i.i.extend_add_signed_byte};
+      NL_LOG_DBG("SXTAB %s, %s, %s, <%d>", s_rn[e.d], s_rn[e.n], s_rn[e.m],
+        int(e.rotation));
+    } break;
+
+    case inst_type::EXTEND_ADD_SIGNED_HALF: {
+      auto const& e{i.i.extend_add_signed_half};
+      NL_LOG_DBG("SXTAH %s, %s, %s, <%d>", s_rn[e.d], s_rn[e.n], s_rn[e.m],
+        int(e.rotation));
+    } break;
+
+    case inst_type::EXTEND_ADD_UNSIGNED_BYTE: {
+      auto const& e{i.i.extend_add_unsigned_byte};
+      NL_LOG_DBG("UXTAB %s, %s, %s, <%d>", s_rn[e.d], s_rn[e.n], s_rn[e.m],
+        int(e.rotation));
+    } break;
+
+    case inst_type::EXTEND_SIGNED_BYTE: {
+      auto const& e{i.i.extend_signed_byte};
+      NL_LOG_DBG("SXTB %s, %s, <%d>", s_rn[e.d], s_rn[e.m], int(e.rotation));
+    } break;
+
+    case inst_type::EXTEND_SIGNED_HALF: {
+      auto const& e{i.i.extend_signed_half};
+      NL_LOG_DBG("SXTH %s, %s, <%d>", s_rn[e.d], s_rn[e.m], int(e.rotation));
+    } break;
+
+    case inst_type::EXTEND_UNSIGNED_BYTE: {
+      auto const& u{i.i.extend_unsigned_byte};
+      NL_LOG_DBG("UXTB %s, %s, <%d>", s_rn[u.d], s_rn[u.m], int(u.rotation));
+    } break;
+
+    case inst_type::EXTEND_UNSIGNED_HALF: {
+      auto const& u{i.i.extend_unsigned_half};
+      NL_LOG_DBG("UXTH %s, %s, <%d>", s_rn[u.d], s_rn[u.m], int(u.rotation));
+    } break;
+
+    case inst_type::EXTEND_ADD_UNSIGNED_HALF: {
+      auto const& u{i.i.extend_add_unsigned_half};
+      NL_LOG_DBG("UXTAH %s, %s, %s, <#%d>", s_rn[u.d], s_rn[u.n], s_rn[u.m],
+        int(u.rotation));
+    } break;
+
+    case inst_type::IF_THEN: {
+      static char const *s_it[] = {
+        "???", "EEE", "EE", "EET", "E", "ETE", "ET", "ETT", "", "TEE", "TE", "TET", "T",
+        "TTE", "TT", "TTT" };
+
+      auto const& t{i.i.if_then};
+      NL_LOG_DBG("IT%s %s", s_it[t.mask], cond_code_name(cond_code(t.firstcond)));
+    } break;
+
+    case inst_type::LOAD_BYTE_IMM: {
+      auto const& l{i.i.load_byte_imm};
+      NL_LOG_DBG("LDRB_IMM %s, [%s, #%d]", s_rn[l.t], s_rn[l.n], int(l.imm));
+    } break;
+
+    case inst_type::LOAD_BYTE_LIT: {
+      auto const& l{i.i.load_byte_lit};
+      NL_LOG_DBG("LDRB_LIT %s, [%s, #%c%d]", s_rn[l.t], s_rn[reg::PC], l.add ? '+' : '-',
+        int(l.imm));
+    } break;
+
+    case inst_type::LOAD_BYTE_REG: {
+      auto const& l{i.i.load_byte_reg};
+      NL_LOG_DBG("LDRB_REG %s, [%s, %s, %s #%d]", s_rn[l.t], s_rn[l.n], s_rn[l.m],
+        s_sn[int(l.shift.t)], int(l.shift.n));
+    } break;
+
+    case inst_type::LOAD_DBL_REG: {
+      auto const& l{i.i.load_dbl_reg};
+      NL_LOG_DBG("LDRD_REG %s, %s, [%s, #%s%d]", s_rn[l.t], s_rn[l.t2], s_rn[l.n],
+        l.add ? "" : "-", int(l.imm));
+    } break;
+
+    case inst_type::LOAD_EXCL: {
+      auto const& l{i.i.load_excl};
+      NL_LOG_DBG("LDREX %s, [%s, #%d]", s_rn[l.t], s_rn[l.n], int(l.imm));
+    } break;
+
+    case inst_type::LOAD_HALF_IMM: {
+    } break;
+
+    case inst_type::LOAD_HALF_REG: {
+    } break;
+
+    case inst_type::LOAD_SIGNED_BYTE_IMM: {
+    } break;
+
+    case inst_type::LOAD_SIGNED_BYTE_REG: {
+    } break;
+
+    case inst_type::LOAD_SIGNED_HALF_IMM: {
+    } break;
+
+    case inst_type::LOAD_SIGNED_HALF_REG: {
+    } break;
+
+    case inst_type::LOAD_IMM: {
+      auto const& l{i.i.load_imm};
+      NL_LOG_DBG("LDR_IMM %s, [%s, #%d]", s_rn[l.t], s_rn[l.n], int(l.imm));
+    } break;
+
+    case inst_type::LOAD_LIT: {
+    } break;
+
+    case inst_type::LOAD_MULT_DEC_BEFORE: {
+    } break;
+
+    case inst_type::LOAD_MULT_INC_AFTER: {
+    } break;
+
+    case inst_type::LOAD_REG: {
+    } break;
+
+    case inst_type::LSHIFT_LOG_IMM: {
+    } break;
+
+    case inst_type::LSHIFT_LOG_REG: {
+    } break;
+
+    case inst_type::MOV_REG: {
+    } break;
+
+    case inst_type::MOV_IMM: {
+    } break;
+
+    case inst_type::MOV_NEG_IMM: {
+    } break;
+
+    case inst_type::MOV_NEG_REG: {
+    } break;
+
+    case inst_type::MUL: {
+    } break;
+
+    case inst_type::MUL_ACCUM: {
+    } break;
+
+    case inst_type::MUL_ACCUM_SIGNED_HALF: {
+    } break;
+
+    case inst_type::MUL_ACCUM_SIGNED_LONG: {
+    } break;
+
+    case inst_type::MUL_ACCUM_UNSIGNED_LONG: {
+    } break;
+
+    case inst_type::MUL_SIGNED_HALF: {
+    } break;
+
+    case inst_type::MUL_SIGNED_LONG: {
+    } break;
+
+    case inst_type::MUL_SUB: {
+    } break;
+
+    case inst_type::MUL_UNSIGNED_LONG: {
+    } break;
+
     case inst_type::NOP: NL_LOG_DBG("NOP"); break;
-    case inst_type::OR_NOT_REG: break;
-    case inst_type::OR_IMM: break;
-    case inst_type::OR_REG: break;
+
+    case inst_type::OR_NOT_REG: {
+    } break;
+
+    case inst_type::OR_IMM: {
+    } break;
+
+    case inst_type::OR_REG: {
+    } break;
 
     case inst_type::PACK_HALF: {
       auto const& p{i.i.pack_half};
@@ -155,8 +390,8 @@ void inst_print(inst const& i) {
     case inst_type::PUSH: {
       auto const& p{i.i.push};
       NL_LOG_DBG("PUSH { ");
-      for (auto i{0}; i < 16; ++i) {
-        if (p.reg_list & (1 << i)) { NL_LOG_DBG("%s ", s_rn[i]); }
+      for (auto b{0}; b < 16; ++b) {
+        if (p.reg_list & (1 << b)) { NL_LOG_DBG("%s ", s_rn[b]); }
       }
       NL_LOG_DBG("}");
     } break;
@@ -164,8 +399,8 @@ void inst_print(inst const& i) {
     case inst_type::POP: {
       auto const& p{i.i.pop};
       NL_LOG_DBG("POP { ");
-      for (auto i{0}; i < 16; ++i) {
-        if (p.reg_list & (1 << i)) { NL_LOG_DBG("%s ", s_rn[i]); }
+      for (auto b{0}; b < 16; ++b) {
+        if (p.reg_list & (1 << b)) { NL_LOG_DBG("%s ", s_rn[b]); }
       }
       NL_LOG_DBG("}");
     } break;
@@ -174,234 +409,174 @@ void inst_print(inst const& i) {
       auto const& r{i.i.reverse_bits}; NL_LOG_DBG("RBIT %s, %s", s_rn[r.d], s_rn[r.m]);
     } break;
 
-    case inst_type::RSHIFT_ARITH_IMM: break;
-    case inst_type::RSHIFT_ARITH_REG: break;
-    case inst_type::RSHIFT_LOG_IMM: break;
-    case inst_type::RSHIFT_LOG_REG: break;
-    case inst_type::SATURATE_UNSIGNED: break;
-    case inst_type::SELECT_BYTES: break;
-    case inst_type::STORE_BYTE_IMM: break;
-    case inst_type::STORE_BYTE_REG: break;
-    case inst_type::STORE_BYTE_UNPRIV: break;
-    case inst_type::STORE_DOUBLE_IMM: break;
-    case inst_type::STORE_EXCL: break;
-    case inst_type::STORE_HALF_IMM: break;
-    case inst_type::STORE_HALF_REG: break;
-    case inst_type::STORE_IMM: break;
-    case inst_type::STORE_MULT_DEC_BEFORE: break;
-    case inst_type::STORE_MULT_INC_AFTER: break;
-    case inst_type::STORE_REG: break;
-    case inst_type::SUB_IMM: break;
-    case inst_type::SUB_IMM_CARRY: break;
-    case inst_type::SUB_REG: break;
-    case inst_type::SUB_REG_CARRY: break;
-    case inst_type::SUB_REV_IMM: break;
-    case inst_type::SUB_REV_REG: break;
-    case inst_type::SUB_SP_IMM: break;
-    case inst_type::SVC: break;
-    case inst_type::TABLE_BRANCH_BYTE: break;
-    case inst_type::TABLE_BRANCH_HALF: break;
-    case inst_type::TEST_EQUIV_IMM: break;
-    case inst_type::TEST_EQUIV_REG: break;
-    case inst_type::TEST_REG: break;
-    case inst_type::VADD: break;
-    case inst_type::VCOMPARE: break;
-    case inst_type::VCONVERT_FP_INT: break;
-    case inst_type::VDIV: break;
-    case inst_type::VMULT_ACCUM: break;
-    case inst_type::VLOAD: break;
-    case inst_type::VLOAD_MULT: break;
-    case inst_type::VMOV_IMM: break;
-    case inst_type::VMOV_REG: break;
-    case inst_type::VMOV_REG_DOUBLE: break;
-    case inst_type::VMOV_REG_SINGLE: break;
-    case inst_type::VMOV_SPECIAL_FROM: break;
-    case inst_type::VMOV_SPECIAL_TO: break;
-    case inst_type::VMUL: break;
-    case inst_type::VNEG: break;
-    case inst_type::VPOP: break;
-    case inst_type::VPUSH: break;
-    case inst_type::VSTORE: break;
-    case inst_type::VSTORE_MULT: break;
-    case inst_type::VSUB: break;
-    case inst_type::VSQRT: break;
+    case inst_type::RSHIFT_ARITH_IMM: {
+      auto const& r{i.i.rshift_arith_imm};
+      NL_LOG_DBG("ASR_IMM %s, %s, #%d", s_rn[r.d], s_rn[r.m], int(r.shift.n));
+    } break;
+
+    case inst_type::RSHIFT_ARITH_REG: {
+      auto const& r{i.i.rshift_arith_reg};
+      NL_LOG_DBG("ASR_REG %s, %s, %s", s_rn[r.d], s_rn[r.n], s_rn[r.m]);
+    } break;
+
+    case inst_type::RSHIFT_LOG_IMM: {
+      auto const& r{i.i.rshift_log_imm};
+      NL_LOG_DBG("LSR_IMM %s, %s, #%d", s_rn[r.d], s_rn[r.m], int(r.shift.n));
+    } break;
+
+    case inst_type::RSHIFT_LOG_REG: {
+      auto const& r{i.i.rshift_log_reg};
+      NL_LOG_DBG("LSR_REG %s, %s, %s", s_rn[r.d], s_rn[r.m], s_rn[r.n]);
+    } break;
+
+    case inst_type::SATURATE_UNSIGNED: {
+    } break;
+
+    case inst_type::SELECT_BYTES: {
+    } break;
+
+    case inst_type::STORE_BYTE_IMM: {
+    } break;
+
+    case inst_type::STORE_BYTE_REG: {
+    } break;
+
+    case inst_type::STORE_BYTE_UNPRIV: {
+    } break;
+
+    case inst_type::STORE_DOUBLE_IMM: {
+    } break;
+
+    case inst_type::STORE_EXCL: {
+    } break;
+
+    case inst_type::STORE_HALF_IMM: {
+    } break;
+
+    case inst_type::STORE_HALF_REG: {
+    } break;
+
+    case inst_type::STORE_IMM: {
+    } break;
+
+    case inst_type::STORE_MULT_DEC_BEFORE: {
+    } break;
+
+    case inst_type::STORE_MULT_INC_AFTER: {
+    } break;
+
+    case inst_type::STORE_REG: {
+    } break;
+
+    case inst_type::SUB_IMM: {
+    } break;
+
+    case inst_type::SUB_IMM_CARRY: {
+    } break;
+
+    case inst_type::SUB_REG: {
+    } break;
+
+    case inst_type::SUB_REG_CARRY: {
+    } break;
+
+    case inst_type::SUB_REV_IMM: {
+    } break;
+
+    case inst_type::SUB_REV_REG: {
+    } break;
+
+    case inst_type::SUB_SP_IMM: {
+    } break;
+
+    case inst_type::SVC: {
+    } break;
+
+    case inst_type::TABLE_BRANCH_BYTE: {
+    } break;
+
+    case inst_type::TABLE_BRANCH_HALF: {
+    } break;
+
+    case inst_type::TEST_EQUIV_IMM: {
+    } break;
+
+    case inst_type::TEST_EQUIV_REG: {
+    } break;
+
+    case inst_type::TEST_REG: {
+    } break;
+
+    case inst_type::VADD: {
+    } break;
+
+    case inst_type::VCOMPARE: {
+    } break;
+
+    case inst_type::VCONVERT_FP_INT: {
+    } break;
+
+    case inst_type::VDIV: {
+    } break;
+
+    case inst_type::VMULT_ACCUM: {
+    } break;
+
+    case inst_type::VLOAD: {
+    } break;
+
+    case inst_type::VLOAD_MULT: {
+    } break;
+
+    case inst_type::VMOV_IMM: {
+    } break;
+
+    case inst_type::VMOV_REG: {
+    } break;
+
+    case inst_type::VMOV_REG_DOUBLE: {
+    } break;
+
+    case inst_type::VMOV_REG_SINGLE: {
+      auto const& v{i.i.vmov_reg_single};
+      if (v.to_arm_reg) {
+        NL_LOG_DBG("VMOV %s, S%u", s_rn[v.t], unsigned(v.n));
+      } else {
+        NL_LOG_DBG("VMOV S%u, %s", unsigned(v.n), s_rn[v.t]);
+      }
+    } break;
+
+    case inst_type::VMOV_SPECIAL_FROM: {
+    } break;
+
+    case inst_type::VMOV_SPECIAL_TO: {
+    } break;
+
+    case inst_type::VMUL: {
+    } break;
+
+    case inst_type::VNEG: {
+    } break;
+
+    case inst_type::VPOP: {
+    } break;
+
+    case inst_type::VPUSH: {
+    } break;
+
+    case inst_type::VSTORE: {
+    } break;
+
+    case inst_type::VSTORE_MULT: {
+    } break;
+
+    case inst_type::VSUB: {
+    } break;
+
+    case inst_type::VSQRT: {
+    } break;
+
   }
-}
-
-void print(inst_rshift_log_imm const& r) {
-  NL_LOG_DBG("LSR_IMM %s, %s, #%d", s_rn[r.d], s_rn[r.m], int(r.shift.n));
-}
-
-void print(inst_rshift_log_reg const& r) {
-  NL_LOG_DBG("LSR_REG %s, %s, %s", s_rn[r.d], s_rn[r.m], s_rn[r.n]);
-}
-
-void print(inst_rshift_arith_imm const& r) {
-  NL_LOG_DBG("ASR_IMM %s, %s, #%d", s_rn[r.d], s_rn[r.m], int(r.shift.n));
-}
-
-void print(inst_rshift_arith_reg const& r) {
-  NL_LOG_DBG("ASR_REG %s, %s, %s", s_rn[r.d], s_rn[r.n], s_rn[r.m]);
-}
-
-void print(inst_bit_clear_imm const& b) {
-  NL_LOG_DBG("BIC_IMM %s, %s, #%d", s_rn[b.d], s_rn[b.n], int(b.imm));
-}
-
-void print(inst_bit_clear_reg const& b) {
-  NL_LOG_DBG("BIC_REG %s, %s, %s, <%s #%d>", s_rn[b.d], s_rn[b.n], s_rn[b.m],
-    s_sn[int(b.shift.t)], int(b.shift.n));
-}
-
-void print(inst_bitfield_clear const& b) {
-  NL_LOG_DBG("BFC %s, #%d, #%d", s_rn[b.d], int(b.lsbit), int(b.msbit - b.lsbit));
-}
-
-void print(inst_bitfield_extract_signed const& b) {
-  NL_LOG_DBG("SBFX %s, %s, #%d, #%d", s_rn[b.d], s_rn[b.n], int(b.lsbit),
-    int(b.widthminus1 + 1));
-}
-
-void print(inst_bitfield_extract_unsigned const& b) {
-  NL_LOG_DBG("UBFX %s, %s, #%d, #%d", s_rn[b.d], s_rn[b.n], int(b.lsbit),
-    int(b.widthminus1 + 1));
-}
-
-void print(inst_bitfield_insert const& b) {
-  NL_LOG_DBG("BFI %s, %s, #%d, #%d", s_rn[b.d], s_rn[b.n], int(b.lsbit),
-    int(b.msbit - b.lsbit));
-}
-
-void print(inst_branch const& i) {
-  NL_LOG_DBG("B%s #%d (%x)", i.cc >= cond_code::AL1 ? "" : cond_code_name(i.cc),
-    int(i32(i.imm)), unsigned(i.addr));
-}
-
-void print(inst_branch_link const& i) {
-  NL_LOG_DBG("BL #%d (%x)", unsigned(i.imm), unsigned(i.addr));
-}
-
-void print(inst_branch_link_xchg_reg const& b) { NL_LOG_DBG("BLX %s", s_rn[b.reg]); }
-void print(inst_branch_xchg const& i) { NL_LOG_DBG("BX %s", s_rn[int(i.m)]); }
-void print(inst_breakpoint const& b) { NL_LOG_DBG("BKPT 0x%04hx", b.imm); }
-
-void print(inst_byte_rev_packed_half const& b) {
-  NL_LOG_DBG("REV16 %s, %s", s_rn[b.d], s_rn[b.m]);
-}
-
-void print(inst_byte_rev_signed_half const &b) {
-  NL_LOG_DBG("REVSH %s, %s", s_rn[b.d], s_rn[b.m]);
-}
-
-void print(inst_byte_rev_word const& b) { NL_LOG_DBG("REV %s, %s", s_rn[b.d], s_rn[b.m]); }
-
-void print(inst_cmp_branch_nz const& c) {
-  NL_LOG_DBG("CBNZ %s, #%d (%x)", s_rn[c.n], unsigned(c.imm), unsigned(c.addr));
-}
-
-void print(inst_cmp_branch_z const& c) {
-  NL_LOG_DBG("CBZ %s, #%d (%x)", s_rn[c.n], unsigned(c.imm), unsigned(c.addr));
-}
-
-void print(inst_change_proc_state const& c) {
-  NL_LOG_DBG("CPS%s %s%s%s", c.en ? "IE" : (c.dis ? "ID" : ""),
-    c.aff_a ? "A" : "", c.aff_f ? "F" : "", c.aff_i ? "I" : "");
-}
-
-void print(inst_cmp_imm const& c) { NL_LOG_DBG("CMP_IMM %s, #%d", s_rn[c.n], int(c.imm)); }
-void print(inst_cmp_neg_imm const& c) { NL_LOG_DBG("CMN_IMM %s, #%d", s_rn[c.n], int(c.imm)); }
-
-void print(inst_cmp_reg const& c) {
-  NL_LOG_DBG("CMP_REG %s, %s <%s #%d>", s_rn[c.n], s_rn[c.m], s_sn[int(c.shift.t)],
-    int(c.shift.n));
-}
-
-void print(inst_if_then const& i) {
-  static char const *s_it[] = {
-    "???", "EEE", "EE", "EET", "E", "ETE", "ET", "ETT", "", "TEE", "TE", "TET", "T",
-    "TTE", "TT", "TTT" };
-
-  NL_LOG_DBG("IT%s %s", s_it[i.mask], cond_code_name(cond_code(i.firstcond)));
-}
-
-void print(inst_count_leading_zeros const& c) {
-  NL_LOG_DBG("CLZ %s, %s", s_rn[c.d], s_rn[c.m]);
-}
-
-void print(inst_div_signed const& d) {
-  NL_LOG_DBG("SDIV %s, %s, %s", s_rn[d.d], s_rn[d.n], s_rn[d.m]);
-}
-
-void print(inst_div_unsigned const& d) {
-  NL_LOG_DBG("UDIV %s, %s, %s", s_rn[d.d], s_rn[d.n], s_rn[d.m]);
-}
-
-void print(inst_excl_or_imm const& e) {
-  NL_LOG_DBG("EOR_IMM %s, %s, #%d", s_rn[e.d], s_rn[e.n], int(e.imm));
-}
-
-void print(inst_excl_or_reg const& e) {
-  NL_LOG_DBG("EOR_REG %s, %s, %s, <%s #%d>", s_rn[e.d], s_rn[e.n], s_rn[e.m],
-    s_sn[int(e.shift.t)], int(e.shift.n));
-}
-
-void print(inst_extend_unsigned_byte const& u) {
-  NL_LOG_DBG("UXTB %s, %s, <%d>", s_rn[u.d], s_rn[u.m], int(u.rotation));
-}
-
-void print(inst_extend_unsigned_half const& u) {
-  NL_LOG_DBG("UXTH %s, %s, <%d>", s_rn[u.d], s_rn[u.m], int(u.rotation));
-}
-
-void print(inst_extend_add_unsigned_half const& u) {
-  NL_LOG_DBG("UXTAH %s, %s, %s, <#%d>", s_rn[u.d], s_rn[u.n], s_rn[u.m], int(u.rotation));
-}
-
-void print(inst_extend_add_signed_byte const &e) {
-  NL_LOG_DBG("SXTAB %s, %s, %s, <%d>", s_rn[e.d], s_rn[e.n], s_rn[e.m], int(e.rotation));
-}
-
-void print(inst_extend_add_signed_half const &e) {
-  NL_LOG_DBG("SXTAH %s, %s, %s, <%d>", s_rn[e.d], s_rn[e.n], s_rn[e.m], int(e.rotation));
-}
-
-void print(inst_extend_add_unsigned_byte const &e) {
-  NL_LOG_DBG("UXTAB %s, %s, %s, <%d>", s_rn[e.d], s_rn[e.n], s_rn[e.m], int(e.rotation));
-}
-
-void print(inst_extend_signed_byte const& u) {
-  NL_LOG_DBG("SXTB %s, %s, <%d>", s_rn[u.d], s_rn[u.m], int(u.rotation));
-}
-
-void print(inst_extend_signed_half const& e) {
-  NL_LOG_DBG("SXTH %s, %s, <%d>", s_rn[e.d], s_rn[e.m], int(e.rotation));
-}
-
-void print(inst_load_byte_imm const& l) {
-  NL_LOG_DBG("LDRB_IMM %s, [%s, #%d]", s_rn[l.t], s_rn[l.n], int(l.imm));
-}
-
-void print(inst_load_byte_lit const& l) {
-  NL_LOG_DBG("LDRB_LIT %s, [%s, #%c%d]", s_rn[l.t], s_rn[reg::PC], l.add ? '+' : '-',
-    int(l.imm));
-}
-
-void print(inst_load_byte_reg const& l) {
-  NL_LOG_DBG("LDRB_REG %s, [%s, %s, %s #%d]", s_rn[l.t], s_rn[l.n], s_rn[l.m],
-    s_sn[int(l.shift.t)], int(l.shift.n));
-}
-
-void print(inst_load_dbl_reg const& l) {
-  NL_LOG_DBG("LDRD_REG %s, %s, [%s, #%s%d]", s_rn[l.t], s_rn[l.t2], s_rn[l.n],
-    l.add ? "" : "-", int(l.imm));
-}
-
-void print(inst_load_excl const& l) {
-  NL_LOG_DBG("LDREX %s, [%s, #%d]", s_rn[l.t], s_rn[l.n], int(l.imm));
-}
-
-void print(inst_load_imm const& l) {
-  NL_LOG_DBG("LDR_IMM %s, [%s, #%d]", s_rn[l.t], s_rn[l.n], int(l.imm));
 }
 
 void print(inst_load_half_imm const& l) {
@@ -688,14 +863,6 @@ void print(inst_vmov_reg_double const& v) {
     NL_LOG_DBG("VMOV %s, %s, D%u", s_rn[v.t], s_rn[v.t2], unsigned(v.m));
   } else {
     NL_LOG_DBG("VMOV D%u, %s, %s", unsigned(v.m), s_rn[v.t], s_rn[v.t2]);
-  }
-}
-
-void print(inst_vmov_reg_single const& v) {
-  if (v.to_arm_reg) {
-    NL_LOG_DBG("VMOV %s, S%u", s_rn[v.t], unsigned(v.n));
-  } else {
-    NL_LOG_DBG("VMOV S%u, %s", unsigned(v.n), s_rn[v.t]);
   }
 }
 
