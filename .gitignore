@@ -3,6 +3,8 @@ disasm*.txt
 unclog.txt
 *.elf
 *.json
+nl.txt
+*.asm.s
 
 # Python
 *.egg-info

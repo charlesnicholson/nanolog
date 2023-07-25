@@ -143,6 +143,13 @@ int main(int argc, char const *argv[]) {
             s.noreturn_func_addrs, lca, stats), thumb2_analyze_func_ret::SUCCESS)) {
       case thumb2_analyze_func_ret::SUCCESS: break;
 
+      case thumb2_analyze_func_ret::ERR_INFINITE_LOOP:
+        NL_LOG_ERR("Error analyzing function (infinite loop), aborting");
+        if (nanolog_get_threshold() > NL_SEV_DEBUG) {
+          NL_LOG_ERR("  (re-run with -vv to see decoding error)\n");
+        }
+        return 1;
+
       case thumb2_analyze_func_ret::ERR_INSTRUCTION_DECODE:
         NL_LOG_ERR("Error decoding instruction, aborting");
         if (nanolog_get_threshold() > NL_SEV_DEBUG) {

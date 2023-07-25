@@ -42,7 +42,7 @@ struct imm_shift { imm_shift_type t; u8 n; };
 
 #define INST_TYPE_X_LIST() \
   X(UNKNOWN, unknown, {}) \
-  X(ADD_CARRY_IMM, add_carry_imm, { u32 imm; u8 d, n; }) \
+  X(ADD_CARRY_IMM, add_carry_imm, { u32 imm; u8 n; }) \
   X(ADD_CARRY_REG, add_carry_reg, { imm_shift shift; u8 d, n, m; }) \
   X(ADD_IMM, add_imm, { u32 imm; u8 d, n; }) \
   X(ADD_SP_IMM, add_sp_imm, { u16 imm; u8 d; }) \
@@ -186,11 +186,12 @@ INST_TYPE_X_LIST()
 #undef X
 
 struct inst {
-  u32 addr;
-  u16 w0, w1;
 #define X(ENUM, TYPE, ...) inst_##TYPE TYPE;
   union { INST_TYPE_X_LIST() } i;
 #undef X
+  u32 addr;
+  u16 d; // 0xFFFF == invalid, MSB set means dlo = [0:3], dhi = [4:7]
+  u16 w0, w1;
   inst_type type;
   u8 len; // 2 or 4
 };
