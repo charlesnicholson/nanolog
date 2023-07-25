@@ -149,8 +149,9 @@ bool decode_16bit_inst(u16 const w0, inst& out_inst) {
 
   if ((w0 & 0xFFC0u) == 0x4000u) { // 4.6.9 AND, T1 encoding (pg 4-32)
     out_inst.type = inst_type::AND_REG;
-    out_inst.i.and_reg = { .shift = decode_imm_shift(0b00, 0),
-      .d = u8(w0 & 7u), .n = u8(w0 & 7u), .m = u8((w0 >> 3u) & 7u) };
+    out_inst.d = u8(w0 & 7u);
+    out_inst.i.and_reg = { .shift = decode_imm_shift(0b00, 0), .n = u8(w0 & 7u),
+      .m = u8((w0 >> 3u) & 7u) };
     return true;
   }
 
@@ -673,8 +674,9 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
   if (((w0 & 0xFBE0u) == 0xF000u) && ((w1 & 0x8000u) == 0)) {
     u32 const imm8{w1 & 0xFFu}, imm3{(w1 >> 12u) & 7u}, i{(w0 >> 10u) & 1u};
     out_inst.type = inst_type::AND_IMM;
+    out_inst.d = u8((w1 >> 8u) & 0xFu);
     out_inst.i.and_imm = { .imm = decode_imm12((i << 11u) | (imm3 << 8u) | imm8),
-      .d = u8((w1 >> 8u) & 0xFu), .n = u8(w0 & 0xFu) };
+      .n = u8(w0 & 0xFu) };
     return true;
   }
 
@@ -689,8 +691,9 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
       return true;
     }
     out_inst.type = inst_type::AND_REG;
+    out_inst.d = d;
     out_inst.i.and_reg = {
-      .shift = decode_imm_shift(u8((w1 >> 4u) & 3u), u8((imm3 << 2u) | imm2)), .d = d,
+      .shift = decode_imm_shift(u8((w1 >> 4u) & 3u), u8((imm3 << 2u) | imm2)),
       .n = u8(w0 & 0xFu), .m = u8(w1 & 0xFu) };
     return true;
   }
@@ -751,8 +754,9 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
   if (((w0 & 0xFBE0u) == 0xF020u) && ((w1 & 0x8000u) == 0)) {
     u32 const imm8{w1 & 0xFFu}, imm3{(w1 >> 12u) & 7u}, i{(w0 >> 10u) & 1u};
     out_inst.type = inst_type::BIT_CLEAR_IMM;
+    out_inst.d = u8((w1 >> 8u) & 0xFu);
     out_inst.i.bit_clear_imm = { .imm = decode_imm12((i << 11u) | (imm3 << 8u) | imm8),
-      .d = u8((w1 >> 8u) & 0xFu), .n = u8(w0 & 0xFu) };
+      .n = u8(w0 & 0xFu) };
     return true;
   }
 
@@ -1933,18 +1937,18 @@ void inst_print(inst const& i) {
 
     case inst_type::AND_REG: {
       auto const& a{i.i.and_reg};
-      NL_LOG_DBG("AND_REG %s, %s, %s <%s #%d>", s_rn[a.d], s_rn[a.n], s_rn[a.m],
+      NL_LOG_DBG("AND_REG %s, %s, %s <%s #%d>", s_rn[i.d], s_rn[a.n], s_rn[a.m],
         s_sn[int(a.shift.t)], int(a.shift.n));
     } break;
 
     case inst_type::AND_IMM: {
       auto const& a{i.i.and_imm};
-      NL_LOG_DBG("AND_IMM %s, %s, #%d", s_rn[a.d], s_rn[a.n], int(a.imm));
+      NL_LOG_DBG("AND_IMM %s, %s, #%d", s_rn[i.d], s_rn[a.n], int(a.imm));
     } break;
 
     case inst_type::BIT_CLEAR_IMM: {
       auto const& b{i.i.bit_clear_imm};
-      NL_LOG_DBG("BIC_IMM %s, %s, #%d", s_rn[b.d], s_rn[b.n], int(b.imm));
+      NL_LOG_DBG("BIC_IMM %s, %s, #%d", s_rn[i.d], s_rn[b.n], int(b.imm));
     } break;
 
     case inst_type::BIT_CLEAR_REG: {

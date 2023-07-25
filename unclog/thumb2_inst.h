@@ -50,9 +50,9 @@ struct imm_shift { imm_shift_type t; u8 n; };
   X(ADD_REG, add_reg, { imm_shift shift; u8 n, m; }) \
   X(ADD_8_UNSIGNED, add_8_unsigned, { u8 n, m; }) \
   X(ADR, adr, { u8 imm, add; }) \
-  X(AND_REG, and_reg, { imm_shift shift; u8 d, n, m; }) \
-  X(AND_IMM, and_imm, { u32 imm; u8 d, n; }) \
-  X(BIT_CLEAR_IMM, bit_clear_imm, { u32 imm; u8 d, n; }) \
+  X(AND_REG, and_reg, { imm_shift shift; u8 n, m; }) \
+  X(AND_IMM, and_imm, { u32 imm; u8 n; }) \
+  X(BIT_CLEAR_IMM, bit_clear_imm, { u32 imm; u8 n; }) \
   X(BIT_CLEAR_REG, bit_clear_reg, { imm_shift shift; u8 d, n, m; }) \
   X(BITFIELD_CLEAR, bitfield_clear, { u8 d, msbit, lsbit; }) \
   X(BITFIELD_EXTRACT_UNSIGNED, bitfield_extract_unsigned, { u8 d, n, lsbit, widthminus1; }) \
