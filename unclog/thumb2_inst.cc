@@ -82,22 +82,24 @@ bool decode_16bit_inst(u16 const w0, inst& out_inst) {
 
   if ((w0 & 0xFFC0u) == 0x4140u) { // 4.6.2 ADC (reg), T1 encoding (pg 4-18)
     out_inst.type = inst_type::ADD_CARRY_REG;
+    out_inst.d = u8(w0 & 7u);
     out_inst.i.add_carry_reg = { .shift = decode_imm_shift(0b00, 0),
-      .d = u8(w0 & 7u), .n = u8(w0 & 7u), .m = u8((w0 >> 3u) & 7u),  };
+      .n = u8(w0 & 7u), .m = u8((w0 >> 3u) & 7u),  };
     return true;
   }
 
   if ((w0 & 0xFE00u) == 0x1C00u) { // 4.6.3 ADD (imm), T1 encoding (pg 4-20)
     out_inst.type = inst_type::ADD_IMM;
-    out_inst.i.add_imm = { .imm = u16((w0 >> 6u) & 7u), .d = u8(w0 & 7u),
-      .n = u8((w0 >> 3u) & 7u) };
+    out_inst.d = u8(w0 & 7u);
+    out_inst.i.add_imm = { .imm = u16((w0 >> 6u) & 7u), .n = u8((w0 >> 3u) & 7u) };
     return true;
   }
 
   if ((w0 & 0xF800u) == 0x3000u) { // 4.6.3 ADD (imm), T2 encoding (pg 4-20)
     u8 const dn{u8((w0 >> 8u) & 7u)};
     out_inst.type = inst_type::ADD_IMM;
-    out_inst.i.add_imm = { .imm = u8(w0 & 0xFFu), .d = dn, .n = dn };
+    out_inst.d = dn;
+    out_inst.i.add_imm = { .imm = u8(w0 & 0xFFu), .n = dn };
     return true;
   }
 
@@ -106,36 +108,42 @@ bool decode_16bit_inst(u16 const w0, inst& out_inst) {
       m{u8((w0 >> 3u) & 7u)};
     if ((d == 13) || (m == 13)) { // 4.6.6 ADD (SP plus reg), T2 encoding (pg 4-26)
       out_inst.type = inst_type::ADD_SP_IMM;
-      out_inst.i.add_sp_imm = { .imm = d, .d = d };
+      out_inst.d = d;
+      out_inst.i.add_sp_imm = { .imm = d };
       return true;
     }
     out_inst.type = inst_type::ADD_REG;
-    out_inst.i.add_reg = { .shift = decode_imm_shift(0b00, 0), .d = d, .n = d, .m = m };
+    out_inst.d = d;
+    out_inst.i.add_reg = { .shift = decode_imm_shift(0b00, 0), .n = d, .m = m };
     return true;
   }
 
   if ((w0 & 0xFE00u) == 0x1800u) { // 4.6.4 ADD (reg), T1 encoding (pg 4-22)
     out_inst.type = inst_type::ADD_REG;
-    out_inst.i.add_reg = { .shift = decode_imm_shift(0b00, 0), .d = u8(w0 & 7u),
-      .n = u8((w0 >> 3u) & 7u), .m = u8((w0 >> 6u) & 7u) };
+    out_inst.d = u8(w0 & 7u);
+    out_inst.i.add_reg = { .shift = decode_imm_shift(0b00, 0), .n = u8((w0 >> 3u) & 7u),
+      .m = u8((w0 >> 6u) & 7u) };
     return true;
   }
 
   if ((w0 & 0xF800u) == 0xA800u) { // 4.5.5 ADD (SP + imm), T1 encoding (pg 4-24)
     out_inst.type = inst_type::ADD_SP_IMM;
-    out_inst.i.add_sp_imm = { .imm = u16((w0 & 0xFFu) << 2u), .d = u8((w0 >> 8u) & 7u) };
+    out_inst.d = u8((w0 >> 8u) & 7u);
+    out_inst.i.add_sp_imm = { .imm = u16((w0 & 0xFFu) << 2u) };
     return true;
   }
 
   if ((w0 & 0xFF80u) == 0xB000u) { // 4.6.5 ADD (SP + imm), T1 encoding (pg 4-24)
     out_inst.type = inst_type::ADD_SP_IMM;
-    out_inst.i.add_sp_imm = { .imm = u16((w0 & 0x7Fu) << 2u), .d = u8(reg::SP) };
+    out_inst.d = u8(reg::SP);
+    out_inst.i.add_sp_imm = { .imm = u16((w0 & 0x7Fu) << 2u) };
     return true;
   }
 
   if ((w0 & 0xF800u) == 0xA000u) { // 4.6.7 ADR, T1 encoding (pg 4-28)
     out_inst.type = inst_type::ADR;
-    out_inst.i.adr = { .d = u8((w0 >> 8u) & 7u), .imm = u8((w0 & 0xFFu) << 2u), .add = 1u };
+    out_inst.d = u8((w0 >> 8u) & 7u);
+    out_inst.i.adr = { .imm = u8((w0 & 0xFFu) << 2u), .add = 1u };
     return true;
   }
 
@@ -597,9 +605,10 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
   if ((w0 & 0xFFE0u) == 0xEB40u) { // 4.6.2 ADC (reg), T2 encoding (pg 4-18)
     u8 const imm3{u8((w1 >> 12u) & 7u)}, imm2{u8((w1 >> 6u) & 3u)};
     out_inst.type = inst_type::ADD_CARRY_REG;
+    out_inst.d = u8((w1 >> 8u) & 0xFu);
     out_inst.i.add_carry_reg = {
       .shift = decode_imm_shift(u8((w1 >> 4u) & 3u), u8((imm3 << 2u) | imm2)),
-      .d = u8((w1 >> 8u) & 0xFu), .n = u8(w0 & 0xFu), .m = u8(w1 & 0xFu) };
+      .n = u8(w0 & 0xFu), .m = u8(w1 & 0xFu) };
     return true;
   }
 
@@ -615,7 +624,8 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
       return true;
     }
     out_inst.type = inst_type::ADD_IMM;
-    out_inst.i.add_imm = { .imm = imm, .d = d, .n = n };
+    out_inst.d = d;
+    out_inst.i.add_imm = { .imm = imm, .n = n };
     return true;
   }
 
@@ -630,11 +640,13 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
     }
     if (n == 13) { // 4.6.5 ADD (SP plus imm), T4 encoding (pg 4-24)
       out_inst.type = inst_type::ADD_SP_IMM;
-      out_inst.i.add_sp_imm = { .imm = u16(imm), .d = d };
+      out_inst.d = d;
+      out_inst.i.add_sp_imm = { .imm = u16(imm) };
       return true;
     }
     out_inst.type = inst_type::ADD_IMM;
-    out_inst.i.add_imm = { .imm = u16(imm), .d = d, .n = n };
+    out_inst.d = d;
+    out_inst.i.add_imm = { .imm = u16(imm), .n = n };
     return true;
   }
 
@@ -647,11 +659,13 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
     }
     if (n == u8(reg::SP)) { // ADD (SP + reg), T3 encoding (pg 4-26)
       out_inst.type = inst_type::ADD_SP_REG;
-      out_inst.i.add_sp_reg = { .shift = decode_imm_shift(type, si), .d = d, .m = m };
+      out_inst.d = d;
+      out_inst.i.add_sp_reg = { .shift = decode_imm_shift(type, si), .m = m };
       return true;
     }
     out_inst.type = inst_type::ADD_REG;
-    out_inst.i.add_reg = { .shift = decode_imm_shift(type, si), .d = d, .n = n, .m = m };
+    out_inst.d = d;
+    out_inst.i.add_reg = { .shift = decode_imm_shift(type, si), .n = n, .m = m };
     return true;
   }
 
@@ -1528,8 +1542,8 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
   // 4.6.195 UADD8, T1 encoding (pg 4-403)
   if (((w0 & 0xFFF0u) == 0xFA80u) && ((w1 & 0xF0F0u) == 0xF040u)) {
     out_inst.type = inst_type::ADD_8_UNSIGNED;
-    out_inst.i.add_8_unsigned = { .d = u8((w1 >> 8u) & 0xFu), .n = u8(w0 & 0xFu),
-      .m = u8(w1 & 0xFu) };
+    out_inst.d = u8((w1 >> 8u) & 0xFu);
+    out_inst.i.add_8_unsigned = { .n = u8(w0 & 0xFu), .m = u8(w1 & 0xFu) };
     return true;
   }
 
@@ -1881,40 +1895,40 @@ void inst_print(inst const& i) {
 
     case inst_type::ADD_CARRY_REG: {
       auto const& a{i.i.add_carry_reg};
-      NL_LOG_DBG("ADC_REG %s, %s, %s <%s #%d>", s_rn[a.d], s_rn[a.n], s_rn[a.m],
+      NL_LOG_DBG("ADC_REG %s, %s, %s <%s #%d>", s_rn[i.d], s_rn[a.n], s_rn[a.m],
         s_sn[int(a.shift.t)], int(a.shift.n));
     } break;
 
     case inst_type::ADD_IMM: {
       auto const& a{i.i.add_imm};
-      NL_LOG_DBG("ADD_IMM %s, %s, #%d", s_rn[a.d], s_rn[a.n], int(a.imm));
+      NL_LOG_DBG("ADD_IMM %s, %s, #%d", s_rn[i.d], s_rn[a.n], int(a.imm));
     } break;
 
     case inst_type::ADD_SP_IMM: {
       auto const& a{i.i.add_sp_imm};
-      NL_LOG_DBG("ADD %s, [%s, #%d]", s_rn[a.d], s_rn[reg::SP], (int)a.imm);
+      NL_LOG_DBG("ADD %s, [%s, #%d]", s_rn[i.d], s_rn[reg::SP], (int)a.imm);
     } break;
 
     case inst_type::ADD_SP_REG: {
       auto const& a{i.i.add_sp_reg};
-      NL_LOG_DBG("ADD %s, %s, %s <%s, #%d>", s_rn[a.d], s_rn[reg::SP], s_rn[a.m],
+      NL_LOG_DBG("ADD %s, %s, %s <%s, #%d>", s_rn[i.d], s_rn[reg::SP], s_rn[a.m],
         s_sn[int(a.shift.t)], int(a.shift.n));
     } break;
 
     case inst_type::ADD_REG: {
       auto const& a{i.i.add_reg};
-      NL_LOG_DBG("ADD_REG %s, %s, %s <%s #%d>", s_rn[a.d], s_rn[a.n], s_rn[a.m],
+      NL_LOG_DBG("ADD_REG %s, %s, %s <%s #%d>", s_rn[i.d], s_rn[a.n], s_rn[a.m],
         s_sn[int(a.shift.t)], int(a.shift.n));
     } break;
 
     case inst_type::ADD_8_UNSIGNED: {
       auto const& a{i.i.add_8_unsigned};
-      NL_LOG_DBG("UADD8 %s, %s, %s", s_rn[a.d], s_rn[a.n], s_rn[a.m]);
+      NL_LOG_DBG("UADD8 %s, %s, %s", s_rn[i.d], s_rn[a.n], s_rn[a.m]);
     } break;
 
     case inst_type::ADR: {
       auto const& a{i.i.adr};
-      NL_LOG_DBG("ADR %s, PC, #%c%d", s_rn[a.d], a.add ? '+' : '-', (int)a.imm);
+      NL_LOG_DBG("ADR %s, PC, #%c%d", s_rn[i.d], a.add ? '+' : '-', (int)a.imm);
     } break;
 
     case inst_type::AND_REG: {

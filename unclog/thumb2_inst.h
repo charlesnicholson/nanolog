@@ -43,13 +43,13 @@ struct imm_shift { imm_shift_type t; u8 n; };
 #define INST_TYPE_X_LIST() \
   X(UNKNOWN, unknown, {}) \
   X(ADD_CARRY_IMM, add_carry_imm, { u32 imm; u8 n; }) \
-  X(ADD_CARRY_REG, add_carry_reg, { imm_shift shift; u8 d, n, m; }) \
-  X(ADD_IMM, add_imm, { u32 imm; u8 d, n; }) \
-  X(ADD_SP_IMM, add_sp_imm, { u16 imm; u8 d; }) \
-  X(ADD_SP_REG, add_sp_reg, { imm_shift shift; u8 d, m; }) \
-  X(ADD_REG, add_reg, { imm_shift shift; u8 d, n, m; }) \
-  X(ADD_8_UNSIGNED, add_8_unsigned, { u8 d, n, m; }) \
-  X(ADR, adr, { u8 d, imm, add; }) \
+  X(ADD_CARRY_REG, add_carry_reg, { imm_shift shift; u8 n, m; }) \
+  X(ADD_IMM, add_imm, { u32 imm; u8 n; }) \
+  X(ADD_SP_IMM, add_sp_imm, { u16 imm; }) \
+  X(ADD_SP_REG, add_sp_reg, { imm_shift shift; u8 m; }) \
+  X(ADD_REG, add_reg, { imm_shift shift; u8 n, m; }) \
+  X(ADD_8_UNSIGNED, add_8_unsigned, { u8 n, m; }) \
+  X(ADR, adr, { u8 imm, add; }) \
   X(AND_REG, and_reg, { imm_shift shift; u8 d, n, m; }) \
   X(AND_IMM, and_imm, { u32 imm; u8 d, n; }) \
   X(BIT_CLEAR_IMM, bit_clear_imm, { u32 imm; u8 d, n; }) \

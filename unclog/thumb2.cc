@@ -240,19 +240,19 @@ simulate_results simulate(inst const& i,
   switch (i.type) {
     case inst_type::ADD_IMM: {
       auto const& add{i.i.add_imm};
-      path.rs.regs[add.d] = path.rs.regs[add.n] + add.imm;
-      copy_reg_known(path.rs.known, add.d, add.n);
+      path.rs.regs[i.d] = path.rs.regs[add.n] + add.imm;
+      copy_reg_known(path.rs.known, u8(i.d), add.n);
       reg_muts.emplace_back(reg_mut_node(i, path.rs.mut_node_idxs[add.n]));
-      path.rs.mut_node_idxs[add.d] = u32(reg_muts.size() - 1u);
+      path.rs.mut_node_idxs[i.d] = u32(reg_muts.size() - 1u);
     } break;
 
     case inst_type::ADD_REG: {
       auto const& add{i.i.add_reg};
-      path.rs.regs[add.d] = path.rs.regs[add.n] + path.rs.regs[add.m];
-      union_reg_known(path.rs.known, add.d, add.m, add.n);
+      path.rs.regs[i.d] = path.rs.regs[add.n] + path.rs.regs[add.m];
+      union_reg_known(path.rs.known, u8(i.d), add.m, add.n);
       reg_muts.emplace_back(reg_mut_node(i, path.rs.mut_node_idxs[add.n],
         path.rs.mut_node_idxs[add.m]));
-      path.rs.mut_node_idxs[add.d] = u32(reg_muts.size() - 1u);
+      path.rs.mut_node_idxs[i.d] = u32(reg_muts.size() - 1u);
     } break;
 
     case inst_type::ADR: {
