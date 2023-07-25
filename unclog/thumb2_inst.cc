@@ -192,7 +192,8 @@ bool decode_16bit_inst(u16 const w0, inst& out_inst) {
   if ((w0 & 0xFFC0u) == 0x4380u) { // 4.6.16 BIC (reg), T1 encoding (pg 4-46)
     u8 const dn{u8(w0 & 7u)};
     out_inst.type = inst_type::BIT_CLEAR_REG;
-    out_inst.i.bit_clear_reg = { .shift = decode_imm_shift(0b00, 0), .d = dn, .n = dn,
+    out_inst.d = dn;
+    out_inst.i.bit_clear_reg = { .shift = decode_imm_shift(0b00, 0), .n = dn,
       .m = u8((w0 >> 3u) & 7u) };
     return true;
   }
@@ -762,9 +763,9 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
 
   if ((w0 & 0xFFE0u) == 0xEA20u) { // 4.6.16 BIC, T2 encoding (pg 4-46)
     out_inst.type = inst_type::BIT_CLEAR_REG;
+    out_inst.d = u8((w1 >> 8u) & 0xFu);
     out_inst.i.bit_clear_reg = { .shift = decode_imm_shift(u8((w1 >> 4u) & 3u),
-      u8(((w1 >> 6u) & 3u) | ((w1 >> 12u) & 7u))), .d = u8((w1 >> 8u) & 0xFu),
-      .n = u8(w0 & 0xFu), .m = u8(w1 & 0xFu) };
+      u8(((w1 >> 6u) & 3u) | ((w1 >> 12u) & 7u))), .n = u8(w0 & 0xFu), .m = u8(w1 & 0xFu) };
     return true;
   }
 
@@ -1953,7 +1954,7 @@ void inst_print(inst const& i) {
 
     case inst_type::BIT_CLEAR_REG: {
       auto const& b{i.i.bit_clear_reg};
-      NL_LOG_DBG("BIC_REG %s, %s, %s, <%s #%d>", s_rn[b.d], s_rn[b.n], s_rn[b.m],
+      NL_LOG_DBG("BIC_REG %s, %s, %s, <%s #%d>", s_rn[i.d], s_rn[b.n], s_rn[b.m],
         s_sn[int(b.shift.t)], int(b.shift.n));
     } break;
 
