@@ -1278,7 +1278,8 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
   if (((w0 & 0xFBF0u) == 0xF340u) && ((w1 & 0x8000u) == 0)) {
     u8 const imm2{u8((w1 >> 6u) & 3u)}, imm3{u8((w1 >> 12u) & 7u)};
     out_inst.type = inst_type::BITFIELD_EXTRACT_SIGNED;
-    out_inst.i.bitfield_extract_signed = { .d = u8((w1 >> 8u) & 0xFu), .n = u8(w0 & 0xFu),
+    out_inst.d = u8((w1 >> 8u) & 0xFu);
+    out_inst.i.bitfield_extract_signed = { .n = u8(w0 & 0xFu),
       .lsbit = u8((imm3 << 2u) | imm2), .widthminus1 = u8(w1 & 0x1Fu) };
     return true;
   }
@@ -1556,7 +1557,8 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
   if (((w0 & 0xFBF0u) == 0xF3C0u) && ((w1 & 0x8000u) == 0)) {
     u32 const imm2{(w1 >> 6u) & 3u}, imm3{(w1 >> 12u) & 7u };
     out_inst.type = inst_type::BITFIELD_EXTRACT_UNSIGNED;
-    out_inst.i.bitfield_extract_unsigned = { .d = u8((w1 >> 8u) & 0xFu), .n = u8(w0 & 0xFu),
+    out_inst.d = u8((w1 >> 8u) & 0xFu);
+    out_inst.i.bitfield_extract_unsigned = { .n = u8(w0 & 0xFu),
       .lsbit = u8((imm3 << 2u) | imm2), .widthminus1 = u8(w1 & 0x1Fu) };
     return true;
   }
@@ -1965,13 +1967,13 @@ void inst_print(inst const& i) {
 
     case inst_type::BITFIELD_EXTRACT_UNSIGNED: {
       auto const& b{i.i.bitfield_extract_unsigned};
-      NL_LOG_DBG("UBFX %s, %s, #%d, #%d", s_rn[b.d], s_rn[b.n], int(b.lsbit),
+      NL_LOG_DBG("UBFX %s, %s, #%d, #%d", s_rn[i.d], s_rn[b.n], int(b.lsbit),
         int(b.widthminus1 + 1));
     } break;
 
     case inst_type::BITFIELD_EXTRACT_SIGNED: {
       auto const& b{i.i.bitfield_extract_signed};
-      NL_LOG_DBG("SBFX %s, %s, #%d, #%d", s_rn[b.d], s_rn[b.n], int(b.lsbit),
+      NL_LOG_DBG("SBFX %s, %s, #%d, #%d", s_rn[i.d], s_rn[b.n], int(b.lsbit),
         int(b.widthminus1 + 1));
     } break;
 

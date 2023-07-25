@@ -55,8 +55,8 @@ struct imm_shift { imm_shift_type t; u8 n; };
   X(BIT_CLEAR_IMM, bit_clear_imm, { u32 imm; u8 n; }) \
   X(BIT_CLEAR_REG, bit_clear_reg, { imm_shift shift; u8 n, m; }) \
   X(BITFIELD_CLEAR, bitfield_clear, { u8 d, msbit, lsbit; }) \
-  X(BITFIELD_EXTRACT_UNSIGNED, bitfield_extract_unsigned, { u8 d, n, lsbit, widthminus1; }) \
-  X(BITFIELD_EXTRACT_SIGNED, bitfield_extract_signed, { u8 d, n, lsbit, widthminus1; }) \
+  X(BITFIELD_EXTRACT_UNSIGNED, bitfield_extract_unsigned, { u8 n, lsbit, widthminus1; }) \
+  X(BITFIELD_EXTRACT_SIGNED, bitfield_extract_signed, { u8 n, lsbit, widthminus1; }) \
   X(BITFIELD_INSERT, bitfield_insert, { u8 d, n, msbit, lsbit; }) \
   X(BRANCH, branch, { u32 imm; u32 addr; cond_code cc; }) \
   X(BRANCH_LINK, branch_link, { u32 imm, addr; }) \
