@@ -377,7 +377,7 @@ void emit_bin_fmt_strs(std::vector<char const *> const& fmt_strs,
                        byte_vec& fmt_bin_mem) {
   for (auto str : fmt_strs) {
     fmt_bin_addrs.push_back(unsigned(fmt_bin_mem.size()));
-    auto guid{fmt_bin_addrs.empty() ? 0 : unsigned(fmt_bin_addrs.size() - 1)};
+    auto const guid{fmt_bin_addrs.empty() ? 0 : unsigned(fmt_bin_addrs.size() - 1)};
     emit_bin_fmt_str(str, guid, fmt_bin_mem);
   }
 }
