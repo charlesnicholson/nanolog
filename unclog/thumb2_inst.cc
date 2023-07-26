@@ -559,15 +559,15 @@ bool decode_16bit_inst(u16 const w0, inst& out_inst) {
 
   if ((w0 & 0xFFC0u) == 0xB240u) { // 4.6.185 SXTB, T1 encoding (pg 4-383)
     out_inst.type = inst_type::EXTEND_SIGNED_BYTE;
-    out_inst.i.extend_signed_byte = { .d = u8(w0 & 7u), .m = u8((w0 >> 3u) & 7u),
-      .rotation = 0 };
+    out_inst.d = u8(w0 & 7u);
+    out_inst.i.extend_signed_byte = { .m = u8((w0 >> 3u) & 7u), .rotation = 0 };
     return true;
   }
 
   if ((w0 & 0xFFC0u) == 0xB200u) {
     out_inst.type = inst_type::EXTEND_SIGNED_HALF;
-    out_inst.i.extend_signed_half = { .d = u8(w0 & 7u), .m = u8((w0 >> 3u) & 7u),
-      .rotation = 0 };
+    out_inst.d = u8(w0 & 7u);
+    out_inst.i.extend_signed_half = { .m = u8((w0 >> 3u) & 7u), .rotation = 0 };
     return true;
   }
 
@@ -580,15 +580,15 @@ bool decode_16bit_inst(u16 const w0, inst& out_inst) {
 
   if ((w0 & 0xFFC0u) == 0xB2C0u) { // 4.6.224 UXTB, T1 encoding (pg 4-461)
     out_inst.type = inst_type::EXTEND_UNSIGNED_BYTE;
-    out_inst.i.extend_unsigned_byte = { .d = u8(w0 & 7u), .m = u8((w0 >> 3u) & 7u),
-      .rotation = 0 };
+    out_inst.d = u8(w0 & 7u);
+    out_inst.i.extend_unsigned_byte = { .m = u8((w0 >> 3u) & 7u), .rotation = 0 };
     return true;
   }
 
   if ((w0 & 0xFFC0u) == 0xB280u) { // 4.6.226 UXTH, T1 encoding (pg 4-465)
     out_inst.type = inst_type::EXTEND_UNSIGNED_HALF;
-    out_inst.i.extend_unsigned_half = { .d = u8(w0 & 7u), .m = u8((w0 >> 3u) & 7u),
-      .rotation = 0 };
+    out_inst.d = u8(w0 & 7u);
+    out_inst.i.extend_unsigned_half = { .m = u8((w0 >> 3u) & 7u), .rotation = 0 };
     return true;
   }
 
@@ -1531,11 +1531,13 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
       rotation{u8(((w1 >> 4u) & 3u) << 3u)};
     if (n == 15) { // 4.6.185 SXTB, T2 encoding (pg 4-383)
       out_inst.type = inst_type::EXTEND_SIGNED_BYTE;
-      out_inst.i.extend_signed_byte = { .d = d, .m = m, .rotation = rotation };
+      out_inst.d = d;
+      out_inst.i.extend_signed_byte = { .m = m, .rotation = rotation };
       return true;
     }
     out_inst.type = inst_type::EXTEND_ADD_SIGNED_BYTE;
-    out_inst.i.extend_add_signed_byte = { .d = d, .n = n, .m = m, .rotation = rotation };
+    out_inst.d = d;
+    out_inst.i.extend_add_signed_byte = { .n = n, .m = m, .rotation = rotation };
     return true;
   }
 
@@ -1545,11 +1547,13 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
       rotation{u8(((w1 >> 4u) & 3u) << 3u)};
     if (n == 15) { // 4.6.187 SXTH, T2 encoding (pg 4-387)
       out_inst.type = inst_type::EXTEND_SIGNED_HALF;
-      out_inst.i.extend_signed_half = { .d = d, .m = m, .rotation = rotation };
+      out_inst.d = d;
+      out_inst.i.extend_signed_half = { .m = m, .rotation = rotation };
       return true;
     }
     out_inst.type = inst_type::EXTEND_ADD_SIGNED_HALF;
-    out_inst.i.extend_add_signed_half = { .d = d, .n = n, .m = m, .rotation = rotation };
+    out_inst.d = d;
+    out_inst.i.extend_add_signed_half = { .n = n, .m = m, .rotation = rotation };
     return true;
   }
 
@@ -1611,12 +1615,13 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
       rotation{u8(((w1 >> 4u) & 3u) << 3u)};
     if (n == 15) {  // 4.6.224 UXTB, T2 encoding (pg 4-461)
       out_inst.type = inst_type::EXTEND_UNSIGNED_BYTE;
-      out_inst.i.extend_unsigned_byte = { .d = d, .m = m, .rotation = rotation };
+      out_inst.d = d;
+      out_inst.i.extend_unsigned_byte = { .m = m, .rotation = rotation };
       return true;
     }
     out_inst.type = inst_type::EXTEND_ADD_UNSIGNED_BYTE;
-    out_inst.i.extend_add_unsigned_byte = { .d = d, .n = n, .m = m,
-      .rotation = rotation };
+    out_inst.d = d;
+    out_inst.i.extend_add_unsigned_byte = { .n = n, .m = m, .rotation = rotation };
     return true;
   }
 
@@ -1626,12 +1631,13 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
       rotation{u8(((w1 >> 4u) & 3u) << 3u)};
     if (n == 15) { // 4.6.226 UXTH, T2 encoding (pg 4-465)
       out_inst.type = inst_type::EXTEND_UNSIGNED_HALF;
-      out_inst.i.extend_unsigned_half = { .d = d, .m = m, .rotation = rotation };
+      out_inst.d = d;
+      out_inst.i.extend_unsigned_half = { .m = m, .rotation = rotation };
       return true;
     }
     out_inst.type = inst_type::EXTEND_ADD_UNSIGNED_HALF;
-    out_inst.i.extend_add_unsigned_half = { .d = d, .n = n, .m = m,
-      .rotation = rotation };
+    out_inst.d = d;
+    out_inst.i.extend_add_unsigned_half = { .n = n, .m = m, .rotation = rotation };
     return true;
   }
 
@@ -2086,45 +2092,45 @@ void inst_print(inst const& i) {
 
     case inst_type::EXTEND_ADD_SIGNED_BYTE: {
       auto const& e{i.i.extend_add_signed_byte};
-      NL_LOG_DBG("SXTAB %s, %s, %s, <%d>", s_rn[e.d], s_rn[e.n], s_rn[e.m],
+      NL_LOG_DBG("SXTAB %s, %s, %s, <%d>", s_rn[i.d], s_rn[e.n], s_rn[e.m],
         int(e.rotation));
     } break;
 
     case inst_type::EXTEND_ADD_SIGNED_HALF: {
       auto const& e{i.i.extend_add_signed_half};
-      NL_LOG_DBG("SXTAH %s, %s, %s, <%d>", s_rn[e.d], s_rn[e.n], s_rn[e.m],
+      NL_LOG_DBG("SXTAH %s, %s, %s, <%d>", s_rn[i.d], s_rn[e.n], s_rn[e.m],
         int(e.rotation));
     } break;
 
     case inst_type::EXTEND_ADD_UNSIGNED_BYTE: {
       auto const& e{i.i.extend_add_unsigned_byte};
-      NL_LOG_DBG("UXTAB %s, %s, %s, <%d>", s_rn[e.d], s_rn[e.n], s_rn[e.m],
+      NL_LOG_DBG("UXTAB %s, %s, %s, <%d>", s_rn[i.d], s_rn[e.n], s_rn[e.m],
         int(e.rotation));
     } break;
 
     case inst_type::EXTEND_SIGNED_BYTE: {
       auto const& e{i.i.extend_signed_byte};
-      NL_LOG_DBG("SXTB %s, %s, <%d>", s_rn[e.d], s_rn[e.m], int(e.rotation));
+      NL_LOG_DBG("SXTB %s, %s, <%d>", s_rn[i.d], s_rn[e.m], int(e.rotation));
     } break;
 
     case inst_type::EXTEND_SIGNED_HALF: {
       auto const& e{i.i.extend_signed_half};
-      NL_LOG_DBG("SXTH %s, %s, <%d>", s_rn[e.d], s_rn[e.m], int(e.rotation));
+      NL_LOG_DBG("SXTH %s, %s, <%d>", s_rn[i.d], s_rn[e.m], int(e.rotation));
     } break;
 
     case inst_type::EXTEND_UNSIGNED_BYTE: {
       auto const& u{i.i.extend_unsigned_byte};
-      NL_LOG_DBG("UXTB %s, %s, <%d>", s_rn[u.d], s_rn[u.m], int(u.rotation));
+      NL_LOG_DBG("UXTB %s, %s, <%d>", s_rn[i.d], s_rn[u.m], int(u.rotation));
     } break;
 
     case inst_type::EXTEND_UNSIGNED_HALF: {
       auto const& u{i.i.extend_unsigned_half};
-      NL_LOG_DBG("UXTH %s, %s, <%d>", s_rn[u.d], s_rn[u.m], int(u.rotation));
+      NL_LOG_DBG("UXTH %s, %s, <%d>", s_rn[i.d], s_rn[u.m], int(u.rotation));
     } break;
 
     case inst_type::EXTEND_ADD_UNSIGNED_HALF: {
       auto const& u{i.i.extend_add_unsigned_half};
-      NL_LOG_DBG("UXTAH %s, %s, %s, <#%d>", s_rn[u.d], s_rn[u.n], s_rn[u.m],
+      NL_LOG_DBG("UXTAH %s, %s, %s, <#%d>", s_rn[i.d], s_rn[u.n], s_rn[u.m],
         int(u.rotation));
     } break;
 
