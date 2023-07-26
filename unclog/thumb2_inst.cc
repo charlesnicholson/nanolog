@@ -787,7 +787,8 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
   // 4.6.26 CLZ, T1 encoding (pg 4-66)
   if (((w0 & 0xFFF0u) == 0xFAB0u) && ((w1 & 0xF0F0u) == 0xF080u)) {
     out_inst.type = inst_type::COUNT_LEADING_ZEROS;
-    out_inst.i.count_leading_zeros = { .d = u8(w1 & 7u), .m = u8((w1 >> 8u) & 0xFu) };
+    out_inst.d = u8(w1 & 7u);
+    out_inst.i.count_leading_zeros = { .m = u8((w1 >> 8u) & 0xFu) };
     return true;
   }
 
@@ -1291,8 +1292,8 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
   // 4.6.126 SDIV, T1 encoding (pg 4-265)
   if (((w0 & 0xFFF0u) == 0xFB90u) && ((w1 & 0xF0u) == 0xF0u)) {
     out_inst.type = inst_type::DIV_SIGNED;
-    out_inst.i.div_signed = { .d = u8((w1 >> 8u) & 0xFu), .n = u8(w0 & 0xFu),
-      .m = u8(w1 & 0xFu) };
+    out_inst.d = u8((w1 >> 8u) & 0xFu);
+    out_inst.i.div_signed = { .n = u8(w0 & 0xFu), .m = u8(w1 & 0xFu) };
     return true;
   }
 
@@ -1570,8 +1571,8 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
   // 4.6.198 UDIV, T1 encoding (pg 4-409)
   if (((w0 & 0xFFF0u) == 0xFBB0) && ((w1 & 0xF0u) == 0xF0u)) {
     out_inst.type = inst_type::DIV_UNSIGNED;
-    out_inst.i.div_unsigned = { .d = u8((w1 >> 8u) & 0xFu), .n = u8(w0 & 0xFu),
-      .m = u8(w1 & 0xFu) };
+    out_inst.d = u8((w1 >> 8u) & 0xFu);
+    out_inst.i.div_unsigned = { .n = u8(w0 & 0xFu), .m = u8(w1 & 0xFu) };
     return true;
   }
 
@@ -2055,19 +2056,18 @@ void inst_print(inst const& i) {
         int(c.shift.n));
     } break;
 
-    case inst_type::COUNT_LEADING_ZEROS: {
-      auto const& c{i.i.count_leading_zeros};
-      NL_LOG_DBG("CLZ %s, %s", s_rn[c.d], s_rn[c.m]);
-    } break;
+    case inst_type::COUNT_LEADING_ZEROS:
+      NL_LOG_DBG("CLZ %s, %s", s_rn[i.d], s_rn[i.i.count_leading_zeros.m]);
+      break;
 
     case inst_type::DIV_SIGNED: {
       auto const& d{i.i.div_signed};
-      NL_LOG_DBG("SDIV %s, %s, %s", s_rn[d.d], s_rn[d.n], s_rn[d.m]);
+      NL_LOG_DBG("SDIV %s, %s, %s", s_rn[i.d], s_rn[d.n], s_rn[d.m]);
     } break;
 
     case inst_type::DIV_UNSIGNED: {
       auto const& d{i.i.div_unsigned};
-      NL_LOG_DBG("UDIV %s, %s, %s", s_rn[d.d], s_rn[d.n], s_rn[d.m]);
+      NL_LOG_DBG("UDIV %s, %s, %s", s_rn[i.d], s_rn[d.n], s_rn[d.m]);
     } break;
 
     case inst_type::EXCL_OR_IMM: {
