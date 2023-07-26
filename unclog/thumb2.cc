@@ -323,17 +323,16 @@ simulate_results simulate(inst const& i,
       break;
 
     case inst_type::LOAD_IMM: {
-      auto const& ldr{i.i.load_imm};
-      if (ldr.t == reg::PC) { return simulate_results::TERMINATE_PATH; }
-      clear_reg_known(path.rs.known, ldr.t);
+      if (i.d == reg::PC) { return simulate_results::TERMINATE_PATH; }
+      clear_reg_known(path.rs.known, u8(i.d));
     } break;
 
     case inst_type::LOAD_LIT: {
       auto const& ldr{i.i.load_lit};
-      memcpy(&path.rs.regs[ldr.t], &fs.e.bytes[fs.func_ofs + (ldr.addr - fs.func_start)], 4);
-      mark_reg_known(path.rs.known, ldr.t);
+      memcpy(&path.rs.regs[i.d], &fs.e.bytes[fs.func_ofs + (ldr.addr - fs.func_start)], 4);
+      mark_reg_known(path.rs.known, u8(i.d));
       reg_muts.emplace_back(reg_mut_node(i));
-      path.rs.mut_node_idxs[ldr.t] = u32(reg_muts.size() - 1u);
+      path.rs.mut_node_idxs[i.d] = u32(reg_muts.size() - 1u);
     } break;
 
     case inst_type::LOAD_REG: {
