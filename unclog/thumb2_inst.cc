@@ -440,19 +440,22 @@ bool decode_16bit_inst(u16 const w0, inst& out_inst) {
 
   if ((w0 & 0xFFC0u) == 0xBA00u) { // 4.6.111 REV, T1 encoding (pg 4-235)
     out_inst.type = inst_type::BYTE_REV_WORD;
-    out_inst.i.byte_rev_word = { .d = u8(w0 & 7u), .m = u8((w0 >> 3u) & 7u) };
+    out_inst.d = u8(w0 & 7u);
+    out_inst.i.byte_rev_word = { .m = u8((w0 >> 3u) & 7u) };
     return true;
   }
 
   if ((w0 & 0xFFC0u) == 0xBA40u) { // 4.6.112 REV16, T1 encoding (pg 4-237)
     out_inst.type = inst_type::BYTE_REV_PACKED_HALF;
-    out_inst.i.byte_rev_packed_half = { .d = u8(w0 & 7u), .m = u8((w0 >> 3u) & 7u) };
+    out_inst.d = u8(w0 & 7u);
+    out_inst.i.byte_rev_packed_half = { .m = u8((w0 >> 3u) & 7u) };
     return true;
   }
 
   if ((w0 & 0xFFC0u) == 0xBAC0u) { // 4.6.113 REVSH, T1 encoding (pg 4-239)
     out_inst.type = inst_type::BYTE_REV_SIGNED_HALF;
-    out_inst.i.byte_rev_signed_half = { .d = u8(w0 & 7u), .m = u8((w0 >> 3u) & 7u) };
+    out_inst.d = u8(w0 & 7u);
+    out_inst.i.byte_rev_signed_half = { .m = u8((w0 >> 3u) & 7u) };
     return true;
   }
 
@@ -747,7 +750,8 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
       return true;
     }
     out_inst.type = inst_type::BITFIELD_INSERT;
-    out_inst.i.bitfield_insert = { .d = d, .n = n, .msbit = msbit, .lsbit = imm5 };
+    out_inst.d = d;
+    out_inst.i.bitfield_insert = { .n = n, .msbit = msbit, .lsbit = imm5 };
     return true;
   }
 
@@ -1881,6 +1885,7 @@ u32 inst_align(u32 val, u32 align) { // Rounding and Aligning, A-16
 bool inst_decode(byte const *text, u32 func_addr, u32 pc_addr, inst& out_inst) {
   out_inst.type = inst_type::UNKNOWN;
   out_inst.addr = func_addr + pc_addr;
+  out_inst.d = 0xFFFF;
   out_inst.w1 = 0;
 
   memcpy(&out_inst.w0, &text[pc_addr], 2);
@@ -1979,7 +1984,7 @@ void inst_print(inst const& i) {
 
     case inst_type::BITFIELD_INSERT: {
       auto const& b{i.i.bitfield_insert};
-      NL_LOG_DBG("BFI %s, %s, #%d, #%d", s_rn[b.d], s_rn[b.n], int(b.lsbit),
+      NL_LOG_DBG("BFI %s, %s, #%d, #%d", s_rn[i.d], s_rn[b.n], int(b.lsbit),
         int(b.msbit - b.lsbit));
     } break;
 
@@ -1994,35 +1999,29 @@ void inst_print(inst const& i) {
       NL_LOG_DBG("BL #%d (%x)", unsigned(b.imm), unsigned(b.addr));
     } break;
 
-    case inst_type::BRANCH_LINK_XCHG_REG: {
-      auto const& b{i.i.branch_link_xchg_reg};
-      NL_LOG_DBG("BLX %s", s_rn[b.reg]);
-    } break;
+    case inst_type::BRANCH_LINK_XCHG_REG:
+      NL_LOG_DBG("BLX %s", s_rn[i.i.branch_link_xchg_reg.reg]);
+      break;
 
-    case inst_type::BRANCH_XCHG: {
-      auto const& b{i.i.branch_xchg};
-      NL_LOG_DBG("BX %s", s_rn[int(b.m)]);
-    } break;
+    case inst_type::BRANCH_XCHG:
+      NL_LOG_DBG("BX %s", s_rn[int(i.i.branch_xchg.m)]);
+      break;
 
-    case inst_type::BREAKPOINT: {
-      auto const& b{i.i.breakpoint};
-      NL_LOG_DBG("BKPT 0x%04hx", b.imm);
-    } break;
+    case inst_type::BREAKPOINT:
+      NL_LOG_DBG("BKPT 0x%04hx", i.i.breakpoint.imm);
+      break;
 
-    case inst_type::BYTE_REV_PACKED_HALF: {
-      auto const& b{i.i.byte_rev_packed_half};
-      NL_LOG_DBG("REV16 %s, %s", s_rn[b.d], s_rn[b.m]);
-    } break;
+    case inst_type::BYTE_REV_PACKED_HALF:
+      NL_LOG_DBG("REV16 %s, %s", s_rn[i.d], s_rn[i.i.byte_rev_packed_half.m]);
+      break;
 
-    case inst_type::BYTE_REV_SIGNED_HALF: {
-      auto const& b{i.i.byte_rev_signed_half};
-      NL_LOG_DBG("REVSH %s, %s", s_rn[b.d], s_rn[b.m]);
-    } break;
+    case inst_type::BYTE_REV_SIGNED_HALF:
+      NL_LOG_DBG("REVSH %s, %s", s_rn[i.d], s_rn[i.i.byte_rev_signed_half.m]);
+      break;
 
-    case inst_type::BYTE_REV_WORD: {
-      auto const& b{i.i.byte_rev_word};
-      NL_LOG_DBG("REV %s, %s", s_rn[b.d], s_rn[b.m]);
-    } break;
+    case inst_type::BYTE_REV_WORD:
+      NL_LOG_DBG("REV %s, %s", s_rn[i.d], s_rn[i.i.byte_rev_word.m]);
+      break;
 
     case inst_type::CBNZ: {
       auto const& c{i.i.cmp_branch_nz};

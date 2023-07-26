@@ -57,15 +57,15 @@ struct imm_shift { imm_shift_type t; u8 n; };
   X(BITFIELD_CLEAR, bitfield_clear, { u8 d, msbit, lsbit; }) \
   X(BITFIELD_EXTRACT_UNSIGNED, bitfield_extract_unsigned, { u8 n, lsbit, widthminus1; }) \
   X(BITFIELD_EXTRACT_SIGNED, bitfield_extract_signed, { u8 n, lsbit, widthminus1; }) \
-  X(BITFIELD_INSERT, bitfield_insert, { u8 d, n, msbit, lsbit; }) \
+  X(BITFIELD_INSERT, bitfield_insert, { u8 n, msbit, lsbit; }) \
   X(BRANCH, branch, { u32 imm; u32 addr; cond_code cc; }) \
   X(BRANCH_LINK, branch_link, { u32 imm, addr; }) \
   X(BRANCH_LINK_XCHG_REG, branch_link_xchg_reg, { u8 reg; }) \
   X(BRANCH_XCHG, branch_xchg, { u8 m; }) \
   X(BREAKPOINT, breakpoint, { u16 imm; }) \
-  X(BYTE_REV_PACKED_HALF, byte_rev_packed_half, { u8 d, m; }) \
-  X(BYTE_REV_SIGNED_HALF, byte_rev_signed_half, { u8 d, m; }) \
-  X(BYTE_REV_WORD, byte_rev_word, { u8 d, m; }) \
+  X(BYTE_REV_PACKED_HALF, byte_rev_packed_half, { u8 m; }) \
+  X(BYTE_REV_SIGNED_HALF, byte_rev_signed_half, { u8 m; }) \
+  X(BYTE_REV_WORD, byte_rev_word, { u8 m; }) \
   X(CBNZ, cmp_branch_nz, { u32 addr; u8 n, imm; }) \
   X(CBZ, cmp_branch_z, { u32 addr; u8 n, imm; }) \
   X(CHANGE_PROC_STATE, change_proc_state, { u8 en, dis, cm, aff_a, aff_i, aff_f; }) \
