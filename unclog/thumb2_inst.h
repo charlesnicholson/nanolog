@@ -101,7 +101,7 @@ struct imm_shift { imm_shift_type t; u8 n; };
   X(LOAD_LIT, load_lit, { u32 imm, addr; u8 t, add; }) \
   X(LOAD_MULT_DEC_BEFORE, load_mult_dec_before, { u16 regs; u8 n, wback; }) \
   X(LOAD_MULT_INC_AFTER, load_mult_inc_after, { u16 regs; u8 n, wback; }) \
-  X(LOAD_REG, load_reg, { imm_shift shift; u8 t, n, m; }) \
+  X(LOAD_REG, load_reg, { imm_shift shift; u8 n, m; }) \
   X(LSHIFT_LOG_IMM, lshift_log_imm, { imm_shift shift; u8 d, m; }) \
   X(LSHIFT_LOG_REG, lshift_log_reg, { u8 d, n, m; }) \
   X(MOV_REG, mov_reg, { u8 d, m; }) \

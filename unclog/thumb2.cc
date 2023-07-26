@@ -338,14 +338,14 @@ simulate_results simulate(inst const& i,
 
     case inst_type::LOAD_REG: {
       auto const& ldr{i.i.load_reg};
-      if (ldr.t == reg::PC) {
+      if (i.d == reg::PC) {
         return process_ldr_pc_jump_table(i, path, fs);
       } else {
-        bool const known{union_reg_known(path.rs.known, ldr.t, ldr.n, ldr.m)};
+        bool const known{union_reg_known(path.rs.known, u8(i.d), ldr.n, ldr.m)};
         u32 const addr{u32(path.rs.regs[ldr.n] + (path.rs.regs[ldr.m] << ldr.shift.n))};
         if (known && address_in_func(addr, fs)) {
           unsigned const ofs{fs.func_ofs + (addr - fs.func_start)};
-          memcpy(&path.rs.regs[ldr.t], &fs.e.bytes[ofs], 4);
+          memcpy(&path.rs.regs[i.d], &fs.e.bytes[ofs], 4);
         }
       }
     } break;
