@@ -75,8 +75,8 @@ struct imm_shift { imm_shift_type t; u8 n; };
   X(COUNT_LEADING_ZEROS, count_leading_zeros, { u8 m; }) \
   X(DIV_SIGNED, div_signed, { u8 n, m; }) \
   X(DIV_UNSIGNED, div_unsigned, { u8 n, m; }) \
-  X(EXCL_OR_IMM, excl_or_imm, { u32 imm; u8 d, n; }) \
-  X(EXCL_OR_REG, excl_or_reg, { imm_shift shift; u8 d, n, m; }) \
+  X(EXCL_OR_IMM, excl_or_imm, { u32 imm; u8 n; }) \
+  X(EXCL_OR_REG, excl_or_reg, { imm_shift shift; u8 n, m; }) \
   X(EXTEND_ADD_SIGNED_BYTE, extend_add_signed_byte, { u8 d, n, m, rotation; }) \
   X(EXTEND_ADD_SIGNED_HALF, extend_add_signed_half, { u8 d, n, m, rotation; }) \
   X(EXTEND_ADD_UNSIGNED_BYTE, extend_add_unsigned_byte, { u8 d, n, m, rotation; }) \

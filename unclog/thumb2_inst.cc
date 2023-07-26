@@ -263,7 +263,8 @@ bool decode_16bit_inst(u16 const w0, inst& out_inst) {
   if ((w0 & 0xFFC0u) == 0x4040u) { // 4.6.37 EOR (reg), T1 encoding (pg 4-88)
     u8 const rdn{u8(w0 & 7u)};
     out_inst.type = inst_type::EXCL_OR_REG;
-    out_inst.i.excl_or_reg = { .shift = decode_imm_shift(0b00, 0), .d = rdn, .n = rdn,
+    out_inst.d = rdn;
+    out_inst.i.excl_or_reg = { .shift = decode_imm_shift(0b00, 0), .n = rdn,
       .m = u8((w0 >> 3u) & 7u) };
     return true;
   }
@@ -803,7 +804,8 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
       return true;
     }
     out_inst.type = inst_type::EXCL_OR_IMM;
-    out_inst.i.excl_or_imm = { .imm = imm, .d = d, .n = n };
+    out_inst.d = d;
+    out_inst.i.excl_or_imm = { .imm = imm, .n = n };
     return true;
   }
 
@@ -817,7 +819,8 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
       return true;
     }
     out_inst.type = inst_type::EXCL_OR_REG;
-    out_inst.i.excl_or_reg = { .shift = shift, .d = d, .n = n, .m = m };
+    out_inst.d = d;
+    out_inst.i.excl_or_reg = { .shift = shift, .n = n, .m = m };
     return true;
   }
 
@@ -2072,12 +2075,12 @@ void inst_print(inst const& i) {
 
     case inst_type::EXCL_OR_IMM: {
       auto const& e{i.i.excl_or_imm};
-      NL_LOG_DBG("EOR_IMM %s, %s, #%d", s_rn[e.d], s_rn[e.n], int(e.imm));
+      NL_LOG_DBG("EOR_IMM %s, %s, #%d", s_rn[i.d], s_rn[e.n], int(e.imm));
     } break;
 
     case inst_type::EXCL_OR_REG: {
       auto const& e{i.i.excl_or_reg};
-      NL_LOG_DBG("EOR_REG %s, %s, %s, <%s #%d>", s_rn[e.d], s_rn[e.n], s_rn[e.m],
+      NL_LOG_DBG("EOR_REG %s, %s, %s, <%s #%d>", s_rn[i.d], s_rn[e.n], s_rn[e.m],
         s_sn[int(e.shift.t)], int(e.shift.n));
     } break;
 
