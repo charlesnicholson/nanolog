@@ -161,15 +161,17 @@ bool decode_16bit_inst(u16 const w0, inst& out_inst) {
 
   if ((w0 & 0xF800) == 0x1000u) { // 4.6.10 ASR (imm), T1 encoding (pg 4-34)
     out_inst.type = inst_type::RSHIFT_ARITH_IMM;
+    out_inst.dr = u16(1u << (w0 & 7u));
     out_inst.i.rshift_arith_imm = { .shift = decode_imm_shift(0b10, (w0 >> 6u) & 0x1Fu),
-      .d = u8(w0 & 7u), .m = u8((w0 >> 3u) & 7u) };
+      .m = u8((w0 >> 3u) & 7u) };
     return true;
   }
 
   if ((w0 & 0xFFC0u) == 0x4100u) { // 4.6.11 ASR (reg), T1 encoding (pg 4-36)
     u8 const dn{u8(w0 & 7u)};
     out_inst.type = inst_type::RSHIFT_ARITH_REG;
-    out_inst.i.rshift_arith_reg = { .d = dn, .n = dn, .m = u8((w0 >> 3u) & 7u) };
+    out_inst.dr = u16(1u << dn);
+    out_inst.i.rshift_arith_reg = { .n = dn, .m = u8((w0 >> 3u) & 7u) };
     return true;
   }
 
@@ -394,15 +396,17 @@ bool decode_16bit_inst(u16 const w0, inst& out_inst) {
 
   if ((w0 & 0xF800u) == 0x800u) { // 4.6.70 LSR (imm), T1 encoding (pg 4-154)
     out_inst.type = inst_type::RSHIFT_LOG_IMM;
+    out_inst.dr = u16(1u << (w0 & 7u));
     out_inst.i.rshift_log_imm = { .shift = decode_imm_shift(0b01, u8((w0 >> 6u) & 0x1Fu)),
-      .d = u8(w0 & 7u), .m = u8((w0 >> 3u) & 7u) };
+      .m = u8((w0 >> 3u) & 7u) };
     return true;
   }
 
   if ((w0 & 0xFFC0u) == 0x40C0u) { // 4.6.71 LSR (reg), T1 encoding (pg 4-156)
     u8 const rdn{u8(w0 & 7u)};
     out_inst.type = inst_type::RSHIFT_LOG_REG;
-    out_inst.i.rshift_log_reg = { .d = rdn, .n = rdn, .m = u8((w0 >> 3u) & 7u) };
+    out_inst.dr = u16(1u << rdn);
+    out_inst.i.rshift_log_reg = { .n = rdn, .m = u8((w0 >> 3u) & 7u) };
     return true;
   }
 
@@ -727,9 +731,9 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
   if (((w0 & 0xFFEFu) == 0xEA4Fu) && ((w1 & 0x30u) == 0x20u)) {
     u8 const imm3{u8((w1 >> 12u) & 7u)}, imm2{u8((w1 >> 6u) & 3u)};
     out_inst.type = inst_type::RSHIFT_ARITH_IMM;
+    out_inst.dr = u16(1u << ((w1 >> 8u) & 7u));
     out_inst.i.rshift_arith_imm = {
-      .shift = decode_imm_shift(0b10, u8((imm3 << 2u) | imm2)),
-      .d = u8((w1 >> 8u) & 7u), .m = u8(w1 & 0xFu) };
+      .shift = decode_imm_shift(0b10, u8((imm3 << 2u) | imm2)), .m = u8(w1 & 0xFu) };
     return true;
   }
 
@@ -1165,9 +1169,9 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
   if (((w0 & 0xFFEFu) == 0xEA4Fu) && ((w1 & 0x30u) == 0x10u)) {
     u8 const imm3{u8((w1 >> 12u) & 7u)}, imm2{u8((w1 >> 6u) & 7u)};
     out_inst.type = inst_type::RSHIFT_LOG_IMM;
-    out_inst.i.rshift_log_imm = {
-      .shift = decode_imm_shift(0b01, u8((imm3 << 2u) | imm2)),
-      .d = u8((w1 >> 8u) & 0xFu), .m = u8(w1 & 0xFu) };
+    out_inst.dr = u16(1u << ((w1 >> 8u) & 0xFu));
+    out_inst.i.rshift_log_imm = { .shift = decode_imm_shift(0b01, u8((imm3 << 2u) | imm2)),
+      .m = u8(w1 & 0xFu) };
     return true;
   }
 
@@ -2441,22 +2445,22 @@ void inst_print(inst const& i) {
 
     case inst_type::RSHIFT_ARITH_IMM: {
       auto const& r{i.i.rshift_arith_imm};
-      NL_LOG_DBG("ASR_IMM %s, %s, #%d", s_rn[r.d], s_rn[r.m], int(r.shift.n));
+      NL_LOG_DBG("ASR_IMM %s, %s, #%d", rn_mask(i.dr), s_rn[r.m], int(r.shift.n));
     } break;
 
     case inst_type::RSHIFT_ARITH_REG: {
       auto const& r{i.i.rshift_arith_reg};
-      NL_LOG_DBG("ASR_REG %s, %s, %s", s_rn[r.d], s_rn[r.n], s_rn[r.m]);
+      NL_LOG_DBG("ASR_REG %s, %s, %s", rn_mask(i.dr), s_rn[r.n], s_rn[r.m]);
     } break;
 
     case inst_type::RSHIFT_LOG_IMM: {
       auto const& r{i.i.rshift_log_imm};
-      NL_LOG_DBG("LSR_IMM %s, %s, #%d", s_rn[r.d], s_rn[r.m], int(r.shift.n));
+      NL_LOG_DBG("LSR_IMM %s, %s, #%d", rn_mask(i.dr), s_rn[r.m], int(r.shift.n));
     } break;
 
     case inst_type::RSHIFT_LOG_REG: {
       auto const& r{i.i.rshift_log_reg};
-      NL_LOG_DBG("LSR_REG %s, %s, %s", s_rn[r.d], s_rn[r.m], s_rn[r.n]);
+      NL_LOG_DBG("LSR_REG %s, %s, %s", rn_mask(i.dr), s_rn[r.m], s_rn[r.n]);
     } break;
 
     case inst_type::SATURATE_UNSIGNED: {
