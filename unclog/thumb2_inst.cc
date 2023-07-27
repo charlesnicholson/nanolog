@@ -286,6 +286,7 @@ bool decode_16bit_inst(u16 const w0, inst& out_inst) {
     u16 const regs{u16(w0 & 0xFFu)};
     u8 const n{u8((w0 >> 8u) & 7u)};
     out_inst.type = inst_type::LOAD_MULT_INC_AFTER;
+    out_inst.dr = regs;
     out_inst.i.load_mult_inc_after = { .regs = regs, .n = n, .wback = !(regs & (1u << n)) };
     return true;
   }
@@ -835,15 +836,19 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
   }
 
   if ((w0 & 0xFFD0u) == 0xE910u) {
+    u16 const regs{u16(w1 & 0xDFFu)};
     out_inst.type = inst_type::LOAD_MULT_DEC_BEFORE;
-    out_inst.i.load_mult_dec_before = { .regs = u16(w1 & 0xDFFu), .n = u8(w0 & 0xFu),
+    out_inst.dr = regs;
+    out_inst.i.load_mult_dec_before = { .regs = regs, .n = u8(w0 & 0xFu),
       .wback = u8((w0 >> 5u) & 1u) };
     return true;
   }
 
   if ((w0 & 0xFFD0u) == 0xE890u) { // 4.6.42 LDMIA, T2 encoding (pg 4-98)
+    u16 const regs{u16(w1 & 0x1FFFu)};
     out_inst.type = inst_type::LOAD_MULT_INC_AFTER;
-    out_inst.i.load_mult_inc_after = { .regs = u16(w1 & 0xDFFFu), .n = u8(w0 & 0xFu),
+    out_inst.dr = regs;
+    out_inst.i.load_mult_inc_after = { .regs = regs, .n = u8(w0 & 0xFu),
       .wback = u8((w0 >> 5u) & 1u) };
     return true;
   }
@@ -960,9 +965,11 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
         return false;
       }
     }
+    u8 const t{u8((w1 >> 12u) & 0xFu)}, t2{u8((w1 >> 8u) & 0xFu)};
     out_inst.type = inst_type::LOAD_DBL_REG;
-    out_inst.i.load_dbl_reg = { .imm = u16((w1 & 0xFFu) << 2u), .t = u8((w1 >> 12u) & 0xFu),
-      .t2 = u8((w1 >> 8u) & 0xFu), .n = u8(w0 & 0xFu), .index = p, .add = u };
+    out_inst.dr = u16((1u << t) | (1u << t2));
+    out_inst.i.load_dbl_reg = { .imm = u16((w1 & 0xFFu) << 2u), .t = t, .t2 = t2,
+      .n = u8(w0 & 0xFu), .index = p, .add = u };
     return true;
   }
 
