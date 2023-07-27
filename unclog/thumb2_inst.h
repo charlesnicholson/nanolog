@@ -142,13 +142,13 @@ struct imm_shift { imm_shift_type t; u8 n; };
   X(STORE_MULT_DEC_BEFORE, store_mult_dec_before, { u16 regs; u8 n; }) \
   X(STORE_MULT_INC_AFTER, store_mult_inc_after, { u16 regs; u8 n, wback; }) \
   X(STORE_REG, store_reg, { imm_shift shift; u8 t, n, m; }) \
-  X(SUB_IMM, sub_imm, { u32 imm; u8 d, n; }) \
-  X(SUB_IMM_CARRY, sub_imm_carry, { u32 imm; u8 d, n; }) \
-  X(SUB_REG, sub_reg, { imm_shift shift; u8 d, n, m; }) \
-  X(SUB_REG_CARRY, sub_reg_carry, { imm_shift shift; u8 d, n, m; }) \
-  X(SUB_REV_IMM, sub_rev_imm, { u32 imm; u8 d, n; }) \
-  X(SUB_REV_REG, sub_rev_reg, { imm_shift shift; u8 d, n, m; }) \
-  X(SUB_SP_IMM, sub_sp_imm, { u32 imm; u8 d; }) \
+  X(SUB_IMM, sub_imm, { u32 imm; u8 n; }) \
+  X(SUB_IMM_CARRY, sub_imm_carry, { u32 imm; u8 n; }) \
+  X(SUB_REG, sub_reg, { imm_shift shift; u8 n, m; }) \
+  X(SUB_REG_CARRY, sub_reg_carry, { imm_shift shift; u8 n, m; }) \
+  X(SUB_REV_IMM, sub_rev_imm, { u32 imm; u8 n; }) \
+  X(SUB_REV_REG, sub_rev_reg, { imm_shift shift; u8 n, m; }) \
+  X(SUB_SP_IMM, sub_sp_imm, { u32 imm; }) \
   X(SVC, svc, { u32 imm; }) \
   X(TABLE_BRANCH_BYTE, table_branch_byte, { u8 n, m; }) \
   X(TABLE_BRANCH_HALF, table_branch_half, { u8 n, m; }) \

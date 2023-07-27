@@ -396,28 +396,31 @@ simulate_results simulate(inst const& i,
       break;
 
     case inst_type::SUB_REV_IMM: {
+      int const dst_reg{inst_reg_from_bitmask(i.dr)};
       auto const& sub{i.i.sub_rev_imm};
-      path.rs.regs[sub.d] = sub.imm - path.rs.regs[sub.n];
-      reg_copy_known(path.rs.known, sub.d, sub.n);
+      path.rs.regs[dst_reg] = sub.imm - path.rs.regs[sub.n];
+      reg_copy_known(path.rs.known, u8(dst_reg), sub.n);
       reg_muts.emplace_back(reg_mut_node(i, path.rs.mut_node_idxs[sub.n]));
-      path.rs.mut_node_idxs[sub.d] = u32(reg_muts.size() - 1u);
+      path.rs.mut_node_idxs[dst_reg] = u32(reg_muts.size() - 1u);
     } break;
 
     case inst_type::SUB_IMM: {
+      int const dst_reg{inst_reg_from_bitmask(i.dr)};
       auto const& sub{i.i.sub_imm};
-      path.rs.regs[sub.d] = path.rs.regs[sub.n] - sub.imm;
-      reg_copy_known(path.rs.known, sub.d, sub.n);
+      path.rs.regs[dst_reg] = path.rs.regs[sub.n] - sub.imm;
+      reg_copy_known(path.rs.known, u8(dst_reg), sub.n);
       reg_muts.emplace_back(reg_mut_node(i, path.rs.mut_node_idxs[sub.n]));
-      path.rs.mut_node_idxs[sub.d] = u32(reg_muts.size() - 1u);
+      path.rs.mut_node_idxs[dst_reg] = u32(reg_muts.size() - 1u);
     } break;
 
     case inst_type::SUB_REG: {
+      int const dst_reg{inst_reg_from_bitmask(i.dr)};
       auto const& sub{i.i.sub_reg};
-      path.rs.regs[sub.d] = path.rs.regs[sub.n] - path.rs.regs[sub.m]; // shift
-      reg_intersect_known(path.rs.known, sub.d, sub.n, sub.m);
+      path.rs.regs[dst_reg] = path.rs.regs[sub.n] - path.rs.regs[sub.m]; // shift
+      reg_intersect_known(path.rs.known, u8(dst_reg), sub.n, sub.m);
       reg_muts.emplace_back(
         reg_mut_node(i, path.rs.mut_node_idxs[sub.n], path.rs.mut_node_idxs[sub.m]));
-      path.rs.mut_node_idxs[sub.d] = u32(reg_muts.size() - 1u);
+      path.rs.mut_node_idxs[dst_reg] = u32(reg_muts.size() - 1u);
     } break;
 
     case inst_type::TABLE_BRANCH_HALF: {

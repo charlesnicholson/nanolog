@@ -485,14 +485,16 @@ bool decode_16bit_inst(u16 const w0, inst& out_inst) {
 
   if ((w0 & 0xFFC0u) == 0x4240u) { // 4.6.118 RSB (imm), T1 encoding (pg 4-249)
     out_inst.type = inst_type::SUB_REV_IMM;
-    out_inst.i.sub_rev_imm = { .imm = 0, .d = u8(w0 & 7u), .n = u8((w0 >> 3u) & 7u) };
+    out_inst.dr = u16(1u << (w0 & 7u));
+    out_inst.i.sub_rev_imm = { .imm = 0, .n = u8((w0 >> 3u) & 7u) };
     return true;
   }
 
   if ((w0 & 0xFFC0u) == 0x4180u) { // 4.6.124 SBC (reg), T1 encoding (pg 4-261)
     u8 const rdn{u8(w0 & 7u)};
     out_inst.type = inst_type::SUB_REG_CARRY;
-    out_inst.i.sub_reg_carry = { .shift = decode_imm_shift(0b00, 0), .d = rdn, .n = rdn,
+    out_inst.dr = u16(1u << rdn);
+    out_inst.i.sub_reg_carry = { .shift = decode_imm_shift(0, 0), .n = rdn,
       .m = u8((w0 >> 3u) & 7u) };
     return true;
   }
@@ -555,28 +557,30 @@ bool decode_16bit_inst(u16 const w0, inst& out_inst) {
 
   if ((w0 & 0xFE00u) == 0x1E00u) { // 4.6.176 SUB (imm), T1 encoding (pg 4-365)
     out_inst.type = inst_type::SUB_IMM;
-    out_inst.i.sub_imm = { .imm = (w0 >> 6u) & 7u, .d = u8(w0 & 7u),
-      .n = u8((w0 >> 3u) & 7u) };
+    out_inst.dr = u16(1u << (w0 & 7u));
+    out_inst.i.sub_imm = { .imm = (w0 >> 6u) & 7u, .n = u8((w0 >> 3u) & 7u) };
     return true;
   }
 
   if ((w0 & 0xF800u) == 0x3800u) { // 4.6.176 SUB (imm), T2 encoding (pg 4-365)
     out_inst.type = inst_type::SUB_IMM;
-    out_inst.i.sub_imm = { .imm = w0 & 0xFFu, .d = u8((w0 >> 8u) & 7u),
-      .n = u8((w0 >> 8u) & 7u) };
+    out_inst.dr = u16(1u << ((w0 >> 8u) & 7u));
+    out_inst.i.sub_imm = { .imm = w0 & 0xFFu, .n = u8((w0 >> 8u) & 7u) };
     return true;
   }
 
   if ((w0 & 0xFE00u) == 0x1A00u) { // 4.6.177 SUB (reg), T1 encoding (pg 4-367)
     out_inst.type = inst_type::SUB_REG;
-    out_inst.i.sub_reg = { .shift = decode_imm_shift(0b00, 0),
-      .d = u8(w0 & 7u), .n = u8((w0 >> 3u) & 7u), .m = u8((w0 >> 6u) & 7u) };
+    out_inst.dr = u16(1u << (w0 & 7u));
+    out_inst.i.sub_reg = { .shift = decode_imm_shift(0, 0), .n = u8((w0 >> 3u) & 7u),
+      .m = u8((w0 >> 6u) & 7u) };
     return true;
   }
 
   if ((w0 & 0xFF80u) == 0xB080u) { // 4.6.178 SUB (SP - imm), T1 encoding (pg 4-369)
     out_inst.type = inst_type::SUB_SP_IMM;
-    out_inst.i.sub_sp_imm = { .imm = (w0 & 0x7Fu) << 2u, .d = u8(13u) };
+    out_inst.dr = u16(1u << 13);
+    out_inst.i.sub_sp_imm = { .imm = (w0 & 0x7Fu) << 2u };
     return true;
   }
 
@@ -1310,8 +1314,9 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
   if (((w0 & 0xFBE0u) == 0xF1C0u) && ((w1 & 0x8000u) == 0)) {
     u32 const imm8{w1 & 0xFFu}, imm3{(w1 >> 12u) & 7u}, i{(w0 >> 10u) & 1u};
     out_inst.type = inst_type::SUB_REV_IMM;
+    out_inst.dr = u16(1u << ((w1 >> 8u) & 0xFu));
     out_inst.i.sub_rev_imm = { .imm = decode_imm12((i << 11u) | (imm3 << 8u) | imm8),
-      .d = u8((w1 >> 8u) & 0xFu), .n = u8(w0 & 0xFu) };
+      .n = u8(w0 & 0xFu) };
     return true;
   }
 
@@ -1319,8 +1324,9 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
     u8 const imm2{u8((w1 >> 6u) & 3u)}, imm3{u8((w1 >> 12u) & 7u)},
       imm{u8((imm3 << 2u) | imm2)};
     out_inst.type = inst_type::SUB_REV_REG;
+    out_inst.dr = u16(1u << ((w1 >> 8u) & 0xFu));
     out_inst.i.sub_rev_reg = { .shift = decode_imm_shift(u8((w1 >> 4u) & 3u), imm),
-      .d = u8((w1 >> 8u) & 0xFu), .n = u8(w0 & 0xFu), .m = u8(w1 & 0xFu) };
+      .n = u8(w0 & 0xFu), .m = u8(w1 & 0xFu) };
     return true;
   }
 
@@ -1328,8 +1334,8 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
   if (((w0 & 0xFBE0u) == 0xF160u) && ((w1 & 0x8000u) == 0)) {
     u32 const imm8{w1 & 0xFFu}, imm3{(w1 >> 12u) & 7u}, i{(w0 >> 10u) & 1u};
     out_inst.type = inst_type::SUB_IMM_CARRY;
-    out_inst.i.sub_imm_carry = {
-      .imm = decode_imm12((i << 11u) | (imm3 << 8u) | imm8), .d = u8((w1 >> 8u) & 0xFu),
+    out_inst.dr = u16(1u << ((w1 >> 8u) & 0xFu));
+    out_inst.i.sub_imm_carry = { .imm = decode_imm12((i << 11u) | (imm3 << 8u) | imm8),
       .n = u8(w0 & 0xFu) };
     return true;
   }
@@ -1355,9 +1361,10 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
   if ((w0 & 0xFFE0u) == 0xEB60) { // 4.6.124 SBC (reg), T2 encoding (pg 4-261)
     u32 const imm2{(w1 >> 6u) & 3u}, imm3{(w1 >> 12u) & 7u};
     out_inst.type = inst_type::SUB_REG_CARRY;
+    out_inst.dr = u16(1u << ((w1 >> 8u) & 0xFu));
     out_inst.i.sub_reg_carry = {
       .shift = decode_imm_shift(u8((w1 >> 4u) & 3u), u8((imm3 << 2u) | imm2)),
-      .d = u8((w1 >> 8u) & 0xFu), .n = u8(w0 & 0xFu), .m = u8(w1 & 0xFu) };
+      .n = u8(w0 & 0xFu), .m = u8(w1 & 0xFu) };
     return true;
   }
 
@@ -1507,7 +1514,8 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
       return false;
     }
     out_inst.type = inst_type::SUB_REG;
-    out_inst.i.sub_reg = { .shift = shift, .d = d, .n = n, .m = m };
+    out_inst.dr = u16(1u << d);
+    out_inst.i.sub_reg = { .shift = shift, .n = n, .m = m };
     return true;
   }
 
@@ -1552,11 +1560,13 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
     }
     if (n == 13) { // 4.6.178 SUB (SP minus imm), T2 encoding (pg 4-369)
       out_inst.type = inst_type::SUB_SP_IMM;
-      out_inst.i.sub_sp_imm = { .imm = imm, .d = d };
+      out_inst.dr = u16(1u << d);
+      out_inst.i.sub_sp_imm = { .imm = imm };
       return true;
     }
     out_inst.type = inst_type::SUB_IMM;
-    out_inst.i.sub_imm = { .imm = imm, .d = d, .n = n };
+      out_inst.dr = u16(1u << d);
+    out_inst.i.sub_imm = { .imm = imm, .n = n };
     return true;
   }
 
@@ -1571,11 +1581,13 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
     }
     if (n == 13) { // 4.6.178 SUB (SP minus imm), T3 encoding, (pg 4-369)
       out_inst.type = inst_type::SUB_SP_IMM;
-      out_inst.i.sub_sp_imm = { .imm = imm, .d = d };
+    out_inst.dr = u16(1u << d);
+      out_inst.i.sub_sp_imm = { .imm = imm };
       return true;
     }
     out_inst.type = inst_type::SUB_IMM;
-    out_inst.i.sub_imm = { .imm = imm, .d = d, .n = n };
+    out_inst.dr = u16(1u << d);
+    out_inst.i.sub_imm = { .imm = imm, .n = n };
     return true;
   }
 
@@ -2538,40 +2550,40 @@ void inst_print(inst const& i) {
 
     case inst_type::SUB_IMM: {
       auto const& s{i.i.sub_imm};
-      NL_LOG_DBG("SUB_IMM %s, %s, #%d", s_rn[s.d], s_rn[s.n], int(s.imm));
+      NL_LOG_DBG("SUB_IMM %s, %s, #%d", rn_mask(i.dr), s_rn[s.n], int(s.imm));
     } break;
 
     case inst_type::SUB_IMM_CARRY: {
       auto const& s{i.i.sub_imm_carry};
-      NL_LOG_DBG("SUB_IMM_CARRY %s, %s, #%d", s_rn[s.d], s_rn[s.n], int(s.imm));
+      NL_LOG_DBG("SUB_IMM_CARRY %s, %s, #%d", rn_mask(i.dr), s_rn[s.n], int(s.imm));
     } break;
 
     case inst_type::SUB_REG: {
       auto const& s{i.i.sub_reg};
-      NL_LOG_DBG("SUB_REG %s, %s, %s <%s #%u>", s_rn[s.d], s_rn[s.n], s_rn[s.m],
+      NL_LOG_DBG("SUB_REG %s, %s, %s <%s #%u>", rn_mask(i.dr), s_rn[s.n], s_rn[s.m],
         s_sn[int(s.shift.t)], unsigned(s.shift.n));
     } break;
 
     case inst_type::SUB_REG_CARRY: {
       auto const& s{i.i.sub_reg_carry};
-      NL_LOG_DBG("SUB_REG_CARRY %s, %s, %s <%s #%u>", s_rn[s.d], s_rn[s.n],
+      NL_LOG_DBG("SUB_REG_CARRY %s, %s, %s <%s #%u>", rn_mask(i.dr), s_rn[s.n],
         s_rn[s.m], s_sn[int(s.shift.t)], unsigned(s.shift.n));
     } break;
 
     case inst_type::SUB_REV_IMM: {
       auto const& s{i.i.sub_rev_imm};
-      NL_LOG_DBG("RSB_IMM %s, %s, #%d", s_rn[s.d], s_rn[s.n], int(s.imm));
+      NL_LOG_DBG("RSB_IMM %s, %s, #%d", rn_mask(i.dr), s_rn[s.n], int(s.imm));
     } break;
 
     case inst_type::SUB_REV_REG: {
       auto const& s{i.i.sub_rev_reg};
-      NL_LOG_DBG("RSB_REG %s, %s, %s, %s #%d", s_rn[s.d], s_rn[s.n], s_rn[s.m],
+      NL_LOG_DBG("RSB_REG %s, %s, %s, %s #%d", rn_mask(i.dr), s_rn[s.n], s_rn[s.m],
         s_sn[int(s.shift.t)], int(s.shift.n));
     } break;
 
     case inst_type::SUB_SP_IMM: {
       auto const& s{i.i.sub_sp_imm};
-      NL_LOG_DBG("SUB_IMM %s, %s, #%d", s_rn[s.d], s_rn[reg::SP], int(s.imm));
+      NL_LOG_DBG("SUB_IMM %s, %s, #%d", rn_mask(i.dr), s_rn[reg::SP], int(s.imm));
     } break;
 
     case inst_type::SVC: NL_LOG_DBG("SVC %x", unsigned(i.i.svc.imm)); break;
