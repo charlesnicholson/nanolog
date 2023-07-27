@@ -391,7 +391,8 @@ simulate_results simulate(inst const& i,
     } break;
 
     case inst_type::POP:
-      if (i.i.pop.reg_list & (1u << reg::PC)) { return simulate_results::TERMINATE_PATH; }
+      if (i.dr & (1u << reg::PC)) { return simulate_results::TERMINATE_PATH; }
+      path.rs.known &= ~i.dr;
       break;
 
     case inst_type::SUB_REV_IMM: {

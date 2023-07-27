@@ -449,7 +449,7 @@ bool decode_16bit_inst(u16 const w0, inst& out_inst) {
 
   if ((w0 & 0xFE00u) == 0xBC00u) { // 4.6.98 POP, T1 encoding (pg 4-209)
     out_inst.type = inst_type::POP;
-    out_inst.i.pop = { .reg_list = u16(((w0 & 0x100u) << 7) | (w0 & 0xFFu)) };
+    out_inst.dr = u16(((w0 & 0x100u) << 7) | (w0 & 0xFFu));
     return true;
   }
 
@@ -1292,7 +1292,8 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
   }
 
   if (w0 == 0xE8BDu) { // 4.6.98 POP, T2 encoding (pg 4-209)
-    out_inst.type = inst_type::POP; out_inst.i.pop = { .reg_list = uint16_t(w1 & 0xDFFFu) };
+    out_inst.dr = uint16_t(w1 & 0x1FFFu);
+    out_inst.type = inst_type::POP;
     return true;
   }
 
@@ -2420,20 +2421,16 @@ void inst_print(inst const& i) {
     } break;
 
     case inst_type::PUSH: {
-      auto const& p{i.i.push};
       NL_LOG_DBG("PUSH { ");
       for (auto b{0}; b < 16; ++b) {
-        if (p.reg_list & (1u << b)) { NL_LOG_DBG("%s ", s_rn[b]); }
+        if (i.i.push.reg_list & (1u << b)) { NL_LOG_DBG("%s ", s_rn[b]); }
       }
       NL_LOG_DBG("}");
     } break;
 
     case inst_type::POP: {
-      auto const& p{i.i.pop};
       NL_LOG_DBG("POP { ");
-      for (auto b{0}; b < 16; ++b) {
-        if (p.reg_list & (1u << b)) { NL_LOG_DBG("%s ", s_rn[b]); }
-      }
+      for (auto b{0}; b < 16; ++b) { if (i.dr & (1u << b)) { NL_LOG_DBG("%s ", s_rn[b]); } }
       NL_LOG_DBG("}");
     } break;
 
