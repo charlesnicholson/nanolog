@@ -99,8 +99,8 @@ struct imm_shift { imm_shift_type t; u8 n; };
   X(LOAD_SIGNED_HALF_REG, load_signed_half_reg, { imm_shift shift; u8 n, m; }) \
   X(LOAD_IMM, load_imm, { u16 imm; u8 n, add, index; }) \
   X(LOAD_LIT, load_lit, { u32 imm, addr; u8 add; }) \
-  X(LOAD_MULT_DEC_BEFORE, load_mult_dec_before, { u16 regs; u8 n, wback; }) \
-  X(LOAD_MULT_INC_AFTER, load_mult_inc_after, { u16 regs; u8 n, wback; }) \
+  X(LOAD_MULT_DEC_BEFORE, load_mult_dec_before, { u8 n, wback; }) \
+  X(LOAD_MULT_INC_AFTER, load_mult_inc_after, { u8 n, wback; }) \
   X(LOAD_REG, load_reg, { imm_shift shift; u8 n, m; }) \
   X(LSHIFT_LOG_IMM, lshift_log_imm, { imm_shift shift; u8 m; }) \
   X(LSHIFT_LOG_REG, lshift_log_reg, { u8 n, m; }) \

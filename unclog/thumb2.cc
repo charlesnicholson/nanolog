@@ -357,7 +357,7 @@ simulate_results simulate(inst const& i,
     } break;
 
     case inst_type::LOAD_MULT_INC_AFTER: // LDMIA SP!, { ... PC }
-      if (i.i.load_mult_inc_after.regs & (1u << reg::PC)) {
+      if (i.dr & (1u << reg::PC)) {
         return simulate_results::TERMINATE_PATH;
       }
       path.rs.known &= ~i.dr;

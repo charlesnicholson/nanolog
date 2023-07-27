@@ -289,11 +289,10 @@ bool decode_16bit_inst(u16 const w0, inst& out_inst) {
   }
 
   if ((w0 & 0xF800u) == 0xC800u) { // 4.6.42 LDMIA, T1 encoding (pg 4-98)
-    u16 const regs{u16(w0 & 0xFFu)};
     u8 const n{u8((w0 >> 8u) & 7u)};
     out_inst.type = inst_type::LOAD_MULT_INC_AFTER;
-    out_inst.dr = regs;
-    out_inst.i.load_mult_inc_after = { .regs = regs, .n = n, .wback = !(regs & (1u << n)) };
+    out_inst.dr = u16(w0 & 0xFFu);
+    out_inst.i.load_mult_inc_after = { .n = n, .wback = !(out_inst.dr & (1u << n)) };
     return true;
   }
 
@@ -852,8 +851,7 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
     u16 const regs{u16(w1 & 0x1FFFu)};
     out_inst.type = inst_type::LOAD_MULT_DEC_BEFORE;
     out_inst.dr = regs;
-    out_inst.i.load_mult_dec_before = { .regs = regs, .n = u8(w0 & 0xFu),
-      .wback = u8((w0 >> 5u) & 1u) };
+    out_inst.i.load_mult_dec_before = { .n = u8(w0 & 0xFu), .wback = u8((w0 >> 5u) & 1u) };
     return true;
   }
 
@@ -861,8 +859,7 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
     u16 const regs{u16(w1 & 0x1FFFu)};
     out_inst.type = inst_type::LOAD_MULT_INC_AFTER;
     out_inst.dr = regs;
-    out_inst.i.load_mult_inc_after = { .regs = regs, .n = u8(w0 & 0xFu),
-      .wback = u8((w0 >> 5u) & 1u) };
+    out_inst.i.load_mult_inc_after = { .n = u8(w0 & 0xFu), .wback = u8((w0 >> 5u) & 1u) };
     return true;
   }
 
@@ -2301,18 +2298,14 @@ void inst_print(inst const& i) {
     case inst_type::LOAD_MULT_DEC_BEFORE: {
       auto const& l{i.i.load_mult_dec_before};
       NL_LOG_DBG("LDMDB %s%s, { ", s_rn[l.n], l.wback ? "!" : "");
-      for (int b{0}; b < 16; ++b) {
-        if (l.regs & (1u << b)) { NL_LOG_DBG("%s ", s_rn[b]); }
-      }
+      for (int b{0}; b < 16; ++b) { if (i.dr & (1u << b)) { NL_LOG_DBG("%s ", s_rn[b]); } }
       NL_LOG_DBG("}");
     } break;
 
     case inst_type::LOAD_MULT_INC_AFTER: {
       auto const& l{i.i.load_mult_inc_after};
       NL_LOG_DBG("LDMIA %s%s, { ", s_rn[l.n], l.wback ? "!" : "");
-      for (int b{0}; b < 16; ++b) {
-        if (l.regs & (1u << b)) { NL_LOG_DBG("%s ", s_rn[b]); }
-      }
+      for (int b{0}; b < 16; ++b) { if (i.dr & (1u << b)) { NL_LOG_DBG("%s ", s_rn[b]); } }
       NL_LOG_DBG("}");
     } break;
 
