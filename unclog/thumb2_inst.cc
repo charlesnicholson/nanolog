@@ -441,8 +441,9 @@ bool decode_16bit_inst(u16 const w0, inst& out_inst) {
 
   if ((w0 & 0xFFC0) == 0x4300) { // 4.6.92 ORR (reg), T1 encoding (pg 4-197)
     out_inst.type = inst_type::OR_REG;
-    out_inst.i.or_reg = { .shift = decode_imm_shift(0b00, 0), .d = u8(w0 & 7u),
-      .n = u8(w0 & 7u), .m = u8((w0 >> 3u) & 7u) };
+    out_inst.dr = u16(1u << (w0 & 7u));
+    out_inst.i.or_reg = { .shift = decode_imm_shift(0b00, 0), .n = u8(w0 & 7u),
+      .m = u8((w0 >> 3u) & 7u) };
     return true;
   }
 
@@ -1241,7 +1242,8 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
       return true;
     }
     out_inst.type = inst_type::OR_NOT_REG;
-    out_inst.i.or_not_reg = { .shift = shift, .d = d, .n = n, .m = m };
+    out_inst.dr = u16(1u << d);
+    out_inst.i.or_not_reg = { .shift = shift, .n = n, .m = m };
     return true;
   }
 
@@ -1257,7 +1259,8 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
       return true;
     }
     out_inst.type = inst_type::OR_IMM;
-    out_inst.i.or_imm = { .imm = imm, .d = d, .n = n };
+    out_inst.dr = u16(1u << d);
+    out_inst.i.or_imm = { .imm = imm, .n = n };
     return true;
   }
 
@@ -1272,7 +1275,8 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
       return true;
     }
     out_inst.type = inst_type::OR_REG;
-    out_inst.i.or_reg = { .shift = shift, .d = d, .n = n, .m = m };
+    out_inst.dr = u16(1u << d);
+    out_inst.i.or_reg = { .shift = shift, .n = n, .m = m };
     return true;
   }
 
@@ -2393,18 +2397,18 @@ void inst_print(inst const& i) {
 
     case inst_type::OR_NOT_REG: {
       auto const& o{i.i.or_not_reg};
-      NL_LOG_DBG("ORN_REG %s, %s, %s, %s #%d", s_rn[o.d], s_rn[o.n], s_rn[o.m],
+      NL_LOG_DBG("ORN_REG %s, %s, %s, %s #%d", rn_mask(i.dr), s_rn[o.n], s_rn[o.m],
         s_sn[int(o.shift.t)], int(o.shift.n));
     } break;
 
     case inst_type::OR_IMM: {
       auto const& o{i.i.or_imm};
-      NL_LOG_DBG("ORR_IMM %s, %s, #%d", s_rn[o.d], s_rn[o.n], int(o.imm));
+      NL_LOG_DBG("ORR_IMM %s, %s, #%d", rn_mask(i.dr), s_rn[o.n], int(o.imm));
     } break;
 
     case inst_type::OR_REG: {
       auto const& o{i.i.or_reg};
-      NL_LOG_DBG("ORR_REG %s, %s, %s <%s #%d>", s_rn[o.d], s_rn[o.n], s_rn[o.m],
+      NL_LOG_DBG("ORR_REG %s, %s, %s <%s #%d>", rn_mask(i.dr), s_rn[o.n], s_rn[o.m],
         s_sn[int(o.shift.t)], int(o.shift.n));
     } break;
 
