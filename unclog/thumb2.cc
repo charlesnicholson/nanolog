@@ -81,16 +81,16 @@ bool address_in_func(u32 addr, func_state const& s) {
   return (addr >= s.func_start) && (!s.f.st_size || (addr < s.func_end));
 }
 
-bool test_reg_known(u16 regs, u8 idx) { return (regs >> idx) & 1u; }
-void mark_reg_known(u16& regs, u8 dst) { regs |= (1u << dst); }
-void clear_reg_known(u16& regs, u8 dst) { regs &= u16(~(1u << dst)); }
-void copy_reg_known(u16& regs, u8 dst, u8 src) {
-  regs = u16(regs & ~(1u << dst)) | u16(((regs >> src) & 1u) << dst);
+bool reg_test_known(u16 regs, int idx) { return regs & (1u << idx); }
+void reg_mark_known(u16& regs, int idx) { regs |= (1u << idx); }
+void reg_clear_known(u16& regs, int idx) { regs &= ~(1u << idx); }
+void reg_copy_known(u16& regs, u8 dst_idx, u8 src_idx) {
+  regs = u16(regs & ~(1u << dst_idx)) | u16(((regs >> src_idx) & 1u) << dst_idx);
 }
 
-bool union_reg_known(u16& regs, u8 dst, u8 src1, u8 src2) {
-  u16 const u{u16(u16(regs >> src1) & u16(regs >> src2) & 1u)};
-  regs = u16(regs & ~(1u << dst)) | u16(u << dst);
+bool reg_intersect_known(u16& regs, u8 dst_idx, u8 src1_idx, u8 src2_idx) {
+  u16 const u{u16(u16(regs >> src1_idx) & u16(regs >> src2_idx) & 1u)};
+  regs = u16(regs & ~(1u << dst_idx)) | u16(u << dst_idx);
   return bool(u);
 }
 
@@ -191,7 +191,7 @@ simulate_results process_ldr_pc_jump_table(inst const& i, path_state& p, func_st
 
   auto const& ldr{i.i.load_reg};
 
-  if (!test_reg_known(p.rs.known, ldr.n)) {
+  if (!reg_test_known(p.rs.known, ldr.n)) {
     NL_LOG_ERR("  Unknown PC-rel load, stopping\n");
     return simulate_results::FAILURE;
   }
@@ -239,29 +239,32 @@ simulate_results simulate(inst const& i,
 
   switch (i.type) {
     case inst_type::ADD_IMM: {
+      int const dst_reg{inst_reg_from_bitmask(i.dr)};
       auto const& add{i.i.add_imm};
-      path.rs.regs[i.d] = path.rs.regs[add.n] + add.imm;
-      copy_reg_known(path.rs.known, u8(i.d), add.n);
+      path.rs.regs[dst_reg] = path.rs.regs[add.n] + add.imm;
+      reg_copy_known(path.rs.known, u8(dst_reg), add.n);
       reg_muts.emplace_back(reg_mut_node(i, path.rs.mut_node_idxs[add.n]));
-      path.rs.mut_node_idxs[i.d] = u32(reg_muts.size() - 1u);
+      path.rs.mut_node_idxs[dst_reg] = u32(reg_muts.size() - 1u);
     } break;
 
     case inst_type::ADD_REG: {
+      int const dst_reg{inst_reg_from_bitmask(i.dr)};
       auto const& add{i.i.add_reg};
-      path.rs.regs[i.d] = path.rs.regs[add.n] + path.rs.regs[add.m];
-      union_reg_known(path.rs.known, u8(i.d), add.m, add.n);
+      path.rs.regs[dst_reg] = path.rs.regs[add.n] + path.rs.regs[add.m];
+      reg_intersect_known(path.rs.known, u8(dst_reg), add.m, add.n);
       reg_muts.emplace_back(reg_mut_node(i, path.rs.mut_node_idxs[add.n],
         path.rs.mut_node_idxs[add.m]));
-      path.rs.mut_node_idxs[i.d] = u32(reg_muts.size() - 1u);
+      path.rs.mut_node_idxs[dst_reg] = u32(reg_muts.size() - 1u);
     } break;
 
     case inst_type::ADR: {
+      int const dst_reg{inst_reg_from_bitmask(i.dr)};
       auto const& adr{i.i.adr};
       u32 const base{inst_align(path.rs.regs[reg::PC], 4) + 4};
-      path.rs.regs[i.d] = adr.add ? (base + adr.imm) : (base - adr.imm);
-      mark_reg_known(path.rs.known, u8(i.d));
+      path.rs.regs[dst_reg] = adr.add ? (base + adr.imm) : (base - adr.imm);
+      reg_mark_known(path.rs.known, dst_reg);
       reg_muts.emplace_back(reg_mut_node(i));
-      path.rs.mut_node_idxs[i.d] = u32(reg_muts.size() - 1u);
+      path.rs.mut_node_idxs[dst_reg] = u32(reg_muts.size() - 1u);
     } break;
 
     case inst_type::BRANCH: {
@@ -323,28 +326,32 @@ simulate_results simulate(inst const& i,
       break;
 
     case inst_type::LOAD_IMM: {
-      if (i.d == reg::PC) { return simulate_results::TERMINATE_PATH; }
-      clear_reg_known(path.rs.known, u8(i.d));
+      int const dst_reg{inst_reg_from_bitmask(i.dr)};
+      if (dst_reg == reg::PC) { return simulate_results::TERMINATE_PATH; }
+      reg_clear_known(path.rs.known, dst_reg);
     } break;
 
     case inst_type::LOAD_LIT: {
+      int const dst_reg{inst_reg_from_bitmask(i.dr)};
       auto const& ldr{i.i.load_lit};
-      memcpy(&path.rs.regs[i.d], &fs.e.bytes[fs.func_ofs + (ldr.addr - fs.func_start)], 4);
-      mark_reg_known(path.rs.known, u8(i.d));
+      memcpy(&path.rs.regs[dst_reg],
+        &fs.e.bytes[fs.func_ofs + (ldr.addr - fs.func_start)], 4);
+      reg_mark_known(path.rs.known, dst_reg);
       reg_muts.emplace_back(reg_mut_node(i));
-      path.rs.mut_node_idxs[i.d] = u32(reg_muts.size() - 1u);
+      path.rs.mut_node_idxs[dst_reg] = u32(reg_muts.size() - 1u);
     } break;
 
     case inst_type::LOAD_REG: {
+      int const dst_reg{inst_reg_from_bitmask(i.dr)};
       auto const& ldr{i.i.load_reg};
-      if (i.d == reg::PC) {
+      if (dst_reg == reg::PC) {
         return process_ldr_pc_jump_table(i, path, fs);
       } else {
-        bool const known{union_reg_known(path.rs.known, u8(i.d), ldr.n, ldr.m)};
+        bool const known{reg_intersect_known(path.rs.known, u8(dst_reg), ldr.n, ldr.m)};
         u32 const addr{u32(path.rs.regs[ldr.n] + (path.rs.regs[ldr.m] << ldr.shift.n))};
         if (known && address_in_func(addr, fs)) {
           unsigned const ofs{fs.func_ofs + (addr - fs.func_start)};
-          memcpy(&path.rs.regs[i.d], &fs.e.bytes[ofs], 4);
+          memcpy(&path.rs.regs[dst_reg], &fs.e.bytes[ofs], 4);
         }
       }
     } break;
@@ -358,7 +365,7 @@ simulate_results simulate(inst const& i,
     case inst_type::MOV_IMM: {
       auto const& mov{i.i.mov_imm};
       path.rs.regs[mov.d] = mov.imm;
-      mark_reg_known(path.rs.known, mov.d);
+      reg_mark_known(path.rs.known, mov.d);
       reg_muts.emplace_back(reg_mut_node(i));
       path.rs.mut_node_idxs[mov.d] = u32(reg_muts.size() - 1u);
     } break;
@@ -366,7 +373,7 @@ simulate_results simulate(inst const& i,
     case inst_type::MOV_NEG_IMM: {
       auto const& mvn{i.i.mov_neg_imm};
       path.rs.regs[mvn.d] = ~u32(mvn.imm);
-      mark_reg_known(path.rs.known, mvn.d);
+      reg_mark_known(path.rs.known, mvn.d);
       reg_muts.emplace_back(reg_mut_node(i));
       path.rs.mut_node_idxs[mvn.d] = u32(reg_muts.size() - 1u);
     } break;
@@ -374,7 +381,7 @@ simulate_results simulate(inst const& i,
     case inst_type::MOV_REG: {
       auto const& mov{i.i.mov_reg};
       path.rs.regs[mov.d] = path.rs.regs[mov.m];
-      copy_reg_known(path.rs.known, mov.d, mov.m);
+      reg_copy_known(path.rs.known, mov.d, mov.m);
       reg_muts.emplace_back(reg_mut_node(i, path.rs.mut_node_idxs[mov.m]));
       path.rs.mut_node_idxs[mov.d] = u32(reg_muts.size() - 1u);
     } break;
@@ -386,7 +393,7 @@ simulate_results simulate(inst const& i,
     case inst_type::SUB_REV_IMM: {
       auto const& sub{i.i.sub_rev_imm};
       path.rs.regs[sub.d] = sub.imm - path.rs.regs[sub.n];
-      copy_reg_known(path.rs.known, sub.d, sub.n);
+      reg_copy_known(path.rs.known, sub.d, sub.n);
       reg_muts.emplace_back(reg_mut_node(i, path.rs.mut_node_idxs[sub.n]));
       path.rs.mut_node_idxs[sub.d] = u32(reg_muts.size() - 1u);
     } break;
@@ -394,7 +401,7 @@ simulate_results simulate(inst const& i,
     case inst_type::SUB_IMM: {
       auto const& sub{i.i.sub_imm};
       path.rs.regs[sub.d] = path.rs.regs[sub.n] - sub.imm;
-      copy_reg_known(path.rs.known, sub.d, sub.n);
+      reg_copy_known(path.rs.known, sub.d, sub.n);
       reg_muts.emplace_back(reg_mut_node(i, path.rs.mut_node_idxs[sub.n]));
       path.rs.mut_node_idxs[sub.d] = u32(reg_muts.size() - 1u);
     } break;
@@ -402,7 +409,7 @@ simulate_results simulate(inst const& i,
     case inst_type::SUB_REG: {
       auto const& sub{i.i.sub_reg};
       path.rs.regs[sub.d] = path.rs.regs[sub.n] - path.rs.regs[sub.m]; // shift
-      union_reg_known(path.rs.known, sub.d, sub.n, sub.m);
+      reg_intersect_known(path.rs.known, sub.d, sub.n, sub.m);
       reg_muts.emplace_back(
         reg_mut_node(i, path.rs.mut_node_idxs[sub.n], path.rs.mut_node_idxs[sub.m]));
       path.rs.mut_node_idxs[sub.d] = u32(reg_muts.size() - 1u);
@@ -439,7 +446,7 @@ bool process_log_call(inst const& pc_i,
                       int sev,
                       func_state& fs,
                       func_log_call_analysis& lca) {
-  if (!test_reg_known(path.rs.known, reg::R0)) {
+  if (!reg_test_known(path.rs.known, reg::R0)) {
     NL_LOG_DBG("  Found log function, R0 is unknown\n");
     return false;
   }

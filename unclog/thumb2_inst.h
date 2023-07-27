@@ -26,7 +26,7 @@ inline bool cond_code_is_always(cond_code cc) { return cc >= cond_code::AL1; }
 namespace reg { enum reg_e : u8 { REGISTER_X_LIST() }; }
 #undef X
 
-char const *reg_name(unsigned reg);
+char const *reg_name(int reg);
 
 // Immediate Shift
 
@@ -190,7 +190,7 @@ struct inst {
   union { INST_TYPE_X_LIST() } i;
 #undef X
   u32 addr;
-  u16 d; // 0xFFFF == invalid, MSB set means dlo = [0:3], dhi = [4:7]
+  u16 dr; // bitmask of destination registers r0-r15
   u16 w0, w1;
   inst_type type;
   u8 len; // 2 or 4
@@ -200,3 +200,4 @@ bool inst_is_unconditional_branch(inst const& i, u32& label);
 u32 inst_align(u32 val, u32 align);
 bool inst_decode(byte const *text, u32 func_addr, u32 pc_addr, inst& out_inst);
 void inst_print(inst const& i);
+int inst_reg_from_bitmask(uint16_t reg_bitmask);
