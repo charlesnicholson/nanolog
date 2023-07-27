@@ -108,14 +108,14 @@ struct imm_shift { imm_shift_type t; u8 n; };
   X(MOV_IMM, mov_imm, { u32 imm; }) \
   X(MOV_NEG_IMM, mov_neg_imm, { u32 imm; }) \
   X(MOV_NEG_REG, mov_neg_reg, { imm_shift shift; u8 m; }) \
-  X(MUL, mul, { u8 d, n, m; }) \
-  X(MUL_ACCUM, mul_accum, { u8 d, n, m, a; }) \
-  X(MUL_ACCUM_SIGNED_HALF, mul_accum_signed_half, { u8 d, n, m, a, n_high, m_high; }) \
+  X(MUL, mul, { u8 n, m; }) \
+  X(MUL_ACCUM, mul_accum, { u8 n, m, a; }) \
+  X(MUL_ACCUM_SIGNED_HALF, mul_accum_signed_half, { u8 n, m, a, n_high, m_high; }) \
   X(MUL_ACCUM_SIGNED_LONG, mul_accum_signed_long, { u8 dlo, dhi, n, m; }) \
   X(MUL_ACCUM_UNSIGNED_LONG, mul_accum_unsigned_long, { u8 dlo, dhi, n, m; }) \
-  X(MUL_SIGNED_HALF, mul_signed_half, { u8 d, n, m, n_high, m_high; }) \
+  X(MUL_SIGNED_HALF, mul_signed_half, { u8 n, m, n_high, m_high; }) \
   X(MUL_SIGNED_LONG, mul_signed_long, { u8 dlo, dhi, n, m; }) \
-  X(MUL_SUB, mul_sub, { u8 d, n, m, a; }) \
+  X(MUL_SUB, mul_sub, { u8 n, m, a; }) \
   X(MUL_UNSIGNED_LONG, mul_unsigned_long, { u8 dlo, dhi, n, m; }) \
   X(NOP, nop, {}) \
   X(OR_NOT_REG, or_not_reg, { imm_shift shift; u8 d, n, m; }) \

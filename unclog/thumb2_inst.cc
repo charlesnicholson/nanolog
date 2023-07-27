@@ -422,7 +422,8 @@ bool decode_16bit_inst(u16 const w0, inst& out_inst) {
 
   if ((w0 & 0xFFC0u) == 0x4340u) { // 4.6.84 MUL, T1 encoding (pg 4-181)
     out_inst.type = inst_type::MUL;
-    out_inst.i.mul = { .d = u8(w0 & 7u), .n = u8((w0 >> 3u) & 7u), .m = u8(w0 & 7u) };
+    out_inst.dr = u16(1u << (w0 & 7u));
+    out_inst.i.mul = { .n = u8((w0 >> 3u) & 7u), .m = u8(w0 & 7u) };
     return true;
   }
 
@@ -1180,16 +1181,18 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
   // 4.6.74 MLA, T1 encoding (pg 4-162)
   if (((w0 & 0xFFF0u) == 0xFB00u) && ((w1 & 0xF0u) == 0)) {
     out_inst.type = inst_type::MUL_ACCUM;
-    out_inst.i.mul_accum = { .d = u8((w1 >> 8u) & 0xFu), .n = u8(w0 & 0xFu),
-      .m = u8(w1 & 0xFu), .a = u8((w1 >> 12u) & 0xFu) };
+    out_inst.dr = u16(1u << ((w1 >> 8u) & 0xFu));
+    out_inst.i.mul_accum = { .n = u8(w0 & 0xFu), .m = u8(w1 & 0xFu),
+      .a = u8((w1 >> 12u) & 0xFu) };
     return true;
   }
 
   // 4.6.75 MLS, T1 encoding (pg 4-164)
   if (((w0 & 0xFFF0u) == 0xFB00u) && ((w1 & 0xF0u) == 0x10u)) {
     out_inst.type = inst_type::MUL_SUB;
-    out_inst.i.mul_sub = { .d = u8((w1 >> 8u) & 0xFu), .n = u8(w0 & 0xFu),
-      .m = u8(w1 & 0xFu), .a = u8((w1 >> 12u) & 0xFu) };
+    out_inst.dr = u16(1u << ((w1 >> 8u) & 0xFu));
+    out_inst.i.mul_sub = { .n = u8(w0 & 0xFu), .m = u8(w1 & 0xFu),
+      .a = u8((w1 >> 12u) & 0xFu) };
     return true;
   }
 
@@ -1365,13 +1368,13 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
     if (a == 15) {
       // 4.6.149 SMULBB, SMULBT, SMULTB, SMULTT, T1 encoding (pg 4-311)
       out_inst.type = inst_type::MUL_SIGNED_HALF;
-      out_inst.i.mul_signed_half = { .d = d, .n = n, .m = m, .n_high = N,
-        .m_high = M };
+      out_inst.dr = u16(1u << d);
+      out_inst.i.mul_signed_half = { .n = n, .m = m, .n_high = N, .m_high = M };
       return true;
     }
     out_inst.type = inst_type::MUL_ACCUM_SIGNED_HALF;
-    out_inst.i.mul_accum_signed_half = { .d = d, .n = n, .m = m, .a = a, .n_high = N,
-      .m_high = M };
+    out_inst.dr = u16(1u << d);
+    out_inst.i.mul_accum_signed_half = { .n = n, .m = m, .a = a, .n_high = N, .m_high = M };
     return true;
   }
 
@@ -2337,18 +2340,18 @@ void inst_print(inst const& i) {
 
     case inst_type::MUL: {
       auto const& m{i.i.mul};
-      NL_LOG_DBG("MUL %s, %s, %s", s_rn[m.d], s_rn[m.n], s_rn[m.m]);
+      NL_LOG_DBG("MUL %s, %s, %s", rn_mask(i.dr), s_rn[m.n], s_rn[m.m]);
     } break;
 
     case inst_type::MUL_ACCUM: {
       auto const& m{i.i.mul_accum};
-      NL_LOG_DBG("MLA %s, %s, %s, %s", s_rn[m.d], s_rn[m.n], s_rn[m.m], s_rn[m.a]);
+      NL_LOG_DBG("MLA %s, %s, %s, %s", rn_mask(i.dr), s_rn[m.n], s_rn[m.m], s_rn[m.a]);
     } break;
 
     case inst_type::MUL_ACCUM_SIGNED_HALF: {
       auto const& m{i.i.mul_accum_signed_half};
       NL_LOG_DBG("SMLA%c%c %s, %s, %s, %s", "BT"[m.n_high], "BT"[m.m_high],
-        s_rn[m.d], s_rn[m.n], s_rn[m.m], s_rn[m.a]);
+        rn_mask(i.dr), s_rn[m.n], s_rn[m.m], s_rn[m.a]);
     } break;
 
     case inst_type::MUL_ACCUM_SIGNED_LONG: {
@@ -2363,7 +2366,7 @@ void inst_print(inst const& i) {
 
     case inst_type::MUL_SIGNED_HALF: {
       auto const& m{i.i.mul_signed_half};
-      NL_LOG_DBG("SMUL%c%c %s, %s, %s", "BT"[m.n_high], "BT"[m.m_high], s_rn[m.d],
+      NL_LOG_DBG("SMUL%c%c %s, %s, %s", "BT"[m.n_high], "BT"[m.m_high], rn_mask(i.dr),
         s_rn[m.n], s_rn[m.m]);
     } break;
 
@@ -2374,7 +2377,7 @@ void inst_print(inst const& i) {
 
     case inst_type::MUL_SUB: {
       auto const& m{i.i.mul_sub};
-      NL_LOG_DBG("MLS %s, %s, %s, %s", s_rn[m.d], s_rn[m.n], s_rn[m.m], s_rn[m.a]);
+      NL_LOG_DBG("MLS %s, %s, %s, %s", rn_mask(i.dr), s_rn[m.n], s_rn[m.m], s_rn[m.a]);
     } break;
 
     case inst_type::MUL_UNSIGNED_LONG: {
