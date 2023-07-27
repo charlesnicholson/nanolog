@@ -1367,8 +1367,8 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
   // 4.6.127 SEL, T1 encoding (4-267)
   if (((w0 & 0xFFF0u) == 0xFAA0u) && ((w1 & 0xF0F0u) == 0xF080u)) {
     out_inst.type = inst_type::SELECT_BYTES;
-    out_inst.i.select_bytes = { .d = u8((w1 >> 8u) & 0xFu), .n = u8(w0 & 0xFu),
-      .m = u8(w1 & 0xFu) };
+    out_inst.dr = u16(1u << ((w1 >> 8u) & 0xFu));
+    out_inst.i.select_bytes = { .n = u8(w0 & 0xFu), .m = u8(w1 & 0xFu) };
     return true;
   }
 
@@ -2472,7 +2472,7 @@ void inst_print(inst const& i) {
 
     case inst_type::SELECT_BYTES: {
       auto const& s{i.i.select_bytes};
-      NL_LOG_DBG("SEL %s, %s, %s", s_rn[s.d], s_rn[s.n], s_rn[s.m]);
+      NL_LOG_DBG("SEL %s, %s, %s", rn_mask(i.dr), s_rn[s.n], s_rn[s.m]);
     } break;
 
     case inst_type::STORE_BYTE_IMM: {
