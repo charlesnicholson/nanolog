@@ -121,7 +121,7 @@ struct imm_shift { imm_shift_type t; u8 n; };
   X(OR_NOT_REG, or_not_reg, { imm_shift shift; u8 n, m; }) \
   X(OR_IMM, or_imm, { u32 imm; u8 n; }) \
   X(OR_REG, or_reg, { imm_shift shift; u8 n, m; }) \
-  X(PACK_HALF, pack_half, { imm_shift shift; u8 d, n, m, tbform; }) \
+  X(PACK_HALF, pack_half, { imm_shift shift; u8 n, m, tbform; }) \
   X(PUSH, push, { u16 reg_list; }) \
   X(POP, pop, { u16 reg_list; }) \
   X(REVERSE_BITS, reverse_bits, { u8 d, m; }) \

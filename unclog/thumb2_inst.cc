@@ -1284,9 +1284,10 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
   if (((w0 & 0xFFF0u) == 0xEAC0u) && ((w1 & 0x10u) == 0)) {
     u8 const imm2{u8((w1 >> 6u) & 3u)}, imm3{u8((w1 >> 12u) & 7u)}, tb{u8((w1 >> 5u) & 1u)};
     out_inst.type = inst_type::PACK_HALF;
+    out_inst.dr = u16(1u << ((w1 >> 8u) & 0xFu));
     out_inst.i.pack_half = {
-      .shift = decode_imm_shift(u8(tb << 1u), u8((imm3 << 2u) | imm2)),
-      .d = u8((w1 >> 8u) & 0xFu), .n = u8(w0 & 0xFu), .m = u8(w1 & 0xFu), .tbform = tb };
+      .shift = decode_imm_shift(u8(tb << 1u), u8((imm3 << 2u) | imm2)), .n = u8(w0 & 0xFu),
+      .m = u8(w1 & 0xFu), .tbform = tb };
     return true;
   }
 
@@ -2414,8 +2415,8 @@ void inst_print(inst const& i) {
 
     case inst_type::PACK_HALF: {
       auto const& p{i.i.pack_half};
-      NL_LOG_DBG("PKH%s %s, %s, %s, %s #%d", p.tbform ? "TB" : "BT", s_rn[p.d], s_rn[p.n],
-        s_rn[p.m], s_sn[int(p.shift.t)], int(p.shift.n));
+      NL_LOG_DBG("PKH%s %s, %s, %s, %s #%d", p.tbform ? "TB" : "BT", rn_mask(i.dr),
+        s_rn[p.n], s_rn[p.m], s_sn[int(p.shift.t)], int(p.shift.n));
     } break;
 
     case inst_type::PUSH: {
