@@ -1,6 +1,10 @@
 #include "thumb2_inst.h"
 #include "boilerplate.h"
 
+#ifdef _MSC_VER
+#include <windows.h>
+#endif
+
 namespace {
 
 char const *cond_code_name(cond_code cc) {
