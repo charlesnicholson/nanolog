@@ -83,7 +83,7 @@ bool address_in_func(u32 addr, func_state const& s) {
 
 bool reg_test_known(u16 regs, int idx) { return regs & (1u << idx); }
 void reg_mark_known(u16& regs, int idx) { regs |= (1u << idx); }
-void reg_clear_known(u16& regs, int idx) { regs &= ~(1u << idx); }
+void reg_clear_known(u16& regs, int idx) { regs &= u16(~(1u << idx)); }
 void reg_copy_known(u16& regs, u8 dst_idx, u8 src_idx) {
   regs = u16(regs & ~(1u << dst_idx)) | u16(((regs >> src_idx) & 1u) << dst_idx);
 }
