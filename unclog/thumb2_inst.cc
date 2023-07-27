@@ -836,7 +836,7 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
   }
 
   if ((w0 & 0xFFD0u) == 0xE910u) {
-    u16 const regs{u16(w1 & 0xDFFu)};
+    u16 const regs{u16(w1 & 0x1FFFu)};
     out_inst.type = inst_type::LOAD_MULT_DEC_BEFORE;
     out_inst.dr = regs;
     out_inst.i.load_mult_dec_before = { .regs = regs, .n = u8(w0 & 0xFu),
