@@ -104,10 +104,10 @@ struct imm_shift { imm_shift_type t; u8 n; };
   X(LOAD_REG, load_reg, { imm_shift shift; u8 n, m; }) \
   X(LSHIFT_LOG_IMM, lshift_log_imm, { imm_shift shift; u8 m; }) \
   X(LSHIFT_LOG_REG, lshift_log_reg, { u8 n, m; }) \
-  X(MOV_REG, mov_reg, { u8 d, m; }) \
-  X(MOV_IMM, mov_imm, { u32 imm; u8 d; }) \
-  X(MOV_NEG_IMM, mov_neg_imm, { u32 imm; u8 d; }) \
-  X(MOV_NEG_REG, mov_neg_reg, { imm_shift shift; u8 d, m; }) \
+  X(MOV_REG, mov_reg, { u8 m; }) \
+  X(MOV_IMM, mov_imm, { u32 imm; }) \
+  X(MOV_NEG_IMM, mov_neg_imm, { u32 imm; }) \
+  X(MOV_NEG_REG, mov_neg_reg, { imm_shift shift; u8 m; }) \
   X(MUL, mul, { u8 d, n, m; }) \
   X(MUL_ACCUM, mul_accum, { u8 d, n, m, a; }) \
   X(MUL_ACCUM_SIGNED_HALF, mul_accum_signed_half, { u8 d, n, m, a, n_high, m_high; }) \

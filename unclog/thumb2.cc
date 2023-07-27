@@ -364,27 +364,30 @@ simulate_results simulate(inst const& i,
       break;
 
     case inst_type::MOV_IMM: {
+      int const dst_reg{inst_reg_from_bitmask(i.dr)};
       auto const& mov{i.i.mov_imm};
-      path.rs.regs[mov.d] = mov.imm;
-      reg_mark_known(path.rs.known, mov.d);
+      path.rs.regs[dst_reg] = mov.imm;
+      reg_mark_known(path.rs.known, dst_reg);
       reg_muts.emplace_back(reg_mut_node(i));
-      path.rs.mut_node_idxs[mov.d] = u32(reg_muts.size() - 1u);
+      path.rs.mut_node_idxs[dst_reg] = u32(reg_muts.size() - 1u);
     } break;
 
     case inst_type::MOV_NEG_IMM: {
+      int const dst_reg{inst_reg_from_bitmask(i.dr)};
       auto const& mvn{i.i.mov_neg_imm};
-      path.rs.regs[mvn.d] = ~u32(mvn.imm);
-      reg_mark_known(path.rs.known, mvn.d);
+      path.rs.regs[dst_reg] = ~u32(mvn.imm);
+      reg_mark_known(path.rs.known, dst_reg);
       reg_muts.emplace_back(reg_mut_node(i));
-      path.rs.mut_node_idxs[mvn.d] = u32(reg_muts.size() - 1u);
+      path.rs.mut_node_idxs[dst_reg] = u32(reg_muts.size() - 1u);
     } break;
 
     case inst_type::MOV_REG: {
+      int const dst_reg{inst_reg_from_bitmask(i.dr)};
       auto const& mov{i.i.mov_reg};
-      path.rs.regs[mov.d] = path.rs.regs[mov.m];
-      reg_copy_known(path.rs.known, mov.d, mov.m);
+      path.rs.regs[dst_reg] = path.rs.regs[mov.m];
+      reg_copy_known(path.rs.known, u8(dst_reg), mov.m);
       reg_muts.emplace_back(reg_mut_node(i, path.rs.mut_node_idxs[mov.m]));
-      path.rs.mut_node_idxs[mov.d] = u32(reg_muts.size() - 1u);
+      path.rs.mut_node_idxs[dst_reg] = u32(reg_muts.size() - 1u);
     } break;
 
     case inst_type::POP:

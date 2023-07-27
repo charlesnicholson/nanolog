@@ -408,14 +408,15 @@ bool decode_16bit_inst(u16 const w0, inst& out_inst) {
 
   if ((w0 & 0xF800u) == 0x2000u) { // 4.6.76 MOV (imm), T1 encoding (pg 4-166)
     out_inst.type = inst_type::MOV_IMM;
-    out_inst.i.mov_imm = { .imm = u8(w0 & 0xFFu), .d = u8((w0 >> 8u) & 7u) };
+    out_inst.dr = u16(1u << ((w0 >> 8u) & 7u));
+    out_inst.i.mov_imm = { .imm = u8(w0 & 0xFFu) };
     return true;
   }
 
   if ((w0 & 0xFF00u) == 0x4600u) { // 4.6.77 MOV (reg), T1 encoding (pg 4-168)
     out_inst.type = inst_type::MOV_REG;
-    out_inst.i.mov_reg = { .d = u8((w0 & 7u) | ((w0 & 0x80u) >> 4u)),
-      .m = u8((w0 >> 3u) & 0xFu) };
+    out_inst.dr = u16(1u << ((w0 & 7u) | ((w0 & 0x80u) >> 4u)));
+    out_inst.i.mov_reg = { .m = u8((w0 >> 3u) & 0xFu) };
     return true;
   }
 
@@ -427,8 +428,8 @@ bool decode_16bit_inst(u16 const w0, inst& out_inst) {
 
   if ((w0 & 0xFFC0u) == 0x43C0u) { // 4.6.86 MVN (reg), T1 encoding (pg 4-185)
     out_inst.type = inst_type::MOV_NEG_REG;
-    out_inst.i.mov_neg_reg = { .shift = decode_imm_shift(0b00, 0), .d = u8(w0 & 7u),
-      .m = u8((w0 >> 3u) & 7u) };
+    out_inst.dr = u16(1u << (w0 & 7u));
+    out_inst.i.mov_neg_reg = { .shift = decode_imm_shift(0, 0), .m = u8((w0 >> 3u) & 7u) };
     return true;
   }
 
@@ -1196,8 +1197,8 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
   if (((w0 & 0xFBEFu) == 0xF04Fu) && ((w1 & 0x8000u) == 0)) {
     u32 const imm8{w1 & 0xFFu}, imm3{(w1 >> 12u) & 7u}, i{(w0 >> 10u) & 1u};
     out_inst.type = inst_type::MOV_IMM;
-    out_inst.i.mov_imm = { .imm = decode_imm12((i << 11u) | (imm3 << 8u) | imm8),
-      .d = u8((w1 >> 8u) & 0xFu) };
+    out_inst.dr = u16(1u << ((w1 >> 8u) & 0xFu));
+    out_inst.i.mov_imm = { .imm = decode_imm12((i << 11u) | (imm3 << 8u) | imm8) };
     return true;
   }
 
@@ -1205,8 +1206,8 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
   if (((w0 & 0xFBF0u) == 0xF240u) && ((w1 & 0x8000u) == 0)) {
     u32 const imm8{w1 & 0xFFu}, imm3{(w1 >> 12u) & 7u}, i{(w0 >> 10u) & 1u}, imm4{w0 & 0xFu};
     out_inst.type = inst_type::MOV_IMM;
-    out_inst.i.mov_imm = { .imm = (imm4 << 12u) | (i << 11u) | (imm3 << 8u) | imm8,
-      .d = u8((w1 >> 8u) & 0xFu) };
+    out_inst.dr = u16(1u << ((w1 >> 8u) & 0xFu));
+    out_inst.i.mov_imm = { .imm = (imm4 << 12u) | (i << 11u) | (imm3 << 8u) | imm8 };
     return true;
   }
 
@@ -1214,8 +1215,8 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
   if (((w0 & 0xFBEFu) == 0xF06Fu) && ((w1 & 0x8000u) == 0)) {
     u32 const imm8{w1 & 0xFFu}, imm3{(w1 >> 12u) & 7u}, i{(w0 >> 10u) & 1u};
     out_inst.type = inst_type::MOV_NEG_IMM;
-    out_inst.i.mov_neg_imm = { .imm = decode_imm12((i << 11u) | (imm3 << 8u) | imm8),
-      .d = u8((w1 >> 8u) & 0xFu) };
+    out_inst.dr = u16(1u << ((w1 >> 8u) & 0xFu));
+    out_inst.i.mov_neg_imm = { .imm = decode_imm12((i << 11u) | (imm3 << 8u) | imm8) };
     return true;
   }
 
@@ -1232,7 +1233,8 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
     imm_shift const shift{decode_imm_shift(u8((w1 >> 4u) & 3u), u8((imm3 << 2u) | imm2))};
     if (n == 15) { // 4.6.86 MVN (reg), T2 encoding (pg 4-185)
       out_inst.type = inst_type::MOV_NEG_REG;
-      out_inst.i.mov_neg_reg = { .shift = shift, .d = d, .m = m };
+      out_inst.dr = u16(1u << d);
+      out_inst.i.mov_neg_reg = { .shift = shift, .m = m };
       return true;
     }
     out_inst.type = inst_type::OR_NOT_REG;
@@ -1247,7 +1249,8 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
     u8 const n{u8(w0 & 0xFu)}, d{u8((w1 >> 8u) & 0xFu)};
     if (n == 15) { // 4.6.76 MOV (imm), T2 encoding (pg 4-166)
       out_inst.type = inst_type::MOV_IMM;
-      out_inst.i.mov_imm = { .imm = imm, .d = d };
+      out_inst.dr = u16(1u << d);
+      out_inst.i.mov_imm = { .imm = imm };
       return true;
     }
     out_inst.type = inst_type::OR_IMM;
@@ -1261,7 +1264,8 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
     imm_shift const shift{decode_imm_shift(u8((w1 >> 4u) & 3u), u8((imm3 << 2u) | imm2))};
     if (n == 15) {
       out_inst.type = inst_type::MOV_REG;
-      out_inst.i.mov_reg = { .d = d, .m = m };
+      out_inst.dr = u16(1u << d);
+      out_inst.i.mov_reg = { .m = m };
       return true;
     }
     out_inst.type = inst_type::OR_REG;
@@ -2311,23 +2315,24 @@ void inst_print(inst const& i) {
 
     case inst_type::MOV_REG: {
       auto const& m{i.i.mov_reg};
-      NL_LOG_DBG("MOV %s, %s", s_rn[m.d], s_rn[m.m]);
+      NL_LOG_DBG("MOV %s, %s", rn_mask(i.dr), s_rn[m.m]);
     } break;
 
     case inst_type::MOV_IMM: {
       auto const& m{i.i.mov_imm};
-      NL_LOG_DBG("MOV_IMM %s, #%d (%#x)", s_rn[m.d], int(m.imm), unsigned(m.imm));
+      NL_LOG_DBG("MOV_IMM %s, #%d (%#x)", rn_mask(i.dr), int(m.imm), unsigned(m.imm));
     } break;
 
     case inst_type::MOV_NEG_IMM: {
       auto const& m{i.i.mov_neg_imm};
-      NL_LOG_DBG("MOV_NEG_IMM %s, #%d (%#x)", s_rn[m.d], unsigned(m.imm), unsigned(m.imm));
+      NL_LOG_DBG("MOV_NEG_IMM %s, #%d (%#x)", rn_mask(i.dr), unsigned(m.imm),
+        unsigned(m.imm));
     } break;
 
     case inst_type::MOV_NEG_REG: {
       auto const& m{i.i.mov_neg_reg};
-      NL_LOG_DBG("MOV_NEG_REG %s, %s, %s #%d", s_rn[m.d], s_rn[m.m], s_sn[int(m.shift.t)],
-        int(m.shift.n));
+      NL_LOG_DBG("MOV_NEG_REG %s, %s, %s #%d", rn_mask(i.dr), s_rn[m.m],
+        s_sn[int(m.shift.t)], int(m.shift.n));
     } break;
 
     case inst_type::MUL: {
