@@ -1300,7 +1300,8 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
   // 4.6.110 RBIT, T1 encoding (pg 4-233)
   if (((w0 & 0xFFF0u) == 0xFA90u) && ((w1 & 0xF0F0u) == 0xF0A0u)) {
     out_inst.type = inst_type::REVERSE_BITS;
-    out_inst.i.reverse_bits = { .d = u8((w1 >> 8u) & 0xFu), .m = u8(w1 & 0xFu) };
+    out_inst.dr = u16(1u << ((w1 >> 8u) & 0xFu));
+    out_inst.i.reverse_bits = { .m = u8(w1 & 0xFu) };
     return true;
   }
 
@@ -2435,7 +2436,7 @@ void inst_print(inst const& i) {
     } break;
 
     case inst_type::REVERSE_BITS: {
-      auto const& r{i.i.reverse_bits}; NL_LOG_DBG("RBIT %s, %s", s_rn[r.d], s_rn[r.m]);
+      auto const& r{i.i.reverse_bits}; NL_LOG_DBG("RBIT %s, %s", rn_mask(i.dr), s_rn[r.m]);
     } break;
 
     case inst_type::RSHIFT_ARITH_IMM: {

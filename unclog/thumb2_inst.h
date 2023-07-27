@@ -124,7 +124,7 @@ struct imm_shift { imm_shift_type t; u8 n; };
   X(PACK_HALF, pack_half, { imm_shift shift; u8 n, m, tbform; }) \
   X(PUSH, push, { u16 reg_list; }) \
   X(POP, pop, {}) \
-  X(REVERSE_BITS, reverse_bits, { u8 d, m; }) \
+  X(REVERSE_BITS, reverse_bits, { u8 m; }) \
   X(RSHIFT_ARITH_IMM, rshift_arith_imm, { imm_shift shift; u8 d, m; }) \
   X(RSHIFT_ARITH_REG, rshift_arith_reg, { u8 d, n, m; }) \
   X(RSHIFT_LOG_IMM, rshift_log_imm, { imm_shift shift; u8 d, m; }) \
