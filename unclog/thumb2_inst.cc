@@ -1380,9 +1380,11 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
 
   // 4.6.139 SMLAL, T1 encoding (pg 4-291)
   if (((w0 & 0xFFF0u) == 0xFBC0u) && ((w1 & 0xF0u) == 0)) {
+    u8 const dlo{u8((w1 >> 12u) & 0xFu)}, dhi{u8((w1 >> 8u) & 0xFu)};
+    out_inst.dr = u16((1u << dlo) | (1u << dhi));
     out_inst.type = inst_type::MUL_ACCUM_SIGNED_LONG;
-    out_inst.i.mul_accum_signed_long = { .dlo = u8((w1 >> 12u) & 0xFu),
-      .dhi = u8((w1 >> 8u) & 0xFu), .n = u8(w0 & 0xFu), .m = u8(w1 & 0xFu) };
+    out_inst.i.mul_accum_signed_long = { .dlo = dlo, .dhi = dhi, .n = u8(w0 & 0xFu),
+      .m = u8(w1 & 0xFu) };
     return true;
   }
 
@@ -1629,9 +1631,11 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
 
   // 4.6.206 UMLAL, T1 encoding (pg 4-425)
   if (((w0 & 0xFFF0u) == 0xFBE0u) && ((w1 & 0xF0u) == 0)) {
+    u8 const dlo{u8((w1 >> 12u) & 0xFu)}, dhi{u8((w1 >> 8u) & 0xFu)};
     out_inst.type = inst_type::MUL_ACCUM_UNSIGNED_LONG;
-    out_inst.i.mul_accum_unsigned_long = { .dlo = u8((w1 >> 12u) & 0xFu),
-      .dhi = u8((w1 >> 8u) & 0xFu), .n = u8(w0 & 0xFu), .m = u8(w1 & 0xFu) };
+    out_inst.dr = u16((1u << dlo) | (1u << dhi));
+    out_inst.i.mul_accum_unsigned_long = { .dlo = dlo, .dhi = dhi, .n = u8(w0 & 0xFu),
+      .m = u8(w1 & 0xFu) };
     return true;
   }
 
