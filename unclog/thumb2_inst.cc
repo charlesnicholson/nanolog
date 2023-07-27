@@ -1663,8 +1663,9 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
     u8 const imm2{u8((w1 >> 6u) & 3u)}, imm3{u8((w1 >> 12u) & 7u)},
       imm5{u8((imm3 << 2u) | imm2)}, sh{u8((w0 >> 5u) & 1u)};
     out_inst.type = inst_type::SATURATE_UNSIGNED;
+    out_inst.dr = u16(1u << ((w1 >> 8) & 0xFu));
     out_inst.i.saturate_unsigned = { .shift = decode_imm_shift(u8(sh << 1u), imm5),
-      .d = u8((w1 >> 8) & 0xFu), .n = u8(w0 & 0xFu), .saturate_to = u8(w1 & 0x1Fu) };
+      .n = u8(w0 & 0xFu), .saturate_to = u8(w1 & 0x1Fu) };
     return true;
   }
 
@@ -2465,7 +2466,7 @@ void inst_print(inst const& i) {
 
     case inst_type::SATURATE_UNSIGNED: {
       auto const& s{i.i.saturate_unsigned};
-      NL_LOG_DBG("USAT %s, #%d, %s <%s #%d>", s_rn[s.d], int(s.saturate_to), s_rn[s.n],
+      NL_LOG_DBG("USAT %s, #%d, %s <%s #%d>", rn_mask(i.dr), int(s.saturate_to), s_rn[s.n],
         s_sn[int(s.shift.t)], int(s.shift.n));
     } break;
 

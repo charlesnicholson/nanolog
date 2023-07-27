@@ -129,7 +129,7 @@ struct imm_shift { imm_shift_type t; u8 n; };
   X(RSHIFT_ARITH_REG, rshift_arith_reg, { u8 n, m; }) \
   X(RSHIFT_LOG_IMM, rshift_log_imm, { imm_shift shift; u8 m; }) \
   X(RSHIFT_LOG_REG, rshift_log_reg, { u8 n, m; }) \
-  X(SATURATE_UNSIGNED, saturate_unsigned, { imm_shift shift; u8 d, n, saturate_to; }) \
+  X(SATURATE_UNSIGNED, saturate_unsigned, { imm_shift shift; u8 n, saturate_to; }) \
   X(SELECT_BYTES, select_bytes, { u8 d, n, m; }) \
   X(STORE_BYTE_IMM, store_byte_imm, { u16 imm; u8 n, t, index, add; }) \
   X(STORE_BYTE_REG, store_byte_reg, { imm_shift shift; u8 t, m, n; }) \
