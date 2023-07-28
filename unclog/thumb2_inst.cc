@@ -1821,9 +1821,11 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
 
   // A7.7.237 VMOV (2 ARM core regsters and a dword reg), T1 encoding (pg A7-590)
   if (((w0 & 0xFFE0u) == 0xEC40u) && ((w1 & 0xFD0u) == 0xB10u)) {
+    u8 const t{u8((w1 >> 12u) & 0xFu)}, t2{u8(w0 & 0xFu)}, to_arm_regs{u8((w0 >> 4u) & 1u)};
+    if (to_arm_regs) { out_inst.dr = u16((1u << t) | (1u << t2)); }
     out_inst.type = inst_type::VMOV_REG_DOUBLE;
-    out_inst.i.vmov_reg_double = { .t = u8((w1 >> 12u) & 0xFu), .t2 = u8(w0 & 0xFu),
-      .m = u8((w1 & 0xFu) | ((w1 >> 1u) & 0x10u)), .to_arm_regs = u8((w0 >> 4u) & 1u) };
+    out_inst.i.vmov_reg_double = { .t = t, .t2 = t2,
+      .m = u8((w1 & 0xFu) | ((w1 >> 1u) & 0x10u)), .to_arm_regs = to_arm_regs };
     return true;
   }
 
@@ -1841,11 +1843,13 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
     return true;
   }
 
-  // A7.7.240 VMOV (ARM core reg and single-precision reg), T1 encoding (pg A7-531)
+  // A7.7.236 VMOV (ARM core reg and single-precision reg), T1 encoding (pg A7-531)
   if (((w0 & 0xFFE0u) == 0xEE00u) && ((w1 & 0xF10u) == 0xA10u)) {
+    u8 const t{u8((w1 >> 12u) & 0xFu)}, to_arm_reg{u8((w0 >> 4u) & 1u)};
     out_inst.type = inst_type::VMOV_REG_SINGLE;
-    out_inst.i.vmov_reg_single = { .t = u8((w1 >> 12u) & 0xFu),
-      .n = u8(((w0 & 0xFu) << 1u) | ((w1 >> 7u) & 1u)), .to_arm_reg = u8((w0 >> 4u) & 1u) };
+    if (to_arm_reg) { out_inst.dr = u16(1u << t); }
+    out_inst.i.vmov_reg_single = { .t = t,
+      .n = u8(((w0 & 0xFu) << 1u) | ((w1 >> 7u) & 1u)), .to_arm_reg = to_arm_reg };
     return true;
   }
 
