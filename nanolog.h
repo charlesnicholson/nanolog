@@ -263,17 +263,17 @@ nanolog_ret_t nanolog_varint_decode(void const *p, uint32_t *out_val, unsigned *
 // Private logging API (use the macros, not these)
 
 void nanolog_log_debug(char const *fmt, ...);
-void nanolog_log_debug_ctx(void *ctx, char const *fmt, ...);
+void nanolog_log_debug_ctx(char const *fmt, void *ctx, ...);
 void nanolog_log_info(char const *fmt, ...);
-void nanolog_log_info_ctx(void *ctx, char const *fmt, ...);
+void nanolog_log_info_ctx(char const *fmt, void *ctx, ...);
 void nanolog_log_warning(char const *fmt, ...);
-void nanolog_log_warning_ctx(void *ctx, char const *fmt, ...);
+void nanolog_log_warning_ctx(char const *fmt, void *ctx, ...);
 void nanolog_log_error(char const *fmt, ...);
-void nanolog_log_error_ctx(void *ctx, char const *fmt, ...);
+void nanolog_log_error_ctx(char const *fmt, void *ctx, ...);
 void nanolog_log_critical(char const *fmt, ...);
-void nanolog_log_critical_ctx(void *ctx, char const *fmt, ...);
+void nanolog_log_critical_ctx(char const *fmt, void *ctx, ...);
 void nanolog_log_assert(char const *fmt, ...);
-void nanolog_log_assert_ctx(void *ctx, char const *fmt, ...);
+void nanolog_log_assert_ctx(char const *fmt, void *ctx, ...);
 
 #ifdef __cplusplus
 }
