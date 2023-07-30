@@ -94,4 +94,5 @@ all: $(TESTS_STAMP) $(UNCLOG_BIN)
 .DEFAULT_GOAL := all
 
 -include $(UNCLOG_OBJS:.o=.d)
+-include $(LIBUNCLOG_OBJS:.o=.d)
 -include $(TESTS_OBJS:.o=.d)
