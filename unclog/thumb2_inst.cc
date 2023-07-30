@@ -852,17 +852,15 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
   }
 
   if ((w0 & 0xFFD0u) == 0xE910u) {
-    u16 const regs{u16(w1 & 0x1FFFu)};
     out_inst.type = inst_type::LOAD_MULT_DEC_BEFORE;
-    out_inst.dr = regs;
+    out_inst.dr = u16(w1 & 0xDFFFu);
     out_inst.i.load_mult_dec_before = { .n = u8(w0 & 0xFu), .wback = u8((w0 >> 5u) & 1u) };
     return true;
   }
 
   if ((w0 & 0xFFD0u) == 0xE890u) { // 4.6.42 LDMIA, T2 encoding (pg 4-98)
-    u16 const regs{u16(w1 & 0x1FFFu)};
     out_inst.type = inst_type::LOAD_MULT_INC_AFTER;
-    out_inst.dr = regs;
+    out_inst.dr = u16(w1 & 0xDFFFu);
     out_inst.i.load_mult_inc_after = { .n = u8(w0 & 0xFu), .wback = u8((w0 >> 5u) & 1u) };
     return true;
   }
@@ -1297,7 +1295,7 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
   }
 
   if (w0 == 0xE8BDu) { // 4.6.98 POP, T2 encoding (pg 4-209)
-    out_inst.dr = uint16_t(w1 & 0x1FFFu);
+    out_inst.dr = uint16_t(w1 & 0xDFFFu);
     out_inst.type = inst_type::POP;
     return true;
   }

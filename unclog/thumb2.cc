@@ -15,14 +15,15 @@ struct reg_state {
   u16 cmp_imm_present = 0;
 };
 
-//void print(reg_state const& rs) {
-//  for (auto i = 0u; i < 16; ++i) {
-//    if ((rs.known >> i) & 1) {
-//      NL_LOG_DBG("R%u=%x ", unsigned(i), rs.regs[i]);
-//    }
-//  }
-//  NL_LOG_DBG("\n");
-//}
+void print(reg_state const& rs) {
+  NL_LOG_DBG("k=0x%04hx ", rs.known);
+  for (auto i = 0u; i < 16; ++i) {
+    if ((rs.known >> i) & 1) {
+      NL_LOG_DBG("R%u=%x ", unsigned(i), rs.regs[i]);
+    }
+  }
+  NL_LOG_DBG("\n");
+}
 
 struct path_state {
   reg_state rs;
@@ -70,9 +71,12 @@ path_state path_state_it(path_state const& p) {
 }
 
 bool reg_states_equal(reg_state const& r1, reg_state const& r2) {
+  NL_LOG_DBG("reg_states_equal:\n");
+  print(r1);
+  print(r2);
   if (r1.known != r2.known) { return false; }
-  for (auto i{0u}; i < 16; ++i) {
-    if ((r1.known & (1 << i)) && (r1.regs[i] != r2.regs[i])) { return false; }
+  for (auto i{0u}; i < 15; ++i) {
+    if ((r1.known & (1u << i)) && (r1.regs[i] != r2.regs[i])) { return false; }
   }
   return true;
 }
@@ -84,6 +88,7 @@ bool address_in_func(u32 addr, func_state const& s) {
 bool reg_test_known(u16 regs, int idx) { return regs & (1u << idx); }
 void reg_mark_known(u16& regs, int idx) { regs |= (1u << idx); }
 void reg_clear_known(u16& regs, int idx) { regs &= u16(~(1u << idx)); }
+
 void reg_copy_known(u16& regs, u8 dst_idx, u8 src_idx) {
   regs = u16(regs & ~(1u << dst_idx)) | u16(((regs >> src_idx) & 1u) << dst_idx);
 }
@@ -96,12 +101,12 @@ bool reg_intersect_known(u16& regs, u8 dst_idx, u8 src1_idx, u8 src2_idx) {
 
 bool cmp_imm_lit_get(reg_state const& rs, u8 index, u32& out_lit) {
   out_lit = rs.cmp_imm_lits[index];
-  return bool(rs.cmp_imm_present & (1 << index));
+  return bool(rs.cmp_imm_present & (1u << index));
 }
 
 void cmp_imm_lit_set(reg_state& rs, u8 index, u32 lit) {
   rs.cmp_imm_lits[index] = lit;
-  rs.cmp_imm_present |= (1 << index);
+  rs.cmp_imm_present |= (1u << index);
 }
 
 bool branch(u32 addr, path_state& p, func_state& s) {
@@ -114,8 +119,10 @@ bool branch(u32 addr, path_state& p, func_state& s) {
   auto const it{s.taken_branches_reg_states.find(addr)};
   if (it != s.taken_branches_reg_states.end()) {
     auto const& reg_states{it->second};
+    NL_LOG_DBG("\nComparing %d records\n", int(reg_states.size()));
     auto const b{std::begin(reg_states)}, e{std::end(reg_states)};
     if (std::find_if(b, e, [&](auto& rs) { return reg_states_equal(p.rs, rs); }) != e) {
+      NL_LOG_DBG("found matching reg state!\n");
       return false;
     }
   }
@@ -294,6 +301,7 @@ simulate_results simulate(inst const& i,
         NL_LOG_DBG("  Stopping path: noreturn call\n");
         return simulate_results::TERMINATE_PATH;
       }
+      path.rs.known &= 0xFFF0u; // r0-r3 are scratch
     } break;
 
     case inst_type::BRANCH_XCHG: return simulate_results::TERMINATE_PATH; // tail call
@@ -357,6 +365,7 @@ simulate_results simulate(inst const& i,
     } break;
 
     case inst_type::LOAD_MULT_INC_AFTER: // LDMIA SP!, { ... PC }
+      //NL_LOG_WRN("LDMIA: 0x%04hx\n", i.dr);
       if (i.dr & (1u << reg::PC)) {
         return simulate_results::TERMINATE_PATH;
       }
@@ -372,6 +381,7 @@ simulate_results simulate(inst const& i,
       path.rs.mut_node_idxs[dst_reg] = u32(reg_muts.size() - 1u);
     } break;
 
+    /*
     case inst_type::MOV_NEG_IMM: {
       int const dst_reg{inst_reg_from_bitmask(i.dr)};
       auto const& mvn{i.i.mov_neg_imm};
@@ -380,6 +390,7 @@ simulate_results simulate(inst const& i,
       reg_muts.emplace_back(reg_mut_node(i));
       path.rs.mut_node_idxs[dst_reg] = u32(reg_muts.size() - 1u);
     } break;
+    */
 
     case inst_type::MOV_REG: {
       int const dst_reg{inst_reg_from_bitmask(i.dr)};
@@ -395,6 +406,7 @@ simulate_results simulate(inst const& i,
       path.rs.known &= ~i.dr;
       break;
 
+    /*
     case inst_type::SUB_REV_IMM: {
       int const dst_reg{inst_reg_from_bitmask(i.dr)};
       auto const& sub{i.i.sub_rev_imm};
@@ -422,6 +434,7 @@ simulate_results simulate(inst const& i,
         reg_mut_node(i, path.rs.mut_node_idxs[sub.n], path.rs.mut_node_idxs[sub.m]));
       path.rs.mut_node_idxs[dst_reg] = u32(reg_muts.size() - 1u);
     } break;
+    */
 
     case inst_type::TABLE_BRANCH_HALF: {
       auto const& tbh{i.i.table_branch_half};
@@ -441,7 +454,11 @@ simulate_results simulate(inst const& i,
       return simulate_results::TERMINATE_PATH;
     }
 
-    default: break;
+    default:
+      //NL_LOG_DBG("known=0x%04hx i.dr=0x%04hx ", path.rs.known, i.dr);
+      path.rs.known &= ~i.dr;
+      //NL_LOG_DBG("known=0x%04hx\n", path.rs.known);
+      break;
   }
 
   path.rs.regs[reg::PC] += i.len;
@@ -536,10 +553,11 @@ thumb2_analyze_func_ret thumb2_analyze_func(
     path_state path{s.paths.top()};
     s.paths.pop();
 
-    NL_LOG_DBG("  Starting path\n");
+    NL_LOG_DBG("  Starting path (%d in stack)\n", int(s.paths.size()));
     ++out_stats.analyzed_paths;
 
     for (;;) {
+      print(path.rs);
       if (NL_UNLIKELY(func.st_size && (path.rs.regs[reg::PC] >= s.func_end))) {
         NL_LOG_DBG("  Stopping path: Ran off the end!\n");
         return thumb2_analyze_func_ret::ERR_RAN_OFF_END_OF_FUNC;
