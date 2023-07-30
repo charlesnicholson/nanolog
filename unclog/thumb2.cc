@@ -145,7 +145,7 @@ bool table_branch(u32 addr, u32 sz, u32 base, u32 ofs, path_state& path, func_st
     u32 val{*src++};
     if (sz == 2) { val = u32(val | u32(*src++ << 8u)); }
     u32 const label{path.rs.regs[reg::PC] + 4 + (val << 1u)};
-    fs.paths.emplace(path_state_branch(path, label));
+    fs.paths.push(path_state_branch(path, label));
   }
 
   return true;
@@ -196,7 +196,7 @@ simulate_results process_ldr_pc_jump_table(inst const& i, path_state& p, func_st
     u32 jump_label;
     memcpy(&jump_label, src, 4);
     src += 4;
-    fs.paths.emplace(path_state_branch(p, jump_label & ~1u));
+    fs.paths.push(path_state_branch(p, jump_label & ~1u));
   }
 
   return simulate_results::TERMINATE_PATH;
@@ -224,7 +224,7 @@ simulate_results simulate(inst const& i,
       auto const& add{i.i.add_imm};
       path.rs.regs[dst_reg] = path.rs.regs[add.n] + add.imm;
       reg_copy_known(path.rs.known, u8(dst_reg), add.n);
-      reg_muts.emplace_back(reg_mut_node(i, path.rs.mut_node_idxs[add.n]));
+      reg_muts.emplace_back(i, path.rs.mut_node_idxs[add.n]);
       path.rs.mut_node_idxs[dst_reg] = u32(reg_muts.size() - 1u);
     } break;
 
@@ -233,8 +233,8 @@ simulate_results simulate(inst const& i,
       auto const& add{i.i.add_reg};
       path.rs.regs[dst_reg] = path.rs.regs[add.n] + path.rs.regs[add.m];
       reg_intersect_known(path.rs.known, u8(dst_reg), add.m, add.n);
-      reg_muts.emplace_back(reg_mut_node(i, path.rs.mut_node_idxs[add.n],
-        path.rs.mut_node_idxs[add.m]));
+      reg_muts.emplace_back(i, path.rs.mut_node_idxs[add.n],
+        path.rs.mut_node_idxs[add.m]);
       path.rs.mut_node_idxs[dst_reg] = u32(reg_muts.size() - 1u);
     } break;
 
@@ -244,7 +244,7 @@ simulate_results simulate(inst const& i,
       u32 const base{inst_align(path.rs.regs[reg::PC], 4) + 4};
       path.rs.regs[dst_reg] = adr.add ? (base + adr.imm) : (base - adr.imm);
       reg_mark_known(path.rs.known, dst_reg);
-      reg_muts.emplace_back(reg_mut_node(i));
+      reg_muts.emplace_back(i);
       path.rs.mut_node_idxs[dst_reg] = u32(reg_muts.size() - 1u);
     } break;
 
@@ -263,7 +263,7 @@ simulate_results simulate(inst const& i,
       } else {
         if (addr_in_func && branch(i.addr, fs)) {
           NL_LOG_DBG("  Internal branch, pushing state\n");
-          fs.paths.emplace(path_state_branch(path, b.addr));
+          fs.paths.push(path_state_branch(path, b.addr));
         }
       }
     } break;
@@ -283,14 +283,14 @@ simulate_results simulate(inst const& i,
     case inst_type::CBNZ:
       if (branch(i.addr, fs)) {
         NL_LOG_DBG("  Internal branch, pushing state\n");
-        fs.paths.emplace(path_state_branch(path, i.i.cmp_branch_nz.addr));
+        fs.paths.push(path_state_branch(path, i.i.cmp_branch_nz.addr));
       }
       break;
 
     case inst_type::CBZ:
       if (branch(i.addr, fs)) {
         NL_LOG_DBG("  Internal branch, pushing state\n");
-        fs.paths.emplace(path_state_branch(path, i.i.cmp_branch_z.addr));
+        fs.paths.push(path_state_branch(path, i.i.cmp_branch_z.addr));
       }
       break;
 
@@ -304,7 +304,7 @@ simulate_results simulate(inst const& i,
       }
       process_it(i.i.if_then, path);
       NL_LOG_DBG("  IT, pushing state\n");
-      fs.paths.emplace(path_state_it(path));
+      fs.paths.push(path_state_it(path));
       break;
 
     case inst_type::LOAD_IMM: {
@@ -319,7 +319,7 @@ simulate_results simulate(inst const& i,
       memcpy(&path.rs.regs[dst_reg],
         &fs.e.bytes[fs.func_ofs + (ldr.addr - fs.func_start)], 4);
       reg_mark_known(path.rs.known, dst_reg);
-      reg_muts.emplace_back(reg_mut_node(i));
+      reg_muts.push_back(reg_mut_node(i));
       path.rs.mut_node_idxs[dst_reg] = u32(reg_muts.size() - 1u);
     } break;
 
@@ -350,7 +350,7 @@ simulate_results simulate(inst const& i,
       auto const& mov{i.i.mov_imm};
       path.rs.regs[dst_reg] = mov.imm;
       reg_mark_known(path.rs.known, dst_reg);
-      reg_muts.emplace_back(reg_mut_node(i));
+      reg_muts.emplace_back(i);
       path.rs.mut_node_idxs[dst_reg] = u32(reg_muts.size() - 1u);
     } break;
 
@@ -359,7 +359,7 @@ simulate_results simulate(inst const& i,
       auto const& mvn{i.i.mov_neg_imm};
       path.rs.regs[dst_reg] = ~u32(mvn.imm);
       reg_mark_known(path.rs.known, dst_reg);
-      reg_muts.emplace_back(reg_mut_node(i));
+      reg_muts.emplace_back(i);
       path.rs.mut_node_idxs[dst_reg] = u32(reg_muts.size() - 1u);
     } break;
 
@@ -368,7 +368,7 @@ simulate_results simulate(inst const& i,
       auto const& mov{i.i.mov_reg};
       path.rs.regs[dst_reg] = path.rs.regs[mov.m];
       reg_copy_known(path.rs.known, u8(dst_reg), mov.m);
-      reg_muts.emplace_back(reg_mut_node(i, path.rs.mut_node_idxs[mov.m]));
+      reg_muts.emplace_back(i, path.rs.mut_node_idxs[mov.m]);
       path.rs.mut_node_idxs[dst_reg] = u32(reg_muts.size() - 1u);
     } break;
 
@@ -382,7 +382,7 @@ simulate_results simulate(inst const& i,
       auto const& sub{i.i.sub_rev_imm};
       path.rs.regs[dst_reg] = sub.imm - path.rs.regs[sub.n];
       reg_copy_known(path.rs.known, u8(dst_reg), sub.n);
-      reg_muts.emplace_back(reg_mut_node(i, path.rs.mut_node_idxs[sub.n]));
+      reg_muts.emplace_back(i, path.rs.mut_node_idxs[sub.n]);
       path.rs.mut_node_idxs[dst_reg] = u32(reg_muts.size() - 1u);
     } break;
 
@@ -391,7 +391,7 @@ simulate_results simulate(inst const& i,
       auto const& sub{i.i.sub_imm};
       path.rs.regs[dst_reg] = path.rs.regs[sub.n] - sub.imm;
       reg_copy_known(path.rs.known, u8(dst_reg), sub.n);
-      reg_muts.emplace_back(reg_mut_node(i, path.rs.mut_node_idxs[sub.n]));
+      reg_muts.push_back(reg_mut_node(i, path.rs.mut_node_idxs[sub.n]));
       path.rs.mut_node_idxs[dst_reg] = u32(reg_muts.size() - 1u);
     } break;
 
@@ -400,8 +400,7 @@ simulate_results simulate(inst const& i,
       auto const& sub{i.i.sub_reg};
       path.rs.regs[dst_reg] = path.rs.regs[sub.n] - path.rs.regs[sub.m]; // shift
       reg_intersect_known(path.rs.known, u8(dst_reg), sub.n, sub.m);
-      reg_muts.emplace_back(
-        reg_mut_node(i, path.rs.mut_node_idxs[sub.n], path.rs.mut_node_idxs[sub.m]));
+      reg_muts.emplace_back(i, path.rs.mut_node_idxs[sub.n], path.rs.mut_node_idxs[sub.m]);
       path.rs.mut_node_idxs[dst_reg] = u32(reg_muts.size() - 1u);
     } break;
 
@@ -459,7 +458,7 @@ bool process_log_call(inst const& pc_i,
     return true;
   }
 
-  lca.log_calls.emplace_back(log_call{ .fmt_str_addr = path.rs.regs[reg::R0],
+  lca.log_calls.push_back(log_call{ .fmt_str_addr = path.rs.regs[reg::R0],
     .log_func_call_addr = pc_i.addr, .node_idx = path.rs.mut_node_idxs[reg::R0],
     .s = fmt_str_strat::UNKNOWN, .severity = u8(sev)});
   auto& log_call{lca.log_calls[lca.log_calls.size() - 1]};
@@ -504,7 +503,7 @@ thumb2_analyze_func_ret thumb2_analyze_func(
     &e.strtab[func.st_name], func.st_value, func.st_size, s.func_start, s.func_end,
     s.func_ofs);
 
-  s.paths.emplace([&]() { // set up the function entry point on the path stack
+  s.paths.push([&]() { // set up the function entry point on the path stack
     path_state ps;
     ps.it_rem = 0;
     ps.rs.regs[reg::PC] = s.func_start;
