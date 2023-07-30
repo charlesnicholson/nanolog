@@ -15,19 +15,18 @@ struct reg_state {
   u16 cmp_imm_present = 0;
 };
 
-void print(reg_state const& rs) {
-  NL_LOG_DBG("k=0x%04hx ", rs.known);
-  for (auto i = 0u; i < 16; ++i) {
-    if ((rs.known >> i) & 1) {
-      NL_LOG_DBG("R%u=%x ", unsigned(i), rs.regs[i]);
-    }
-  }
-  NL_LOG_DBG("\n");
-}
+//void print(reg_state const& rs) {
+//  NL_LOG_DBG("k=0x%04hx ", rs.known);
+//  for (auto i = 0u; i < 16; ++i) {
+//    if ((rs.known >> i) & 1) {
+//      NL_LOG_DBG("R%u=%x ", unsigned(i), rs.regs[i]);
+//    }
+//  }
+//  NL_LOG_DBG("\n");
+//}
 
 struct path_state {
   reg_state rs;
-  std::vector<bool> taken_branches;
   u8 it_flags, it_rem;
 };
 
@@ -45,7 +44,6 @@ struct func_state {
     , func_ofs{s.sh_offset + func_start - s.sh_addr}
     , e(e_)
     , lca(lca_) {
-    taken_branches_reg_states.reserve(64);
     discovered_log_strs.reserve(32);
   }
 
@@ -54,7 +52,7 @@ struct func_state {
   elf const& e;
   func_log_call_analysis& lca;
   path_state_stack paths;
-  std::unordered_map<u32, std::vector<reg_state>> taken_branches_reg_states;
+  std::vector<bool> taken_branches;
   u32_set discovered_log_strs;
 };
 
@@ -72,8 +70,8 @@ path_state path_state_it(path_state const& p) {
 
 bool reg_states_equal(reg_state const& r1, reg_state const& r2) {
   NL_LOG_DBG("reg_states_equal:\n");
-  print(r1);
-  print(r2);
+  //print(r1);
+  //print(r2);
   if (r1.known != r2.known) { return false; }
   for (auto i{0u}; i < 15; ++i) {
     if ((r1.known & (1u << i)) && (r1.regs[i] != r2.regs[i])) { return false; }
@@ -109,27 +107,14 @@ void cmp_imm_lit_set(reg_state& rs, u8 index, u32 lit) {
   rs.cmp_imm_present |= (1u << index);
 }
 
-bool branch(u32 addr, path_state& p, func_state& s) {
+bool branch(u32 addr, func_state& s) {
   auto const idx{unsigned((addr - s.func_start) / 2)};
-  if (NL_UNLIKELY(idx >= p.taken_branches.size())) {
-    p.taken_branches.resize((idx + 1) * 10);
-  }
-  if (p.taken_branches[idx]) { return false; }
-
-  auto const it{s.taken_branches_reg_states.find(addr)};
-  if (it != s.taken_branches_reg_states.end()) {
-    auto const& reg_states{it->second};
-    NL_LOG_DBG("\nComparing %d records\n", int(reg_states.size()));
-    auto const b{std::begin(reg_states)}, e{std::end(reg_states)};
-    if (std::find_if(b, e, [&](auto& rs) { return reg_states_equal(p.rs, rs); }) != e) {
-      NL_LOG_DBG("found matching reg state!\n");
-      return false;
-    }
+  if (idx > s.taken_branches.size()) {
+    s.taken_branches.resize((idx + 1) * 2);
   }
 
-  p.taken_branches[idx] = true;
-  auto [vi, inserted]{s.taken_branches_reg_states.insert({addr, {}})};
-  vi->second.push_back(p.rs);
+  if (s.taken_branches[idx]) { return false; }
+  s.taken_branches[idx] = true;
   return true;
 }
 
@@ -162,7 +147,7 @@ bool table_branch(u32 addr, u32 sz, u32 base, u32 ofs, path_state& path, func_st
   if (!cmp_imm_lit_get(path.rs, u8(ofs), cmp_imm_lit)) { return false; }
   ++cmp_imm_lit;
 
-  if (!branch(addr, path, fs)) { return true; }
+  if (!branch(addr, fs)) { return true; }
 
   unsigned const src_off{fs.func_ofs + (addr - fs.func_start) + 4};
   auto const *src{reinterpret_cast<unsigned char const *>(&fs.e.bytes[src_off])};
@@ -194,7 +179,7 @@ enum class simulate_results {
 };
 
 simulate_results process_ldr_pc_jump_table(inst const& i, path_state& p, func_state& fs) {
-  if (!branch(i.addr, p, fs)) { return simulate_results::TERMINATE_PATH; }
+  if (!branch(i.addr, fs)) { return simulate_results::TERMINATE_PATH; }
 
   auto const& ldr{i.i.load_reg};
 
@@ -283,11 +268,11 @@ simulate_results simulate(inst const& i,
           return simulate_results::TERMINATE_PATH;
         }
 
-        if (!branch(i.addr, path, fs)) { return simulate_results::TERMINATE_PATH; }
+        if (!branch(i.addr, fs)) { return simulate_results::TERMINATE_PATH; }
         path.rs.regs[reg::PC] = b.addr;
         return simulate_results::SUCCESS;
       } else {
-        if (addr_in_func && branch(i.addr, path, fs)) {
+        if (addr_in_func && branch(i.addr, fs)) {
           NL_LOG_DBG("  Internal branch, pushing state\n");
           fs.paths.emplace(path_state_branch(path, b.addr));
         }
@@ -307,14 +292,14 @@ simulate_results simulate(inst const& i,
     case inst_type::BRANCH_XCHG: return simulate_results::TERMINATE_PATH; // tail call
 
     case inst_type::CBNZ:
-      if (branch(i.addr, path, fs)) {
+      if (branch(i.addr, fs)) {
         NL_LOG_DBG("  Internal branch, pushing state\n");
         fs.paths.emplace(path_state_branch(path, i.i.cmp_branch_nz.addr));
       }
       break;
 
     case inst_type::CBZ:
-      if (branch(i.addr, path, fs)) {
+      if (branch(i.addr, fs)) {
         NL_LOG_DBG("  Internal branch, pushing state\n");
         fs.paths.emplace(path_state_branch(path, i.i.cmp_branch_z.addr));
       }
@@ -325,7 +310,7 @@ simulate_results simulate(inst const& i,
       break;
 
     case inst_type::IF_THEN:
-      if (NL_UNLIKELY(!branch(i.addr, path, fs))) {
+      if (NL_UNLIKELY(!branch(i.addr, fs))) {
         return simulate_results::TERMINATE_PATH;
       }
       process_it(i.i.if_then, path);
@@ -365,7 +350,6 @@ simulate_results simulate(inst const& i,
     } break;
 
     case inst_type::LOAD_MULT_INC_AFTER: // LDMIA SP!, { ... PC }
-      //NL_LOG_WRN("LDMIA: 0x%04hx\n", i.dr);
       if (i.dr & (1u << reg::PC)) {
         return simulate_results::TERMINATE_PATH;
       }
@@ -381,7 +365,6 @@ simulate_results simulate(inst const& i,
       path.rs.mut_node_idxs[dst_reg] = u32(reg_muts.size() - 1u);
     } break;
 
-    /*
     case inst_type::MOV_NEG_IMM: {
       int const dst_reg{inst_reg_from_bitmask(i.dr)};
       auto const& mvn{i.i.mov_neg_imm};
@@ -390,7 +373,6 @@ simulate_results simulate(inst const& i,
       reg_muts.emplace_back(reg_mut_node(i));
       path.rs.mut_node_idxs[dst_reg] = u32(reg_muts.size() - 1u);
     } break;
-    */
 
     case inst_type::MOV_REG: {
       int const dst_reg{inst_reg_from_bitmask(i.dr)};
@@ -406,7 +388,6 @@ simulate_results simulate(inst const& i,
       path.rs.known &= ~i.dr;
       break;
 
-    /*
     case inst_type::SUB_REV_IMM: {
       int const dst_reg{inst_reg_from_bitmask(i.dr)};
       auto const& sub{i.i.sub_rev_imm};
@@ -434,7 +415,6 @@ simulate_results simulate(inst const& i,
         reg_mut_node(i, path.rs.mut_node_idxs[sub.n], path.rs.mut_node_idxs[sub.m]));
       path.rs.mut_node_idxs[dst_reg] = u32(reg_muts.size() - 1u);
     } break;
-    */
 
     case inst_type::TABLE_BRANCH_HALF: {
       auto const& tbh{i.i.table_branch_half};
@@ -454,10 +434,10 @@ simulate_results simulate(inst const& i,
       return simulate_results::TERMINATE_PATH;
     }
 
+    case inst_type::UNDEFINED: return simulate_results::TERMINATE_PATH;
+
     default:
-      //NL_LOG_DBG("known=0x%04hx i.dr=0x%04hx ", path.rs.known, i.dr);
       path.rs.known &= ~i.dr;
-      //NL_LOG_DBG("known=0x%04hx\n", path.rs.known);
       break;
   }
 
@@ -527,6 +507,8 @@ thumb2_analyze_func_ret thumb2_analyze_func(
     func_log_call_analysis& out_lca,
     analysis_stats& out_stats) {
   func_state s{func, e, e.sec_hdrs[func.st_shndx], out_lca};
+  s.taken_branches.resize(1024 * 1024); //(s.func_end - s.func_start) / 2);
+
   out_lca.reg_muts.reserve(1024);
 
   NL_LOG_DBG("\nScanning %s: addr %x, len %x, range %x-%x, offset %x:\n",
@@ -537,7 +519,6 @@ thumb2_analyze_func_ret thumb2_analyze_func(
     path_state ps;
     ps.it_rem = 0;
     ps.rs.regs[reg::PC] = s.func_start;
-    ps.taken_branches.resize((s.func_end - s.func_start) / 2);
     return ps;
   }());
 
@@ -557,7 +538,6 @@ thumb2_analyze_func_ret thumb2_analyze_func(
     ++out_stats.analyzed_paths;
 
     for (;;) {
-      print(path.rs);
       if (NL_UNLIKELY(func.st_size && (path.rs.regs[reg::PC] >= s.func_end))) {
         NL_LOG_DBG("  Stopping path: Ran off the end!\n");
         return thumb2_analyze_func_ret::ERR_RAN_OFF_END_OF_FUNC;
@@ -587,11 +567,6 @@ thumb2_analyze_func_ret thumb2_analyze_func(
 
       if (int const sev{inst_is_log_call(pc_i, log_funcs, e.strtab)};
           NL_UNLIKELY(sev != -1)) {
-        if (!branch(pc_i.addr, path, s)) {
-          NL_LOG_DBG("  Stopping path: identical path state at already-seen log call\n");
-          break;
-        }
-
         if (!process_log_call(pc_i, path, nl_sec_hdr, sev, s, out_lca)) {
           return thumb2_analyze_func_ret::ERR_UNKNOWN_LOG_CALL_STRATEGY;
         }

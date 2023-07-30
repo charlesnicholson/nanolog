@@ -180,6 +180,8 @@ bool decode_16bit_inst(u16 const w0, inst& out_inst) {
     u32 const imm32{u32(sext((w0 & 0xFFu) << 1u, 8u))};
     if (u8(cc) == 0xFu) { // cc 0b1111 == SVC, 4.6.181 SVC (pg 4-375)
       out_inst.type = inst_type::SVC; out_inst.i.svc = { .imm = imm32 };
+    } if (u8(cc) == 0xEu) { // cc 0b1110 == undefined
+      out_inst.type = inst_type::UNDEFINED;
     } else {
       out_inst.type = inst_type::BRANCH; out_inst.i.branch = { .imm = imm32,
         .addr = u32(out_inst.addr + 4u + imm32), .cc = cc };
@@ -2615,6 +2617,8 @@ void inst_print(inst const& i) {
       NL_LOG_DBG("TST %s, %s, %s #%d", s_rn[t.n], s_rn[t.m], s_sn[int(t.shift.t)],
         int(t.shift.n));
     } break;
+
+    case inst_type::UNDEFINED: NL_LOG_DBG("UDF"); break;
 
     case inst_type::VADD: {
       auto const& v{i.i.vadd};
