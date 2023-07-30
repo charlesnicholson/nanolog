@@ -68,17 +68,6 @@ path_state path_state_it(path_state const& p) {
   return b;
 }
 
-bool reg_states_equal(reg_state const& r1, reg_state const& r2) {
-  NL_LOG_DBG("reg_states_equal:\n");
-  //print(r1);
-  //print(r2);
-  if (r1.known != r2.known) { return false; }
-  for (auto i{0u}; i < 15; ++i) {
-    if ((r1.known & (1u << i)) && (r1.regs[i] != r2.regs[i])) { return false; }
-  }
-  return true;
-}
-
 bool address_in_func(u32 addr, func_state const& s) {
   return (addr >= s.func_start) && (!s.f.st_size || (addr < s.func_end));
 }
