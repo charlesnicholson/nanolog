@@ -2,7 +2,7 @@
 Language: Cpp
 BasedOnStyle: Google
 IndentWidth: 2
-ContinuationIndentWidth: 2
+ContinuationIndentWidth: 4
 PPIndentWidth: 2
 ColumnLimit: 91
 IndentCaseLabels: true

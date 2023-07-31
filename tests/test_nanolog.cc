@@ -37,9 +37,9 @@ TEST_CASE("nanolog_get_threshold") {
 TEST_CASE("nanolog_set_handler") {
   static int s_calls{ 0 };
   REQUIRE(nanolog_set_handler(
-            [](void *, unsigned, void const *, unsigned, char const *, va_list) {
-              ++s_calls;
-            }) == NANOLOG_RET_SUCCESS);
+              [](void *, unsigned, void const *, unsigned, char const *, va_list) {
+                ++s_calls;
+              }) == NANOLOG_RET_SUCCESS);
   nanolog_log_sev(NL_SEV_ASSERT, "");
   REQUIRE(s_calls == 1);
 }
@@ -86,10 +86,10 @@ TEST_CASE("nanolog_log_sev") {
   s_fmt = &fmt;
   static unsigned s_sev{ 12345 };
   REQUIRE(nanolog_set_handler(
-            [](void *, unsigned sev, void const *, unsigned, char const *fmt_, va_list) {
-              *s_fmt = fmt_;
-              s_sev = sev;
-            }) == NANOLOG_RET_SUCCESS);
+              [](void *, unsigned sev, void const *, unsigned, char const *fmt_, va_list) {
+                *s_fmt = fmt_;
+                s_sev = sev;
+              }) == NANOLOG_RET_SUCCESS);
   nanolog_log_sev(NL_SEV_WARNING, "logging is fun");
   REQUIRE(fmt == "logging is fun");
   REQUIRE_EQ(s_sev, NL_SEV_WARNING | NL_DYNAMIC_SEV_BIT);
@@ -101,11 +101,12 @@ TEST_CASE("nanolog_log_sev_ctx") {
     unsigned sev;
   };
   std::vector<Log> captures;
-  REQUIRE(nanolog_set_handler(
-            [](void *ctx, unsigned sev, void const *, unsigned, char const *fmt, va_list) {
-              static_cast<std::vector<Log> *>(ctx)->emplace_back(
+  REQUIRE(
+      nanolog_set_handler(
+          [](void *ctx, unsigned sev, void const *, unsigned, char const *fmt, va_list) {
+            static_cast<std::vector<Log> *>(ctx)->emplace_back(
                 Log{ .fmt = fmt, .sev = sev });
-            }) == NANOLOG_RET_SUCCESS);
+          }) == NANOLOG_RET_SUCCESS);
 
   SUBCASE("marks severity as dynamic") {
     nanolog_log_sev_ctx(NL_SEV_ERROR, &captures, "hello");
@@ -325,17 +326,17 @@ TEST_CASE("nanolog_parse_binary_log") {
     REQUIRE(nanolog_fmt_is_binary(fmt, &binary) == NANOLOG_RET_SUCCESS);
     REQUIRE(binary == 1);
     REQUIRE(nanolog_parse_binary_log(
-              [](void *ctx_, nl_arg_type_t type, void const *p, unsigned len) {
-                auto const *pc{ static_cast<unsigned char const *>(p) };
-                static_cast<std::vector<BinaryLog> *>(ctx_)->emplace_back(
-                  BinaryLog{ .type = type, .payload = byte_vec(pc, pc + len) });
-              },
-              ctx,
-              sev,
-              buf,
-              buf_len,
-              fmt,
-              args) == NANOLOG_RET_SUCCESS);
+                [](void *ctx_, nl_arg_type_t type, void const *p, unsigned len) {
+                  auto const *pc{ static_cast<unsigned char const *>(p) };
+                  static_cast<std::vector<BinaryLog> *>(ctx_)->emplace_back(
+                      BinaryLog{ .type = type, .payload = byte_vec(pc, pc + len) });
+                },
+                ctx,
+                sev,
+                buf,
+                buf_len,
+                fmt,
+                args) == NANOLOG_RET_SUCCESS);
   });
 
   std::vector<BinaryLog> logs;
@@ -567,7 +568,7 @@ TEST_CASE("nanolog_parse_binary_log") {
   }
 
   SUBCASE("buffer") {
-    char const bin_buf[16] = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 };
+    char const bin_buf[] = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 };
     nanolog_log_buf(NL_SEV_DEBUG,
                     &logs,
                     bin_buf,
