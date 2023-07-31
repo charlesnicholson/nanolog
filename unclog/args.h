@@ -9,4 +9,4 @@ struct args {
   std::vector<char const *> noreturn_funcs;
 };
 
-bool args_parse(char const *argv[], int const argc, args& out_args);
+bool args_parse(char const *argv[], int const argc, args &out_args);

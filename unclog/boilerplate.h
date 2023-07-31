@@ -13,7 +13,10 @@
 #include <unordered_set>
 #include <vector>
 
-template <typename ...Args> void unused(Args&& ...args) { (void)sizeof...(args); }
+template <typename... Args>
+void unused(Args &&...args) {
+  (void)sizeof...(args);
+}
 
 using i8 = int8_t;
 using u8 = uint8_t;
@@ -36,7 +39,7 @@ struct aligned_deleter {
 #endif
   }
 };
-}
+}  // namespace detail
 
 using byte_vec = std::vector<byte>;
 using bytes_ptr = std::unique_ptr<byte[], detail::aligned_deleter>;
@@ -44,7 +47,7 @@ using file_ptr = std::unique_ptr<FILE, decltype(&fclose)>;
 
 inline file_ptr open_file(char const *fn, char const *mode) {
   auto file_ptr_close = [](FILE *fp) { return fp ? std::fclose(fp) : 0; };
-  return file_ptr{std::fopen(fn, mode), file_ptr_close};
+  return file_ptr{ std::fopen(fn, mode), file_ptr_close };
 }
 
 inline bytes_ptr alloc_bytes(unsigned align, unsigned len) {
@@ -52,9 +55,11 @@ inline bytes_ptr alloc_bytes(unsigned align, unsigned len) {
 #ifdef _MSC_VER
   mem = _aligned_malloc(len, align);
 #else
-  if (posix_memalign(&mem, align, len)) { mem = nullptr; }
+  if (posix_memalign(&mem, align, len)) {
+    mem = nullptr;
+  }
 #endif
-  return bytes_ptr{static_cast<byte *>(mem)};
+  return bytes_ptr{ static_cast<byte *>(mem) };
 }
 
 enum { UNCLOG_SEV_DYNAMIC = 1000 };

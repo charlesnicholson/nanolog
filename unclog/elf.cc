@@ -1,22 +1,28 @@
 #include "elf.h"
 
 namespace {
-bytes_ptr load_file(char const *fn, unsigned& out_len) {
-  file_ptr f{open_file(fn, "rb")};
-  if (!f.get()) { return bytes_ptr{}; }
+bytes_ptr load_file(char const *fn, unsigned &out_len) {
+  file_ptr f{ open_file(fn, "rb") };
+  if (!f.get()) {
+    return bytes_ptr{};
+  }
   std::fseek(f.get(), 0, SEEK_END);
-  unsigned const len{unsigned(std::ftell(f.get()))};
-  bytes_ptr contents{alloc_bytes(16, len)};
+  unsigned const len{ unsigned(std::ftell(f.get())) };
+  bytes_ptr contents{ alloc_bytes(16, len) };
   std::rewind(f.get());
-  auto const r{std::fread(&contents[0], 1, len, f.get())};
-  if (r != len) { return bytes_ptr{}; }
+  auto const r{ std::fread(&contents[0], 1, len, f.get()) };
+  if (r != len) {
+    return bytes_ptr{};
+  }
   out_len = len;
   return contents;
 }
 
 elf_section_hdr32 const *find_symtab_hdr(elf_section_hdr32 const *sec_hdrs, int sec_n) {
-  for (auto i{0}; i < sec_n; ++i) {
-    if (sec_hdrs[i].sh_type == ELF_SEC_TYPE_SYMTAB) { return &sec_hdrs[i]; }
+  for (auto i{ 0 }; i < sec_n; ++i) {
+    if (sec_hdrs[i].sh_type == ELF_SEC_TYPE_SYMTAB) {
+      return &sec_hdrs[i];
+    }
   }
   return nullptr;
 }
@@ -24,20 +30,23 @@ elf_section_hdr32 const *find_symtab_hdr(elf_section_hdr32 const *sec_hdrs, int 
 elf_section_hdr32 const *find_strtab_hdr(elf_section_hdr32 const *sec_hdrs,
                                          char const *sec_names,
                                          int sec_n) {
-  for (auto i{0}; i < sec_n; ++i) {
-    elf_section_hdr32 const& sh{sec_hdrs[i]};
-    if ((sh.sh_type == ELF_SEC_TYPE_STRTAB) && !strcmp(".strtab", &sec_names[sh.sh_name])) {
+  for (auto i{ 0 }; i < sec_n; ++i) {
+    elf_section_hdr32 const &sh{ sec_hdrs[i] };
+    if ((sh.sh_type == ELF_SEC_TYPE_STRTAB) &&
+        !strcmp(".strtab", &sec_names[sh.sh_name])) {
       return &sec_hdrs[i];
     }
   }
   return nullptr;
 }
-}
+}  // namespace
 
-bool nl_elf_load(elf& e, char const* filename) {
-  if (!(e.bytes = load_file(filename, e.len))) { return false; }
+bool nl_elf_load(elf &e, char const *filename) {
+  if (!(e.bytes = load_file(filename, e.len))) {
+    return false;
+  }
 
-  e.elf_hdr = (elf_hdr32*)&e.bytes[0];
+  e.elf_hdr = (elf_hdr32 *)&e.bytes[0];
   if (e.elf_hdr->e_shentsize != sizeof(elf_section_hdr32)) {
     NL_LOG_ERR("%s internal error, incorrect struct size", __func__);
     return false;
@@ -56,7 +65,9 @@ bool nl_elf_load(elf& e, char const* filename) {
   e.symtab = (elf_symbol32 const *)&e.bytes[e.symtab_hdr->sh_offset];
 
   // string table
-  auto const *strtab_hdr{find_strtab_hdr(e.sec_hdrs, e.sec_names, (int)e.elf_hdr->e_shnum)};
+  auto const *strtab_hdr{
+    find_strtab_hdr(e.sec_hdrs, e.sec_names, (int)e.elf_hdr->e_shnum)
+  };
   if (!strtab_hdr) {
     NL_LOG_ERR("Input elf '%s' has no string table header, aborting", filename);
     return false;
@@ -66,31 +77,61 @@ bool nl_elf_load(elf& e, char const* filename) {
   return true;
 }
 
-#define X(NAME, VAL) case VAL: printf("%s", #NAME); break;
-void nl_elf_print(elf_osabi eo) { switch (eo) { ELF_OSABI_X_LIST() default: break; } }
+#define X(NAME, VAL) \
+  case VAL: \
+    printf("%s", #NAME); \
+    break;
+void nl_elf_print(elf_osabi eo) {
+  switch (eo) { ELF_OSABI_X_LIST() default : break; }
+}
 #undef X
 
-#define X(NAME, VAL) case VAL: printf("%s", #NAME); break;
-void nl_elf_print(elf_type et) { switch (et) { ELF_TYPE_X_LIST() default: break; } }
+#define X(NAME, VAL) \
+  case VAL: \
+    printf("%s", #NAME); \
+    break;
+void nl_elf_print(elf_type et) {
+  switch (et) { ELF_TYPE_X_LIST() default : break; }
+}
 #undef X
 
-#define X(NAME, VAL) case VAL: printf("%s", #NAME); break;
-void nl_elf_print(elf_sec_type est) { switch (est) { ELF_SEC_TYPE_X_LIST() default: break; } }
+#define X(NAME, VAL) \
+  case VAL: \
+    printf("%s", #NAME); \
+    break;
+void nl_elf_print(elf_sec_type est) {
+  switch (est) { ELF_SEC_TYPE_X_LIST() default : break; }
+}
 #undef X
 
-#define X(NAME, VAL) if (esf & VAL) { printf("%s ", #NAME); }
-void nl_elf_print(elf_sec_flags esf) { ELF_SEC_FLAGS_X_LIST() }
+#define X(NAME, VAL) \
+  if (esf & VAL) { \
+    printf("%s ", #NAME); \
+  }
+void nl_elf_print(elf_sec_flags esf) {
+  ELF_SEC_FLAGS_X_LIST()
+}
 #undef X
 
-#define X(NAME, VAL) case VAL: printf("%s", #NAME); break;
-void nl_elf_print(elf_sym_bind esb) { switch (esb) { ELF_SYM_BIND_X_LIST() default: break; } }
+#define X(NAME, VAL) \
+  case VAL: \
+    printf("%s", #NAME); \
+    break;
+void nl_elf_print(elf_sym_bind esb) {
+  switch (esb) { ELF_SYM_BIND_X_LIST() default : break; }
+}
 #undef X
 
-#define X(NAME, VAL) case VAL: printf("%s", #NAME); break;
-void nl_elf_print(elf_sym_type est) { switch (est) { ELF_SYM_TYPE_X_LIST() default: break; } }
+#define X(NAME, VAL) \
+  case VAL: \
+    printf("%s", #NAME); \
+    break;
+void nl_elf_print(elf_sym_type est) {
+  switch (est) { ELF_SYM_TYPE_X_LIST() default : break; }
+}
 #undef X
 
-void nl_elf_print(const elf_hdr32& h) {
+void nl_elf_print(const elf_hdr32 &h) {
   printf("ELF Header:\n");
   printf("  ident magic: 0x%02hhx 0x%02hhx 0x%02hhx 0x%02hhx\n",
          h.e_ident_mag[0],
@@ -117,19 +158,37 @@ void nl_elf_print(const elf_hdr32& h) {
   printf("  shstrndx: %hu\n", h.e_shstrndx);
 }
 
-void nl_elf_print(elf_prog_hdr32 const& p) {
+void nl_elf_print(elf_prog_hdr32 const &p) {
   printf("ELF Program Header:\n");
   printf("  type:   0x%08x (", p.p_type);
   switch (p.p_type) {
-    case 0x00000001: printf("LOAD"); break;
-    case 0x00000002: printf("DYNAMIC"); break;
-    case 0x00000003: printf("INTERP"); break;
-    case 0x00000004: printf("NOTE"); break;
-    case 0x00000005: printf("SHLIB"); break;
-    case 0x00000006: printf("PHDR"); break;
-    case 0x00000007: printf("TLS"); break;
-    case 0x70000000: printf("ARM_ARCHEXT"); break;
-    case 0x70000001: printf("ARM_EXIDX"); break;
+    case 0x00000001:
+      printf("LOAD");
+      break;
+    case 0x00000002:
+      printf("DYNAMIC");
+      break;
+    case 0x00000003:
+      printf("INTERP");
+      break;
+    case 0x00000004:
+      printf("NOTE");
+      break;
+    case 0x00000005:
+      printf("SHLIB");
+      break;
+    case 0x00000006:
+      printf("PHDR");
+      break;
+    case 0x00000007:
+      printf("TLS");
+      break;
+    case 0x70000000:
+      printf("ARM_ARCHEXT");
+      break;
+    case 0x70000001:
+      printf("ARM_EXIDX");
+      break;
   }
   printf(")\n");
   printf("  offset: 0x%08x\n", p.p_offset);
@@ -140,7 +199,7 @@ void nl_elf_print(elf_prog_hdr32 const& p) {
   printf("  align:  %u\n", (unsigned)p.p_align);
 }
 
-void nl_elf_print(elf_section_hdr32 const& s, char const *sec_names) {
+void nl_elf_print(elf_section_hdr32 const &s, char const *sec_names) {
   printf("ELF Section Header:\n");
   printf("  name:      %s\n", &sec_names[s.sh_name]);
 
@@ -165,7 +224,7 @@ void nl_elf_print(elf_section_hdr32 const& s, char const *sec_names) {
   printf("  entsize:   0x%08x\n", s.sh_entsize);
 }
 
-void nl_elf_print(elf_symbol32 const& s, char const *strtab) {
+void nl_elf_print(elf_symbol32 const &s, char const *strtab) {
   printf("ELF Symbol:\n");
   printf("  name: %s\n", &strtab[s.st_name]);
   printf("  value: 0x%04x\n", s.st_value);
@@ -174,4 +233,3 @@ void nl_elf_print(elf_symbol32 const& s, char const *strtab) {
   printf("  other: 0x%02hhx\n", s.st_other);
   printf("  shndx: %hu\n", s.st_shndx);
 }
-
