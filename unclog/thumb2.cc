@@ -433,15 +433,23 @@ simulate_results simulate(inst const& i,
   return simulate_results::SUCCESS;
 }
 
-bool process_log_call(inst const& pc_i,
-                      path_state const& path,
-                      elf_section_hdr32 const& nl_sec_hdr,
-                      int sev,
-                      func_state& fs,
-                      func_log_call_analysis& lca) {
+enum process_log_call_ret {
+  PROCESS_LOG_CALL_RET_SUCCESS,
+  PROCESS_LOG_CALL_RET_ERR_R0_UNKNOWN,
+  PROCESS_LOG_CALL_RET_ERR_R0_INVALID,
+  PROCESS_LOG_CALL_RET_ERR_ALREADY_DISCOVERED,
+  PROCESS_LOG_CALL_RET_UNRECOGNIZED_PATTERN,
+};
+
+process_log_call_ret process_log_call(inst const& pc_i,
+                                      path_state const& path,
+                                      elf_section_hdr32 const& nl_sec_hdr,
+                                      int sev,
+                                      func_state& fs,
+                                      func_log_call_analysis& lca) {
   if (!reg_test_known(path.rs.known, reg::R0)) {
     NL_LOG_DBG("  Found log function, R0 is unknown\n");
-    return false;
+    return PROCESS_LOG_CALL_RET_ERR_R0_UNKNOWN;
   }
 
   u32 const fmt_str_addr{path.rs.regs[reg::R0]};
@@ -449,13 +457,13 @@ bool process_log_call(inst const& pc_i,
       ((fmt_str_addr < nl_sec_hdr.sh_addr) ||
        (fmt_str_addr > (nl_sec_hdr.sh_addr + nl_sec_hdr.sh_size)))) {
     NL_LOG_ERR("  Found log function, R0 is invalid: 0x%08x\n", fmt_str_addr);
-    return false;
+    return PROCESS_LOG_CALL_RET_ERR_R0_INVALID;
   }
 
   auto [_, inserted]{fs.discovered_log_strs.insert(fmt_str_addr)};
   if (!inserted) {
     NL_LOG_DBG("  Found log function, already discovered\n");
-    return true;
+    return PROCESS_LOG_CALL_RET_ERR_ALREADY_DISCOVERED;
   }
 
   lca.log_calls.push_back(log_call{ .fmt_str_addr = path.rs.regs[reg::R0],
@@ -474,9 +482,9 @@ bool process_log_call(inst const& pc_i,
       NL_LOG_DBG("0x%x\n", r0_i.addr);
       inst_print(r0_i);
       NL_LOG_DBG("\n***\n");
-      return false;
+      return PROCESS_LOG_CALL_RET_UNRECOGNIZED_PATTERN;
   }
-  return true;
+  return PROCESS_LOG_CALL_RET_SUCCESS;
 }
 }
 
@@ -555,8 +563,24 @@ thumb2_analyze_func_ret thumb2_analyze_func(
 
       if (int const sev{inst_is_log_call(pc_i, log_funcs, e.strtab)};
           NL_UNLIKELY(sev != -1)) {
-        if (!process_log_call(pc_i, path, nl_sec_hdr, sev, s, out_lca)) {
-          return thumb2_analyze_func_ret::ERR_UNKNOWN_LOG_CALL_STRATEGY;
+        bool already_discovered = false;
+        switch (process_log_call(pc_i, path, nl_sec_hdr, sev, s, out_lca)) {
+          case PROCESS_LOG_CALL_RET_SUCCESS:
+            break;
+
+          case PROCESS_LOG_CALL_RET_ERR_R0_UNKNOWN:
+          case PROCESS_LOG_CALL_RET_ERR_R0_INVALID:
+          case PROCESS_LOG_CALL_RET_UNRECOGNIZED_PATTERN:
+            return thumb2_analyze_func_ret::ERR_UNKNOWN_LOG_CALL_STRATEGY;
+
+          case PROCESS_LOG_CALL_RET_ERR_ALREADY_DISCOVERED:
+            already_discovered = true;
+            break;
+        }
+
+        if (already_discovered) {
+          NL_LOG_DBG("  Stopping path: nanolog call already discovered.\n");
+          break;
         }
       }
 
