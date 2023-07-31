@@ -1431,6 +1431,14 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
     return true;
   }
 
+  // 4.6.112 REV16, T2 encoding (pg 4-237)
+  if (((w0 & 0xFFF0u) == 0xFA90u) && ((w1 & 0xF0F0u) == 0xF090u)) {
+    out_inst.type = inst_type::BYTE_REV_PACKED_HALF;
+    out_inst.dr = u16(1u << (((w1 & 0xF00u) >> 8u) & 0xFu));
+    out_inst.i.byte_rev_packed_half = { .m = u8(w1 & 0xFu) };
+    return true;
+  }
+
   // 4.6.118 RSB (imm), T2 encoding (pg 4-249)
   if (((w0 & 0xFBE0u) == 0xF1C0u) && ((w1 & 0x8000u) == 0)) {
     u32 const imm8{ w1 & 0xFFu }, imm3{ (w1 >> 12u) & 7u }, i{ (w0 >> 10u) & 1u };
