@@ -4,20 +4,25 @@
 
 // Condition Codes
 
+// clang-format off
 #define CONDITION_CODE_X_LIST() \
   X(EQ, 0b0000) X(NE, 0b0001) X(CS, 0b0010) X(CC, 0b0011) \
   X(MI, 0b0100) X(PL, 0b0101) X(VS, 0b0110) X(VC, 0b0111) \
   X(HS, 0b1000) X(LS, 0b1001) X(GE, 0b1010) X(LT, 0b1011) \
   X(GT, 0b1100) X(LE, 0b1101) X(AL1, 0b1110) X(AL2, 0b1111)
+// clang-format on
 
 #define X(NAME, VAL) NAME = VAL,
 enum class cond_code : u8 { CONDITION_CODE_X_LIST() };
 #undef X
 
-inline bool cond_code_is_always(cond_code cc) { return cc >= cond_code::AL1; }
+inline bool cond_code_is_always(cond_code cc) {
+  return cc >= cond_code::AL1;
+}
 
 // Registers
 
+// clang-format off
 #define REGISTER_X_LIST() \
   X(R0) X(R1) X(R2) X(R3) X(R4) X(R5) X(R6) X(R7) X(R8) X(R9) X(R10) X(R11) X(R12) \
   X(SP) X(LR) X(PC)
@@ -25,21 +30,28 @@ inline bool cond_code_is_always(cond_code cc) { return cc >= cond_code::AL1; }
 #define X(NAME) NAME,
 namespace reg { enum reg_e : u8 { REGISTER_X_LIST() }; }
 #undef X
+// clang-format on
 
-char const *reg_name(int reg);
+char const* reg_name(int reg);
 
 // Immediate Shift
 
+// clang-format off
 #define SHIFT_X_LIST() X(LSL) X(LSR) X(ASR) X(RRX) X(ROR)
 
 #define X(NAME) NAME,
 enum class imm_shift_type : u8 { SHIFT_X_LIST() };
 #undef X
+// clang-format on
 
-struct imm_shift { imm_shift_type t; u8 n; };
+struct imm_shift {
+  imm_shift_type t;
+  u8 n;
+};
 
 // Instructions
 
+// clang-format off
 #define INST_TYPE_X_LIST() \
   X(UNKNOWN, unknown, {}) \
   X(ADD_CARRY_IMM, add_carry_imm, { u32 imm; u8 n; }) \
@@ -177,6 +189,7 @@ struct imm_shift { imm_shift_type t; u8 n; };
   X(VSTORE_MULT, vstore_mult, { u16 imm; u8 n, d, list, wb, single_regs, add; }) \
   X(VSUB, vsub, { u8 d, n, m; }) \
   X(VSQRT, vsqrt, { u8 d, m; })
+// clang-format on
 
 #define X(ENUM, TYPE, ...) ENUM,
 enum class inst_type : u8 { INST_TYPE_X_LIST() };
@@ -188,17 +201,19 @@ INST_TYPE_X_LIST()
 
 struct inst {
 #define X(ENUM, TYPE, ...) inst_##TYPE TYPE;
-  union { INST_TYPE_X_LIST() } i;
+  union {
+    INST_TYPE_X_LIST()
+  } i;
 #undef X
   u32 addr;
-  u16 dr; // bitmask of destination registers r0-r15
+  u16 dr;  // bitmask of destination registers r0-r15
   u16 w0, w1;
   inst_type type;
-  u8 len; // 2 or 4
+  u8 len;  // 2 or 4
 };
 
 bool inst_is_unconditional_branch(inst const& i, u32& label);
 u32 inst_align(u32 val, u32 align);
-bool inst_decode(byte const *text, u32 func_addr, u32 pc_addr, inst& out_inst);
+bool inst_decode(byte const* text, u32 func_addr, u32 pc_addr, inst& out_inst);
 void inst_print(inst const& i);
 int inst_reg_from_bitmask(uint16_t reg_bitmask);

@@ -11,14 +11,15 @@
 #include "nanoprintf.h"
 
 #ifdef _MSC_VER
-#pragma warning(disable: 4701) // maybe uninitialized; spurious w/nanoprintf
+#pragma warning(disable : 4701)  // maybe uninitialized; spurious w/nanoprintf
 #endif
 
 namespace {
-std::string& emit_escaped_json(char const *s, std::string& out) {
+std::string& emit_escaped_json(char const* s, std::string& out) {
   out.clear();
   while (*s) {
     switch (*s) {
+      // clang-format off
       case '"': out += "\\\""; break;
       case '\\': out += "\\\\"; break;
       case '\b': out += "\\b"; break;
@@ -26,6 +27,7 @@ std::string& emit_escaped_json(char const *s, std::string& out) {
       case '\n': out += "\\n"; break;
       case '\r': out += "\\r"; break;
       case '\t': out += "\\t"; break;
+      // clang-format on
       default:
         if (*s <= 0x1F) {
           char buf[16];
@@ -40,8 +42,9 @@ std::string& emit_escaped_json(char const *s, std::string& out) {
   return out;
 }
 
-char const *emit_severity(unsigned sev) {
+char const* emit_severity(unsigned sev) {
   switch (sev) {
+    // clang-format off
     case NL_SEV_DEBUG: return "debug";
     case NL_SEV_INFO: return "info";
     case NL_SEV_WARNING: return "warning";
@@ -50,23 +53,26 @@ char const *emit_severity(unsigned sev) {
     case NL_SEV_ASSERT: return "assert";
     case UNCLOG_SEV_DYNAMIC: return "dynamic";
     default: break;
+      // clang-format on
   }
   return "unknown";
 }
 
-std::string& emit_python(char const *s, std::string& out) {
+std::string& emit_python(char const* s, std::string& out) {
   char tmp[16];
 
   out.clear();
   while (*s) {
     npf_format_spec_t fs;
-    int const n{(*s != '%') ? 0 : npf_parse_format_spec(s, &fs)};
+    int const n{ (*s != '%') ? 0 : npf_parse_format_spec(s, &fs) };
 
     if (NL_LIKELY(!n)) {
       switch (*s) {
+        // clang-format off
         case '{': out += "{{"; break;
         case '}': out += "}}"; break;
         default: out += *s;
+          // clang-format on
       }
       ++s;
       continue;
@@ -74,34 +80,49 @@ std::string& emit_python(char const *s, std::string& out) {
 
     s += n;
 
-    if (fs.conv_spec == NPF_FMT_SPEC_CONV_PERCENT) { out += '%'; continue; }
-    if (fs.conv_spec == NPF_FMT_SPEC_CONV_WRITEBACK) { continue; }
+    if (fs.conv_spec == NPF_FMT_SPEC_CONV_PERCENT) {
+      out += '%';
+      continue;
+    }
+    if (fs.conv_spec == NPF_FMT_SPEC_CONV_WRITEBACK) {
+      continue;
+    }
 
     out += "{:";
-    if (fs.leading_zero_pad) { out += '0'; }
-    if (fs.prepend) { out += fs.prepend; }
-    if (fs.alt_form) { out += '#'; }
+    if (fs.leading_zero_pad) {
+      out += '0';
+    }
+    if (fs.prepend) {
+      out += fs.prepend;
+    }
+    if (fs.alt_form) {
+      out += '#';
+    }
 
     switch (fs.field_width_opt) {
+      // clang-format off
       case NPF_FMT_SPEC_OPT_NONE: break;
       case NPF_FMT_SPEC_OPT_STAR: out += "{}"; break;
       case NPF_FMT_SPEC_OPT_LITERAL:
         snprintf(tmp, sizeof(tmp), "%d", (int)fs.field_width); out += tmp;
         break;
+        // clang-format on
     }
 
-    switch (fs.conv_spec) { // python doesn't allow precision for integer types
+    switch (fs.conv_spec) {  // python doesn't allow precision for integer types
       case NPF_FMT_SPEC_CONV_STRING:
       case NPF_FMT_SPEC_CONV_FLOAT_DEC:
       case NPF_FMT_SPEC_CONV_FLOAT_SCI:
       case NPF_FMT_SPEC_CONV_FLOAT_SHORTEST:
       case NPF_FMT_SPEC_CONV_FLOAT_HEX:
         switch (fs.prec_opt) {
+          // clang-format off
           case NPF_FMT_SPEC_OPT_NONE: break;
           case NPF_FMT_SPEC_OPT_STAR: out += ".{}"; break;
           case NPF_FMT_SPEC_OPT_LITERAL:
             snprintf(tmp, sizeof(tmp), ".%d", (int)fs.prec); out += tmp;
             break;
+            // clang-format on
         }
         break;
 
@@ -112,10 +133,12 @@ std::string& emit_python(char const *s, std::string& out) {
       case NPF_FMT_SPEC_CONV_HEX_INT:
       case NPF_FMT_SPEC_CONV_UNSIGNED_INT:
       case NPF_FMT_SPEC_CONV_SIGNED_INT:
-      default: break;
+      default:
+        break;
     }
 
     switch (fs.conv_spec) {
+      // clang-format off
       case NPF_FMT_SPEC_CONV_POINTER:
       case NPF_FMT_SPEC_CONV_HEX_INT: out += fs.case_adjust ? 'x' : 'X'; break;
       case NPF_FMT_SPEC_CONV_CHAR: out += 'c'; break;
@@ -126,6 +149,7 @@ std::string& emit_python(char const *s, std::string& out) {
       case NPF_FMT_SPEC_CONV_FLOAT_SCI: out += fs.case_adjust ? 'e' : 'E'; break;
       case NPF_FMT_SPEC_CONV_FLOAT_SHORTEST: out += fs.case_adjust ? 'g' : 'G'; break;
       default: break;
+        // clang-format on
     }
 
     out += '}';
@@ -133,22 +157,30 @@ std::string& emit_python(char const *s, std::string& out) {
   return out;
 }
 
-std::string& emit_format_specifiers(char const *s, std::string& out) {
+std::string& emit_format_specifiers(char const* s, std::string& out) {
   out.clear();
-  bool first{true};
+  bool first{ true };
   while (*s) {
     npf_format_spec_t fs;
-    int const n{(*s != '%') ? 0 : npf_parse_format_spec(s, &fs)};
+    int const n{ (*s != '%') ? 0 : npf_parse_format_spec(s, &fs) };
     s += n;
-    if (NL_LIKELY(!n)) { ++s; continue; }
-    if (fs.conv_spec == NPF_FMT_SPEC_CONV_PERCENT) { continue; }
+    if (NL_LIKELY(!n)) {
+      ++s;
+      continue;
+    }
+    if (fs.conv_spec == NPF_FMT_SPEC_CONV_PERCENT) {
+      continue;
+    }
 
     out += ",\n";
-    if (first) { out += "    \"format_specifiers\": [\n"; }
+    if (first) {
+      out += "    \"format_specifiers\": [\n";
+    }
     first = false;
 
     out += "      {\n        \"type\": ";
     switch (fs.conv_spec) {
+      // clang-format off
       case NPF_FMT_SPEC_CONV_WRITEBACK: out += "\"writeback\""; break;
       case NPF_FMT_SPEC_CONV_CHAR: out += "\"char\""; break;
       case NPF_FMT_SPEC_CONV_POINTER: out += "\"pointer\""; break;
@@ -163,11 +195,13 @@ std::string& emit_format_specifiers(char const *s, std::string& out) {
       case NPF_FMT_SPEC_CONV_FLOAT_SHORTEST: out += "\"float-shortest\""; break;
       case NPF_FMT_SPEC_CONV_FLOAT_HEX: out += "\"float-hex\""; break;
       default: break;
+        // clang-format on
     }
 
     if (fs.length_modifier != NPF_FMT_SPEC_LEN_MOD_NONE) {
       out += ",\n        \"length\": ";
       switch (fs.length_modifier) {
+        // clang-format off
         case NPF_FMT_SPEC_LEN_MOD_NONE: break;
         case NPF_FMT_SPEC_LEN_MOD_SHORT: out += "\"short\""; break;
         case NPF_FMT_SPEC_LEN_MOD_LONG_DOUBLE: out += "\"long-double\""; break;
@@ -178,6 +212,7 @@ std::string& emit_format_specifiers(char const *s, std::string& out) {
         case NPF_FMT_SPEC_LEN_MOD_LARGE_SIZET:
         case NPF_FMT_SPEC_LEN_MOD_LARGE_PTRDIFFT: out += "\"large\""; break;
         default: break;
+          // clang-format on
       }
     }
 
@@ -203,9 +238,15 @@ std::string& emit_format_specifiers(char const *s, std::string& out) {
       }
     }
 
-    if (fs.alt_form) { out += ",\n        \"alternate-form\": true"; }
-    if (fs.leading_zero_pad) { out += ",\n        \"leading-zero-pad\": true"; }
-    if (fs.left_justified) { out += ",\n        \"left-justified\": true"; }
+    if (fs.alt_form) {
+      out += ",\n        \"alternate-form\": true";
+    }
+    if (fs.leading_zero_pad) {
+      out += ",\n        \"leading-zero-pad\": true";
+    }
+    if (fs.left_justified) {
+      out += ",\n        \"left-justified\": true";
+    }
 
     if (fs.prepend) {
       out += ",\n        \"positive-prefix\": \"";
@@ -221,8 +262,11 @@ std::string& emit_format_specifiers(char const *s, std::string& out) {
         case NPF_FMT_SPEC_CONV_FLOAT_DEC:
         case NPF_FMT_SPEC_CONV_FLOAT_SCI:
         case NPF_FMT_SPEC_CONV_FLOAT_SHORTEST:
-        case NPF_FMT_SPEC_CONV_FLOAT_HEX: out += ",\n        \"uppercase\": true"; break;
-        default: break;
+        case NPF_FMT_SPEC_CONV_FLOAT_HEX:
+          out += ",\n        \"uppercase\": true";
+          break;
+        default:
+          break;
       }
     }
 
@@ -230,15 +274,17 @@ std::string& emit_format_specifiers(char const *s, std::string& out) {
   }
 
   out += '\n';
-  if (!first) { out += "    ]\n"; }
+  if (!first) {
+    out += "    ]\n";
+  }
   return out;
 }
-}
+}  // namespace
 
-bool emit_json_manifest(std::vector<char const *> const& fmt_strs,
+bool emit_json_manifest(std::vector<char const*> const& fmt_strs,
                         std::vector<u8> const& fmt_str_sevs,
-                        char const *json_filename) {
-  file_ptr f{open_file(json_filename, "wt")};
+                        char const* json_filename) {
+  file_ptr f{ open_file(json_filename, "wt") };
 
   if (!f.get()) {
     NL_LOG_ERR("Unable to open output json file %s", json_filename);
@@ -250,16 +296,18 @@ bool emit_json_manifest(std::vector<char const *> const& fmt_strs,
   json.reserve(2048);
 
   std::fprintf(f.get(), "[\n");
-  for (auto i{0u}, n{unsigned(fmt_strs.size())}; i < n; ++i) {
+  for (auto i{ 0u }, n{ unsigned(fmt_strs.size()) }; i < n; ++i) {
     std::fprintf(f.get(), "  {\n");
     std::fprintf(f.get(), "    \"guid\": %u,\n", i);
     std::fprintf(f.get(), "    \"severity\": \"%s\",\n", emit_severity(fmt_str_sevs[i]));
 
-    std::fprintf(f.get(), "    \"c_printf\": \"%s\",\n",
-      emit_escaped_json(fmt_strs[i], json).c_str());
+    std::fprintf(f.get(),
+                 "    \"c_printf\": \"%s\",\n",
+                 emit_escaped_json(fmt_strs[i], json).c_str());
 
-    std::fprintf(f.get(), "    \"python\": \"%s\"",
-      emit_escaped_json(emit_python(fmt_strs[i], lang).c_str(), json).c_str());
+    std::fprintf(f.get(),
+                 "    \"python\": \"%s\"",
+                 emit_escaped_json(emit_python(fmt_strs[i], lang).c_str(), json).c_str());
 
     std::fprintf(f.get(), "%s", emit_format_specifiers(fmt_strs[i], lang).c_str());
     std::fprintf(f.get(), "  }%s\n", (i < (n - 1)) ? "," : "");
@@ -277,28 +325,33 @@ void emit_nibble(byte val, byte_vec& v, bool& lo_nibble) {
   }
   lo_nibble = !lo_nibble;
 }
-}
+}  // namespace
 
-void emit_bin_fmt_str(char const *str, unsigned guid, byte_vec& fmt_bin_mem) {
+void emit_bin_fmt_str(char const* str, unsigned guid, byte_vec& fmt_bin_mem) {
   fmt_bin_mem.push_back(NL_BINARY_LOG_MARKER);
 
-  { // guid
+  {  // guid
     char guid_enc[16];
     unsigned guid_enc_len;
     nanolog_varint_encode(guid, guid_enc, sizeof(guid_enc), &guid_enc_len);
     fmt_bin_mem.insert(fmt_bin_mem.end(), guid_enc, guid_enc + guid_enc_len);
   }
 
-  bool lo_nibble{true};
-  char const *cur{str};
+  bool lo_nibble{ true };
+  char const* cur{ str };
   while (*cur) {
     npf_format_spec_t fs;
-    int const n{(*cur != '%') ? 0 : npf_parse_format_spec(cur, &fs)};
-    if (NL_LIKELY(!n)) { ++cur; continue; }
+    int const n{ (*cur != '%') ? 0 : npf_parse_format_spec(cur, &fs) };
+    if (NL_LIKELY(!n)) {
+      ++cur;
+      continue;
+    }
     cur += n;
 
     if ((fs.conv_spec == NPF_FMT_SPEC_CONV_WRITEBACK) ||
-        (fs.conv_spec == NPF_FMT_SPEC_CONV_PERCENT)) { continue; }
+        (fs.conv_spec == NPF_FMT_SPEC_CONV_PERCENT)) {
+      continue;
+    }
 
     if (fs.field_width_opt == NPF_FMT_SPEC_OPT_STAR) {
       emit_nibble(NL_ARG_TYPE_FIELD_WIDTH_STAR, fmt_bin_mem, lo_nibble);
@@ -312,19 +365,25 @@ void emit_bin_fmt_str(char const *str, unsigned guid, byte_vec& fmt_bin_mem) {
       case NPF_FMT_SPEC_CONV_CHAR:
         switch (fs.length_modifier) {
           case NPF_FMT_SPEC_LEN_MOD_NONE:
-            emit_nibble(NL_ARG_TYPE_SCALAR_1_BYTE, fmt_bin_mem, lo_nibble); break;
+            emit_nibble(NL_ARG_TYPE_SCALAR_1_BYTE, fmt_bin_mem, lo_nibble);
+            break;
           case NPF_FMT_SPEC_LEN_MOD_LONG:
-            emit_nibble(NL_ARG_TYPE_WINT_T, fmt_bin_mem, lo_nibble); break;
-          default: break;
-        } break;
+            emit_nibble(NL_ARG_TYPE_WINT_T, fmt_bin_mem, lo_nibble);
+            break;
+          default:
+            break;
+        }
+        break;
 
       case NPF_FMT_SPEC_CONV_POINTER:
-        emit_nibble(NL_ARG_TYPE_POINTER, fmt_bin_mem, lo_nibble); break;
+        emit_nibble(NL_ARG_TYPE_POINTER, fmt_bin_mem, lo_nibble);
+        break;
 
       case NPF_FMT_SPEC_CONV_STRING:
         if (fs.prec_opt == NPF_FMT_SPEC_OPT_LITERAL) {
           emit_nibble(NL_ARG_TYPE_STRING_PRECISION_LITERAL, fmt_bin_mem, lo_nibble);
-          char lit_enc[16]; unsigned lit_enc_len{0};
+          char lit_enc[16];
+          unsigned lit_enc_len{ 0 };
           nanolog_varint_encode(unsigned(fs.prec), lit_enc, sizeof(lit_enc), &lit_enc_len);
           fmt_bin_mem.insert(fmt_bin_mem.end(), lit_enc, lit_enc + lit_enc_len);
           lo_nibble = true;
@@ -339,19 +398,25 @@ void emit_bin_fmt_str(char const *str, unsigned guid, byte_vec& fmt_bin_mem) {
       case NPF_FMT_SPEC_CONV_SIGNED_INT:
         switch (fs.length_modifier) {
           case NPF_FMT_SPEC_LEN_MOD_CHAR:
-            emit_nibble(NL_ARG_TYPE_SCALAR_1_BYTE, fmt_bin_mem, lo_nibble); break;
+            emit_nibble(NL_ARG_TYPE_SCALAR_1_BYTE, fmt_bin_mem, lo_nibble);
+            break;
           case NPF_FMT_SPEC_LEN_MOD_SHORT:
-            emit_nibble(NL_ARG_TYPE_SCALAR_2_BYTE, fmt_bin_mem, lo_nibble); break;
+            emit_nibble(NL_ARG_TYPE_SCALAR_2_BYTE, fmt_bin_mem, lo_nibble);
+            break;
           case NPF_FMT_SPEC_LEN_MOD_NONE:
           case NPF_FMT_SPEC_LEN_MOD_LONG:
           case NPF_FMT_SPEC_LEN_MOD_LARGE_SIZET:
           case NPF_FMT_SPEC_LEN_MOD_LARGE_PTRDIFFT:
-            emit_nibble(NL_ARG_TYPE_SCALAR_4_BYTE, fmt_bin_mem, lo_nibble); break;
+            emit_nibble(NL_ARG_TYPE_SCALAR_4_BYTE, fmt_bin_mem, lo_nibble);
+            break;
           case NPF_FMT_SPEC_LEN_MOD_LARGE_LONG_LONG:
           case NPF_FMT_SPEC_LEN_MOD_LARGE_INTMAX:
-            emit_nibble(NL_ARG_TYPE_SCALAR_8_BYTE, fmt_bin_mem, lo_nibble); break;
-          default: break;
-        } break;
+            emit_nibble(NL_ARG_TYPE_SCALAR_8_BYTE, fmt_bin_mem, lo_nibble);
+            break;
+          default:
+            break;
+        }
+        break;
 
       case NPF_FMT_SPEC_CONV_FLOAT_DEC:
       case NPF_FMT_SPEC_CONV_FLOAT_SCI:
@@ -359,26 +424,30 @@ void emit_bin_fmt_str(char const *str, unsigned guid, byte_vec& fmt_bin_mem) {
       case NPF_FMT_SPEC_CONV_FLOAT_HEX:
         switch (fs.length_modifier) {
           case NPF_FMT_SPEC_LEN_MOD_NONE:
-            emit_nibble(NL_ARG_TYPE_DOUBLE, fmt_bin_mem, lo_nibble); break;
+            emit_nibble(NL_ARG_TYPE_DOUBLE, fmt_bin_mem, lo_nibble);
+            break;
           case NPF_FMT_SPEC_LEN_MOD_LONG:
-            emit_nibble(NL_ARG_TYPE_LONG_DOUBLE, fmt_bin_mem, lo_nibble); break;
-          default: break;
-        } break;
+            emit_nibble(NL_ARG_TYPE_LONG_DOUBLE, fmt_bin_mem, lo_nibble);
+            break;
+          default:
+            break;
+        }
+        break;
 
-      default: break;
+      default:
+        break;
     }
   }
 
   emit_nibble(NL_ARG_TYPE_LOG_END, fmt_bin_mem, lo_nibble);
 }
 
-void emit_bin_fmt_strs(std::vector<char const *> const& fmt_strs,
+void emit_bin_fmt_strs(std::vector<char const*> const& fmt_strs,
                        std::vector<u32>& fmt_bin_addrs,
                        byte_vec& fmt_bin_mem) {
   for (auto str : fmt_strs) {
     fmt_bin_addrs.push_back(unsigned(fmt_bin_mem.size()));
-    auto const guid{fmt_bin_addrs.empty() ? 0 : unsigned(fmt_bin_addrs.size() - 1)};
+    auto const guid{ fmt_bin_addrs.empty() ? 0 : unsigned(fmt_bin_addrs.size() - 1) };
     emit_bin_fmt_str(str, guid, fmt_bin_mem);
   }
 }
-

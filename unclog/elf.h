@@ -179,7 +179,7 @@ struct elf {
   char const *strtab;
 };
 
-bool nl_elf_load(elf& e, char const *filename);
+bool nl_elf_load(elf &e, char const *filename);
 
 void nl_elf_print(elf_osabi eo);
 void nl_elf_print(elf_type et);
@@ -187,8 +187,7 @@ void nl_elf_print(elf_sec_type est);
 void nl_elf_print(elf_sec_flags esf);
 void nl_elf_print(elf_sym_bind esb);
 void nl_elf_print(elf_sym_type est);
-void nl_elf_print(elf_hdr32 const& h);
-void nl_elf_print(elf_prog_hdr32 const& p);
-void nl_elf_print(elf_section_hdr32 const& s, char const *sec_names);
-void nl_elf_print(elf_symbol32 const& s, char const *strtab);
-
+void nl_elf_print(elf_hdr32 const &h);
+void nl_elf_print(elf_prog_hdr32 const &p);
+void nl_elf_print(elf_section_hdr32 const &s, char const *sec_names);
+void nl_elf_print(elf_symbol32 const &s, char const *strtab);
