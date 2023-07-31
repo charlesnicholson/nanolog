@@ -139,6 +139,7 @@ int main(int argc, char const *argv[]) {
   std::vector<func_log_call_analysis> log_call_funcs;
   for (auto const& [_, syms] : s.non_nl_funcs_sym_map) {
     func_log_call_analysis lca{*syms[0]};
+    ++stats.analyzed_functions;
     switch (NL_EXPECT(thumb2_analyze_func(s.e, lca.func, *s.nl_hdr, s.nl_funcs,
             s.noreturn_func_addrs, lca, stats), thumb2_analyze_func_ret::SUCCESS)) {
       case thumb2_analyze_func_ret::SUCCESS: break;
@@ -188,8 +189,8 @@ int main(int argc, char const *argv[]) {
     if (!lca.log_calls.empty()) { log_call_funcs.push_back(lca); }
   }
 
-  NL_LOG_DBG("\n%u instructions decoded, %u paths analyzed\n\n",
-    stats.decoded_insts, stats.analyzed_paths);
+  NL_LOG_DBG("\n%u functions visited, %u instructions decoded, %u paths analyzed\n\n",
+    stats.analyzed_functions, stats.decoded_insts, stats.analyzed_paths);
 
   NL_LOG_DBG("\nLog calls:\n");
   for (auto const& f : log_call_funcs) {
