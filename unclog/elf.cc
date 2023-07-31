@@ -162,33 +162,17 @@ void nl_elf_print(elf_prog_hdr32 const &p) {
   printf("ELF Program Header:\n");
   printf("  type:   0x%08x (", p.p_type);
   switch (p.p_type) {
-    case 0x00000001:
-      printf("LOAD");
-      break;
-    case 0x00000002:
-      printf("DYNAMIC");
-      break;
-    case 0x00000003:
-      printf("INTERP");
-      break;
-    case 0x00000004:
-      printf("NOTE");
-      break;
-    case 0x00000005:
-      printf("SHLIB");
-      break;
-    case 0x00000006:
-      printf("PHDR");
-      break;
-    case 0x00000007:
-      printf("TLS");
-      break;
-    case 0x70000000:
-      printf("ARM_ARCHEXT");
-      break;
-    case 0x70000001:
-      printf("ARM_EXIDX");
-      break;
+    // clang-format off
+    case 0x00000001: printf("LOAD"); break;
+    case 0x00000002: printf("DYNAMIC"); break;
+    case 0x00000003: printf("INTERP"); break;
+    case 0x00000004: printf("NOTE"); break;
+    case 0x00000005: printf("SHLIB"); break;
+    case 0x00000006: printf("PHDR"); break;
+    case 0x00000007: printf("TLS"); break;
+    case 0x70000000: printf("ARM_ARCHEXT"); break;
+    case 0x70000001: printf("ARM_EXIDX"); break;
+    // clang-format on
   }
   printf(")\n");
   printf("  offset: 0x%08x\n", p.p_offset);
