@@ -1996,6 +1996,7 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
     out_inst.type = inst_type::VLOAD;
     out_inst.i.vload = {
       .imm = u8(w1 & 0xFu),
+      .single_reg = 0,
       .add = u8((w0 >> 7) & 1),
       .n = u8(w0 & 0xFu),
       .d = u8(u8((w1 >> 12u) & 0xFu) | u8(((w0 >> 6) & 1) << 4u)),
