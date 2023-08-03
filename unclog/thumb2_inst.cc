@@ -2159,8 +2159,6 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
     return true;
   }
 
-
-
   // A7.7.248 VSTR, T2 encoding (pg A7-607)
   if (((w0 & 0xFF30u) == 0xED00u) && ((w1 & 0xF00u) == 0xA00u)) {
     u8 const D{ u8((w0 >> 6u) & 1u) }, vd{ u8((w1 >> 12u) & 0xFu) };
