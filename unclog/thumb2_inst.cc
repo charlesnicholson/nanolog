@@ -1991,6 +1991,19 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
     return true;
   }
 
+  // A7.7.230 VLDR, T1 encoding (pg A7-581)
+  if (((w0 & 0xFF30u) == 0xED10u) && ((w1 & 0xF00u) == 0xB00u)) {
+    out_inst.type = inst_type::VLOAD;
+    out_inst.i.vload = {
+      .imm = u8(w1 & 0xFu),
+      .single_reg = 0,
+      .add = u8((w0 >> 7) & 1),
+      .n = u8(w0 & 0xFu),
+      .d = u8(u8((w1 >> 12u) & 0xFu) | u8(((w0 >> 6) & 1) << 4u)),
+    };
+    return true;
+  }
+
   // A7.7.232 VMOV (imm), T1 encoding (pg A7-585)
   if (((w0 & 0xFFB0u) == 0xEEB0u) && ((w1 & 0xF50u) == 0xA00u)) {
     u8 const imm4h{ u8(w0 & 0xFu) }, imm4l{ u8(w1 & 0xFu) }, vd{ u8((w1 >> 12u) & 0xFu) },
@@ -2131,6 +2144,19 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
                                .wb = w,
                                .single_regs = 1u,
                                .add = u };
+    return true;
+  }
+
+  // A7.7.248 VSTR, T1 encoding (pg A7-607)
+  if (((w0 & 0xFF30u) == 0xED00u) && ((w1 & 0xF00u) == 0xB00u)) {
+    u8 const D{ u8((w0 >> 6u) & 1u) }, vd{ u8((w1 >> 12u) & 0xFu) };
+    u16 const imm8{ u16(w1 & 0xFFu) };
+    out_inst.type = inst_type::VSTORE;
+    out_inst.i.vstore = { .imm = u16(imm8 << 2u),
+                          .single_reg = 1u,
+                          .add = u8((w0 >> 7u) & 1u),
+                          .d = u8((D << 4u) | vd),
+                          .n = u8(w0 & 0xFu) };
     return true;
   }
 
