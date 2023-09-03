@@ -275,13 +275,18 @@ int main(int argc, char const *argv[]) {
 
   std::vector<char const *> fmt_strs;
   std::vector<u8> fmt_str_sevs;
+  std::vector<char const *> fmt_funcs;
+
   fmt_strs.reserve(s.log_str_cnt);
   fmt_str_sevs.reserve(s.log_str_cnt);
+  fmt_funcs.reserve(s.log_str_cnt);
+
   for (auto const *ofs{ &s.e.bytes[s.nl_hdr->sh_offset] };
        auto const &f : log_call_funcs) {
     for (auto const &lc : f.log_calls) {
       fmt_strs.push_back((char const *)(ofs + (lc.fmt_str_addr - s.nl_hdr->sh_addr)));
       fmt_str_sevs.push_back(lc.severity);
+      fmt_funcs.push_back(&s.e.strtab[f.func.st_name]);
     }
   }
 
@@ -324,7 +329,7 @@ int main(int argc, char const *argv[]) {
   if (!write_file(&patched_elf[0], s.e.len, cmd_args.output_elf)) {
     return 1;
   }
-  if (!emit_json_manifest(fmt_strs, fmt_str_sevs, cmd_args.output_json)) {
+  if (!emit_json_manifest(fmt_strs, fmt_str_sevs, fmt_funcs, cmd_args.output_json)) {
     return 2;
   }
   return 0;

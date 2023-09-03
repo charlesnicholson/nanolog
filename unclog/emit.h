@@ -9,4 +9,5 @@ void emit_bin_fmt_strs(std::vector<char const*> const& fmt_strs,
 
 bool emit_json_manifest(std::vector<char const*> const& fmt_strs,
                         std::vector<u8> const& fmt_str_sevs,
+                        std::vector<char const*> const& fmt_funcs,
                         char const* json_filename);

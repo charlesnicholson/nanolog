@@ -283,6 +283,7 @@ std::string& emit_format_specifiers(char const* s, std::string& out) {
 
 bool emit_json_manifest(std::vector<char const*> const& fmt_strs,
                         std::vector<u8> const& fmt_str_sevs,
+                        std::vector<char const*> const& fmt_funcs,
                         char const* json_filename) {
   file_ptr f{ open_file(json_filename, "wt") };
 
@@ -300,6 +301,7 @@ bool emit_json_manifest(std::vector<char const*> const& fmt_strs,
     std::fprintf(f.get(), "  {\n");
     std::fprintf(f.get(), "    \"guid\": %u,\n", i);
     std::fprintf(f.get(), "    \"severity\": \"%s\",\n", emit_severity(fmt_str_sevs[i]));
+    std::fprintf(f.get(), "    \"function\": \"%s\",\n", fmt_funcs[i]);
 
     std::fprintf(f.get(),
                  "    \"c_printf\": \"%s\",\n",
