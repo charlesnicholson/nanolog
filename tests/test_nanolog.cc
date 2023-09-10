@@ -36,10 +36,13 @@ TEST_CASE("nanolog_get_threshold") {
 
 TEST_CASE("nanolog_set_handler") {
   static int s_calls{ 0 };
-  REQUIRE(nanolog_set_handler(
-              [](void *, unsigned, void const *, unsigned, char const *, va_list) {
-                ++s_calls;
-              }) == NANOLOG_RET_SUCCESS);
+  REQUIRE(nanolog_set_handler([](void *,
+                                 unsigned,
+                                 char const *,
+                                 void const *,
+                                 unsigned,
+                                 char const *,
+                                 va_list) { ++s_calls; }) == NANOLOG_RET_SUCCESS);
   nanolog_log_sev(NL_SEV_ASSERT, "");
   REQUIRE(s_calls == 1);
 }
@@ -85,11 +88,16 @@ TEST_CASE("nanolog_log_sev") {
   std::string fmt;
   s_fmt = &fmt;
   static unsigned s_sev{ 12345 };
-  REQUIRE(nanolog_set_handler(
-              [](void *, unsigned sev, void const *, unsigned, char const *fmt_, va_list) {
-                *s_fmt = fmt_;
-                s_sev = sev;
-              }) == NANOLOG_RET_SUCCESS);
+  REQUIRE(nanolog_set_handler([](void *,
+                                 unsigned sev,
+                                 char const *,
+                                 void const *,
+                                 unsigned,
+                                 char const *fmt_,
+                                 va_list) {
+            *s_fmt = fmt_;
+            s_sev = sev;
+          }) == NANOLOG_RET_SUCCESS);
   nanolog_log_sev(NL_SEV_WARNING, "logging is fun");
   REQUIRE(fmt == "logging is fun");
   REQUIRE_EQ(s_sev, NL_SEV_WARNING | NL_DYNAMIC_SEV_BIT);
@@ -101,9 +109,13 @@ TEST_CASE("nanolog_log_sev_ctx") {
     unsigned sev;
   };
   std::vector<Log> captures;
-  REQUIRE(
-      nanolog_set_handler(
-          [](void *ctx, unsigned sev, void const *, unsigned, char const *fmt, va_list) {
+  REQUIRE(nanolog_set_handler([](void *ctx,
+                                 unsigned sev,
+                                 char const *,
+                                 void const *,
+                                 unsigned,
+                                 char const *fmt,
+                                 va_list) {
             static_cast<std::vector<Log> *>(ctx)->emplace_back(
                 Log{ .fmt = fmt, .sev = sev });
           }) == NANOLOG_RET_SUCCESS);
@@ -318,6 +330,7 @@ TEST_CASE("nanolog_parse_binary_log") {
 
   nanolog_set_handler([](void *ctx,
                          unsigned sev,
+                         char const *,
                          void const *buf,
                          unsigned buf_len,
                          char const *fmt,

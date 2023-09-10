@@ -48,7 +48,7 @@ NL_NOINLINE void nanolog_log_sev(unsigned sev, char const *fmt, ...) {
   }
   va_list a;
   va_start(a, fmt);
-  s_log_handler(NULL, sev | NL_DYNAMIC_SEV_BIT, NULL, 0, fmt, a);
+  s_log_handler(NULL, sev | NL_DYNAMIC_SEV_BIT, NULL, NULL, 0, fmt, a);
   va_end(a);
 }
 
@@ -58,7 +58,7 @@ NL_NOINLINE void nanolog_log_sev_ctx(unsigned sev, void *ctx, char const *fmt, .
   }
   va_list a;
   va_start(a, fmt);
-  s_log_handler(ctx, sev | NL_DYNAMIC_SEV_BIT, NULL, 0, fmt, a);
+  s_log_handler(ctx, sev | NL_DYNAMIC_SEV_BIT, NULL, NULL, 0, fmt, a);
   va_end(a);
 }
 
@@ -73,7 +73,7 @@ NL_NOINLINE void nanolog_log_sev_buf(unsigned sev,
   }
   va_list a;
   va_start(a, fmt);
-  s_log_handler(ctx, sev | NL_DYNAMIC_SEV_BIT, buf, len, fmt, a);
+  s_log_handler(ctx, sev | NL_DYNAMIC_SEV_BIT, NULL, buf, len, fmt, a);
   va_end(a);
 }
 
@@ -83,7 +83,17 @@ NL_NOINLINE void nanolog_log_debug(char const *fmt, ...) {
   }
   va_list a;
   va_start(a, fmt);
-  s_log_handler(NULL, NL_SEV_DEBUG, NULL, 0, fmt, a);
+  s_log_handler(NULL, NL_SEV_DEBUG, NULL, NULL, 0, fmt, a);
+  va_end(a);
+}
+
+NL_NOINLINE void nanolog_log_debug_func(char const *fmt, char const *func, ...) {
+  if (!s_log_handler || (s_log_threshold > NL_SEV_DEBUG)) {
+    return;
+  }
+  va_list a;
+  va_start(a, func);
+  s_log_handler(NULL, NL_SEV_DEBUG, func, NULL, 0, fmt, a);
   va_end(a);
 }
 
@@ -93,7 +103,20 @@ NL_NOINLINE void nanolog_log_debug_ctx(char const *fmt, void *ctx, ...) {
   }
   va_list a;
   va_start(a, ctx);
-  s_log_handler(ctx, NL_SEV_DEBUG, NULL, 0, fmt, a);
+  s_log_handler(ctx, NL_SEV_DEBUG, NULL, NULL, 0, fmt, a);
+  va_end(a);
+}
+
+NL_NOINLINE void nanolog_log_debug_ctx_func(char const *fmt,
+                                            char const *func,
+                                            void *ctx,
+                                            ...) {
+  if (!s_log_handler || (s_log_threshold > NL_SEV_DEBUG)) {
+    return;
+  }
+  va_list a;
+  va_start(a, ctx);
+  s_log_handler(ctx, NL_SEV_DEBUG, func, NULL, 0, fmt, a);
   va_end(a);
 }
 
@@ -107,7 +130,22 @@ void nanolog_log_debug_buf(char const *fmt,
   }
   va_list a;
   va_start(a, buf_len);
-  s_log_handler(ctx, NL_SEV_DEBUG, buf, buf_len, fmt, a);
+  s_log_handler(ctx, NL_SEV_DEBUG, NULL, buf, buf_len, fmt, a);
+  va_end(a);
+}
+
+void nanolog_log_debug_buf_func(char const *fmt,
+                                char const *func,
+                                void *ctx,
+                                void const *buf,
+                                unsigned buf_len,
+                                ...) {
+  if (!s_log_handler || (s_log_threshold > NL_SEV_DEBUG)) {
+    return;
+  }
+  va_list a;
+  va_start(a, buf_len);
+  s_log_handler(ctx, NL_SEV_DEBUG, func, buf, buf_len, fmt, a);
   va_end(a);
 }
 
@@ -117,7 +155,17 @@ NL_NOINLINE void nanolog_log_info(char const *fmt, ...) {
   }
   va_list a;
   va_start(a, fmt);
-  s_log_handler(NULL, NL_SEV_INFO, NULL, 0, fmt, a);
+  s_log_handler(NULL, NL_SEV_INFO, NULL, NULL, 0, fmt, a);
+  va_end(a);
+}
+
+NL_NOINLINE void nanolog_log_info_func(char const *fmt, char const *func, ...) {
+  if (!s_log_handler || (s_log_threshold > NL_SEV_INFO)) {
+    return;
+  }
+  va_list a;
+  va_start(a, func);
+  s_log_handler(NULL, NL_SEV_INFO, func, NULL, 0, fmt, a);
   va_end(a);
 }
 
@@ -127,7 +175,20 @@ NL_NOINLINE void nanolog_log_info_ctx(char const *fmt, void *ctx, ...) {
   }
   va_list a;
   va_start(a, ctx);
-  s_log_handler(ctx, NL_SEV_INFO, NULL, 0, fmt, a);
+  s_log_handler(ctx, NL_SEV_INFO, NULL, NULL, 0, fmt, a);
+  va_end(a);
+}
+
+NL_NOINLINE void nanolog_log_info_ctx_func(char const *fmt,
+                                           char const *func,
+                                           void *ctx,
+                                           ...) {
+  if (!s_log_handler || (s_log_threshold > NL_SEV_INFO)) {
+    return;
+  }
+  va_list a;
+  va_start(a, ctx);
+  s_log_handler(ctx, NL_SEV_INFO, func, NULL, 0, fmt, a);
   va_end(a);
 }
 
@@ -141,7 +202,22 @@ void nanolog_log_info_buf(char const *fmt,
   }
   va_list a;
   va_start(a, buf_len);
-  s_log_handler(ctx, NL_SEV_INFO, buf, buf_len, fmt, a);
+  s_log_handler(ctx, NL_SEV_INFO, NULL, buf, buf_len, fmt, a);
+  va_end(a);
+}
+
+void nanolog_log_info_buf_func(char const *fmt,
+                               char const *func,
+                               void *ctx,
+                               void const *buf,
+                               unsigned buf_len,
+                               ...) {
+  if (!s_log_handler || (s_log_threshold > NL_SEV_INFO)) {
+    return;
+  }
+  va_list a;
+  va_start(a, buf_len);
+  s_log_handler(ctx, NL_SEV_INFO, func, buf, buf_len, fmt, a);
   va_end(a);
 }
 
@@ -151,7 +227,17 @@ NL_NOINLINE void nanolog_log_warning(char const *fmt, ...) {
   }
   va_list a;
   va_start(a, fmt);
-  s_log_handler(NULL, NL_SEV_WARNING, NULL, 0, fmt, a);
+  s_log_handler(NULL, NL_SEV_WARNING, NULL, NULL, 0, fmt, a);
+  va_end(a);
+}
+
+NL_NOINLINE void nanolog_log_warning_func(char const *fmt, char const *func, ...) {
+  if (!s_log_handler || (s_log_threshold > NL_SEV_WARNING)) {
+    return;
+  }
+  va_list a;
+  va_start(a, func);
+  s_log_handler(NULL, NL_SEV_WARNING, func, NULL, 0, fmt, a);
   va_end(a);
 }
 
@@ -161,7 +247,20 @@ NL_NOINLINE void nanolog_log_warning_ctx(char const *fmt, void *ctx, ...) {
   }
   va_list a;
   va_start(a, ctx);
-  s_log_handler(ctx, NL_SEV_WARNING, NULL, 0, fmt, a);
+  s_log_handler(ctx, NL_SEV_WARNING, NULL, NULL, 0, fmt, a);
+  va_end(a);
+}
+
+NL_NOINLINE void nanolog_log_warning_ctx_func(char const *fmt,
+                                              char const *func,
+                                              void *ctx,
+                                              ...) {
+  if (!s_log_handler || (s_log_threshold > NL_SEV_WARNING)) {
+    return;
+  }
+  va_list a;
+  va_start(a, ctx);
+  s_log_handler(ctx, NL_SEV_WARNING, func, NULL, 0, fmt, a);
   va_end(a);
 }
 
@@ -175,7 +274,22 @@ void nanolog_log_warning_buf(char const *fmt,
   }
   va_list a;
   va_start(a, buf_len);
-  s_log_handler(ctx, NL_SEV_WARNING, buf, buf_len, fmt, a);
+  s_log_handler(ctx, NL_SEV_WARNING, NULL, buf, buf_len, fmt, a);
+  va_end(a);
+}
+
+void nanolog_log_warning_buf_func(char const *fmt,
+                                  char const *func,
+                                  void *ctx,
+                                  void const *buf,
+                                  unsigned buf_len,
+                                  ...) {
+  if (!s_log_handler || (s_log_threshold > NL_SEV_WARNING)) {
+    return;
+  }
+  va_list a;
+  va_start(a, buf_len);
+  s_log_handler(ctx, NL_SEV_WARNING, func, buf, buf_len, fmt, a);
   va_end(a);
 }
 
@@ -185,7 +299,17 @@ NL_NOINLINE void nanolog_log_error(char const *fmt, ...) {
   }
   va_list a;
   va_start(a, fmt);
-  s_log_handler(NULL, NL_SEV_ERROR, NULL, 0, fmt, a);
+  s_log_handler(NULL, NL_SEV_ERROR, NULL, NULL, 0, fmt, a);
+  va_end(a);
+}
+
+NL_NOINLINE void nanolog_log_error_func(char const *fmt, char const *func, ...) {
+  if (!s_log_handler || (s_log_threshold > NL_SEV_ERROR)) {
+    return;
+  }
+  va_list a;
+  va_start(a, func);
+  s_log_handler(NULL, NL_SEV_ERROR, func, NULL, 0, fmt, a);
   va_end(a);
 }
 
@@ -195,7 +319,20 @@ NL_NOINLINE void nanolog_log_error_ctx(char const *fmt, void *ctx, ...) {
   }
   va_list a;
   va_start(a, ctx);
-  s_log_handler(ctx, NL_SEV_ERROR, NULL, 0, fmt, a);
+  s_log_handler(ctx, NL_SEV_ERROR, NULL, NULL, 0, fmt, a);
+  va_end(a);
+}
+
+NL_NOINLINE void nanolog_log_error_ctx_func(char const *fmt,
+                                            char const *func,
+                                            void *ctx,
+                                            ...) {
+  if (!s_log_handler || (s_log_threshold > NL_SEV_ERROR)) {
+    return;
+  }
+  va_list a;
+  va_start(a, ctx);
+  s_log_handler(ctx, NL_SEV_ERROR, func, NULL, 0, fmt, a);
   va_end(a);
 }
 
@@ -209,7 +346,22 @@ void nanolog_log_error_buf(char const *fmt,
   }
   va_list a;
   va_start(a, buf_len);
-  s_log_handler(ctx, NL_SEV_ERROR, buf, buf_len, fmt, a);
+  s_log_handler(ctx, NL_SEV_ERROR, NULL, buf, buf_len, fmt, a);
+  va_end(a);
+}
+
+void nanolog_log_error_buf_func(char const *fmt,
+                                char const *func,
+                                void *ctx,
+                                void const *buf,
+                                unsigned buf_len,
+                                ...) {
+  if (!s_log_handler || (s_log_threshold > NL_SEV_ERROR)) {
+    return;
+  }
+  va_list a;
+  va_start(a, buf_len);
+  s_log_handler(ctx, NL_SEV_ERROR, func, buf, buf_len, fmt, a);
   va_end(a);
 }
 
@@ -219,7 +371,17 @@ NL_NOINLINE void nanolog_log_critical(char const *fmt, ...) {
   }
   va_list a;
   va_start(a, fmt);
-  s_log_handler(NULL, NL_SEV_CRITICAL, NULL, 0, fmt, a);
+  s_log_handler(NULL, NL_SEV_CRITICAL, NULL, NULL, 0, fmt, a);
+  va_end(a);
+}
+
+NL_NOINLINE void nanolog_log_critical_func(char const *fmt, char const *func, ...) {
+  if (!s_log_handler || (s_log_threshold > NL_SEV_CRITICAL)) {
+    return;
+  }
+  va_list a;
+  va_start(a, func);
+  s_log_handler(NULL, NL_SEV_CRITICAL, func, NULL, 0, fmt, a);
   va_end(a);
 }
 
@@ -229,7 +391,20 @@ NL_NOINLINE void nanolog_log_critical_ctx(char const *fmt, void *ctx, ...) {
   }
   va_list a;
   va_start(a, ctx);
-  s_log_handler(ctx, NL_SEV_CRITICAL, NULL, 0, fmt, a);
+  s_log_handler(ctx, NL_SEV_CRITICAL, NULL, NULL, 0, fmt, a);
+  va_end(a);
+}
+
+NL_NOINLINE void nanolog_log_critical_ctx_func(char const *fmt,
+                                               char const *func,
+                                               void *ctx,
+                                               ...) {
+  if (!s_log_handler || (s_log_threshold > NL_SEV_CRITICAL)) {
+    return;
+  }
+  va_list a;
+  va_start(a, ctx);
+  s_log_handler(ctx, NL_SEV_CRITICAL, func, NULL, 0, fmt, a);
   va_end(a);
 }
 
@@ -243,7 +418,22 @@ void nanolog_log_critical_buf(char const *fmt,
   }
   va_list a;
   va_start(a, buf_len);
-  s_log_handler(ctx, NL_SEV_CRITICAL, buf, buf_len, fmt, a);
+  s_log_handler(ctx, NL_SEV_CRITICAL, NULL, buf, buf_len, fmt, a);
+  va_end(a);
+}
+
+void nanolog_log_critical_buf_func(char const *fmt,
+                                   char const *func,
+                                   void *ctx,
+                                   void const *buf,
+                                   unsigned buf_len,
+                                   ...) {
+  if (!s_log_handler || (s_log_threshold > NL_SEV_CRITICAL)) {
+    return;
+  }
+  va_list a;
+  va_start(a, buf_len);
+  s_log_handler(ctx, NL_SEV_CRITICAL, func, buf, buf_len, fmt, a);
   va_end(a);
 }
 
@@ -253,7 +443,17 @@ NL_NOINLINE void nanolog_log_assert(char const *fmt, ...) {
   }
   va_list a;
   va_start(a, fmt);
-  s_log_handler(NULL, NL_SEV_ASSERT, NULL, 0, fmt, a);
+  s_log_handler(NULL, NL_SEV_ASSERT, NULL, NULL, 0, fmt, a);
+  va_end(a);
+}
+
+NL_NOINLINE void nanolog_log_assert_func(char const *fmt, char const *func, ...) {
+  if (!s_log_handler) {
+    return;
+  }
+  va_list a;
+  va_start(a, func);
+  s_log_handler(NULL, NL_SEV_ASSERT, func, NULL, 0, fmt, a);
   va_end(a);
 }
 
@@ -263,7 +463,20 @@ NL_NOINLINE void nanolog_log_assert_ctx(char const *fmt, void *ctx, ...) {
   }
   va_list a;
   va_start(a, ctx);
-  s_log_handler(ctx, NL_SEV_ASSERT, NULL, 0, fmt, a);
+  s_log_handler(ctx, NL_SEV_ASSERT, NULL, NULL, 0, fmt, a);
+  va_end(a);
+}
+
+NL_NOINLINE void nanolog_log_assert_ctx_func(char const *fmt,
+                                             char const *func,
+                                             void *ctx,
+                                             ...) {
+  if (!s_log_handler) {
+    return;
+  }
+  va_list a;
+  va_start(a, ctx);
+  s_log_handler(ctx, NL_SEV_ASSERT, func, NULL, 0, fmt, a);
   va_end(a);
 }
 
