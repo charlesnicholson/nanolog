@@ -62,12 +62,12 @@ NL_NOINLINE void nanolog_log_sev_ctx(unsigned sev, void *ctx, char const *fmt, .
   va_end(a);
 }
 
-NL_NOINLINE void nanolog_log_buf(unsigned sev,
-                                 void *ctx,
-                                 void const *buf,
-                                 unsigned len,
-                                 char const *fmt,
-                                 ...) {
+NL_NOINLINE void nanolog_log_sev_buf(unsigned sev,
+                                     void *ctx,
+                                     void const *buf,
+                                     unsigned len,
+                                     char const *fmt,
+                                     ...) {
   if (!s_log_handler || (s_log_threshold > sev)) {
     return;
   }
@@ -97,6 +97,20 @@ NL_NOINLINE void nanolog_log_debug_ctx(char const *fmt, void *ctx, ...) {
   va_end(a);
 }
 
+void nanolog_log_debug_buf(char const *fmt,
+                           void *ctx,
+                           void const *buf,
+                           unsigned buf_len,
+                           ...) {
+  if (!s_log_handler || (s_log_threshold > NL_SEV_DEBUG)) {
+    return;
+  }
+  va_list a;
+  va_start(a, buf_len);
+  s_log_handler(ctx, NL_SEV_DEBUG, buf, buf_len, fmt, a);
+  va_end(a);
+}
+
 NL_NOINLINE void nanolog_log_info(char const *fmt, ...) {
   if (!s_log_handler || (s_log_threshold > NL_SEV_INFO)) {
     return;
@@ -114,6 +128,20 @@ NL_NOINLINE void nanolog_log_info_ctx(char const *fmt, void *ctx, ...) {
   va_list a;
   va_start(a, ctx);
   s_log_handler(ctx, NL_SEV_INFO, NULL, 0, fmt, a);
+  va_end(a);
+}
+
+void nanolog_log_info_buf(char const *fmt,
+                          void *ctx,
+                          void const *buf,
+                          unsigned buf_len,
+                          ...) {
+  if (!s_log_handler || (s_log_threshold > NL_SEV_INFO)) {
+    return;
+  }
+  va_list a;
+  va_start(a, buf_len);
+  s_log_handler(ctx, NL_SEV_INFO, buf, buf_len, fmt, a);
   va_end(a);
 }
 
@@ -137,6 +165,20 @@ NL_NOINLINE void nanolog_log_warning_ctx(char const *fmt, void *ctx, ...) {
   va_end(a);
 }
 
+void nanolog_log_warning_buf(char const *fmt,
+                             void *ctx,
+                             void const *buf,
+                             unsigned buf_len,
+                             ...) {
+  if (!s_log_handler || (s_log_threshold > NL_SEV_WARNING)) {
+    return;
+  }
+  va_list a;
+  va_start(a, buf_len);
+  s_log_handler(ctx, NL_SEV_WARNING, buf, buf_len, fmt, a);
+  va_end(a);
+}
+
 NL_NOINLINE void nanolog_log_error(char const *fmt, ...) {
   if (!s_log_handler || (s_log_threshold > NL_SEV_ERROR)) {
     return;
@@ -157,6 +199,20 @@ NL_NOINLINE void nanolog_log_error_ctx(char const *fmt, void *ctx, ...) {
   va_end(a);
 }
 
+void nanolog_log_error_buf(char const *fmt,
+                           void *ctx,
+                           void const *buf,
+                           unsigned buf_len,
+                           ...) {
+  if (!s_log_handler || (s_log_threshold > NL_SEV_ERROR)) {
+    return;
+  }
+  va_list a;
+  va_start(a, buf_len);
+  s_log_handler(ctx, NL_SEV_ERROR, buf, buf_len, fmt, a);
+  va_end(a);
+}
+
 NL_NOINLINE void nanolog_log_critical(char const *fmt, ...) {
   if (!s_log_handler || (s_log_threshold > NL_SEV_CRITICAL)) {
     return;
@@ -174,6 +230,20 @@ NL_NOINLINE void nanolog_log_critical_ctx(char const *fmt, void *ctx, ...) {
   va_list a;
   va_start(a, ctx);
   s_log_handler(ctx, NL_SEV_CRITICAL, NULL, 0, fmt, a);
+  va_end(a);
+}
+
+void nanolog_log_critical_buf(char const *fmt,
+                              void *ctx,
+                              void const *buf,
+                              unsigned buf_len,
+                              ...) {
+  if (!s_log_handler || (s_log_threshold > NL_SEV_CRITICAL)) {
+    return;
+  }
+  va_list a;
+  va_start(a, buf_len);
+  s_log_handler(ctx, NL_SEV_CRITICAL, buf, buf_len, fmt, a);
   va_end(a);
 }
 
@@ -239,14 +309,12 @@ nanolog_ret_t nanolog_parse_binary_log(nanolog_binary_field_handler_cb_t cb,
   }
 
   // Types are packed, two per byte, low nibble first.
-  int hi = 0, have_prec = 0;
+  int bit_index = 0, have_prec = 0;
   int32_t prec = 0;
   nl_arg_type_t type;
   do {
-    type = (nl_arg_type_t)((*src >> (hi ? 4 : 0)) & 0xF);
-    if ((hi = !hi) == 0) {
-      ++src;
-    }
+    type = (nl_arg_type_t)((*src >> bit_index) & 0xF);
+    src += !(bit_index = bit_index ^ 4);
 
     switch (type) {
       case NL_ARG_TYPE_SCALAR_1_BYTE: {
@@ -321,10 +389,8 @@ nanolog_ret_t nanolog_parse_binary_log(nanolog_binary_field_handler_cb_t cb,
       } break;
 
       case NL_ARG_TYPE_STRING_PRECISION_LITERAL: {
-        if (hi) {
-          ++src;
-          hi = 0;
-        }
+        src += !!bit_index;
+        bit_index = 0;
         unsigned len;
         uint32_t val;
         if (nanolog_varint_decode(src, &val, &len) != NANOLOG_RET_SUCCESS) {
