@@ -314,7 +314,7 @@ nanolog_ret_t nanolog_parse_binary_log(nanolog_binary_field_handler_cb_t cb,
   nl_arg_type_t type;
   do {
     type = (nl_arg_type_t)((*src >> bit_index) & 0xF);
-    src += !(bit_index = bit_index ^ 4);
+    src += ((bit_index ^= 4) == 0);
 
     switch (type) {
       case NL_ARG_TYPE_SCALAR_1_BYTE: {
