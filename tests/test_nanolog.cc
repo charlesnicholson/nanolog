@@ -54,29 +54,29 @@ TEST_CASE("nanolog_fmt_is_binary") {
 
   SUBCASE("empty string is not binary") {
     REQUIRE(nanolog_fmt_is_binary("", &binary) == NANOLOG_RET_SUCCESS);
-    REQUIRE(binary == 0);
+    REQUIRE_FALSE(binary);
   }
 
   SUBCASE("1f is binary") {
     REQUIRE(nanolog_fmt_is_binary("\x1f", &binary) == NANOLOG_RET_SUCCESS);
-    REQUIRE(binary == 1);
+    REQUIRE(binary);
   }
 
   SUBCASE("ascii is not binary") {
     REQUIRE(nanolog_fmt_is_binary("hello", &binary) == NANOLOG_RET_SUCCESS);
-    REQUIRE(binary == 0);
+    REQUIRE_FALSE(binary);
   }
 
   SUBCASE("leading 1f is binary") {
     REQUIRE(nanolog_fmt_is_binary("\x1f"
                                   "more stuff",
                                   &binary) == NANOLOG_RET_SUCCESS);
-    REQUIRE(binary == 1);
+    REQUIRE(binary);
   }
 
   SUBCASE("1f after ascii is not binary") {
     REQUIRE(nanolog_fmt_is_binary("stuff\x1f", &binary) == NANOLOG_RET_SUCCESS);
-    REQUIRE(binary == 0);
+    REQUIRE_FALSE(binary);
   }
 }
 
