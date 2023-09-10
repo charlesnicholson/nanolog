@@ -2,6 +2,7 @@
 #define NANOLOG_H
 
 #include <stdarg.h>
+#include <stdbool.h>
 #include <stdint.h>
 
 #ifdef __cplusplus
@@ -70,8 +71,8 @@ typedef void (*nanolog_handler_cb_t)(void *ctx,
 nanolog_ret_t nanolog_set_handler(nanolog_handler_cb_t handler);
 nanolog_handler_cb_t nanolog_get_handler(void);
 
-// Writes 1 to |out_is_binary| if fmt is a rewritten binary spec, 0 if ASCII.
-nanolog_ret_t nanolog_fmt_is_binary(char const *fmt, int *out_is_binary);
+// Writes true to |out_is_binary| if fmt is a rewritten binary spec, false if ASCII.
+nanolog_ret_t nanolog_fmt_is_binary(char const *fmt, bool *out_is_binary);
 
 typedef void (*nanolog_binary_field_handler_cb_t)(void *ctx,
                                                   nl_arg_type_t type,

@@ -267,7 +267,7 @@ NL_NOINLINE void nanolog_log_assert_ctx(char const *fmt, void *ctx, ...) {
   va_end(a);
 }
 
-nanolog_ret_t nanolog_fmt_is_binary(char const *fmt, int *out_is_binary) {
+nanolog_ret_t nanolog_fmt_is_binary(char const *fmt, bool *out_is_binary) {
   if (!fmt || !out_is_binary) {
     return NANOLOG_RET_ERR_BAD_ARG;
   }
