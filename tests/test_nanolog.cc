@@ -45,7 +45,7 @@ TEST_CASE("nanolog_set_handler") {
 }
 
 TEST_CASE("nanolog_fmt_is_binary") {
-  int binary{ 9999 };
+  bool binary;
   REQUIRE(nanolog_fmt_is_binary(nullptr, nullptr) == NANOLOG_RET_ERR_BAD_ARG);
   REQUIRE(nanolog_fmt_is_binary(nullptr, &binary) == NANOLOG_RET_ERR_BAD_ARG);
   REQUIRE(nanolog_fmt_is_binary("hello", nullptr) == NANOLOG_RET_ERR_BAD_ARG);
@@ -54,29 +54,29 @@ TEST_CASE("nanolog_fmt_is_binary") {
 
   SUBCASE("empty string is not binary") {
     REQUIRE(nanolog_fmt_is_binary("", &binary) == NANOLOG_RET_SUCCESS);
-    REQUIRE(binary == 0);
+    REQUIRE_FALSE(binary);
   }
 
   SUBCASE("1f is binary") {
     REQUIRE(nanolog_fmt_is_binary("\x1f", &binary) == NANOLOG_RET_SUCCESS);
-    REQUIRE(binary == 1);
+    REQUIRE(binary);
   }
 
   SUBCASE("ascii is not binary") {
     REQUIRE(nanolog_fmt_is_binary("hello", &binary) == NANOLOG_RET_SUCCESS);
-    REQUIRE(binary == 0);
+    REQUIRE_FALSE(binary);
   }
 
   SUBCASE("leading 1f is binary") {
     REQUIRE(nanolog_fmt_is_binary("\x1f"
                                   "more stuff",
                                   &binary) == NANOLOG_RET_SUCCESS);
-    REQUIRE(binary == 1);
+    REQUIRE(binary);
   }
 
   SUBCASE("1f after ascii is not binary") {
     REQUIRE(nanolog_fmt_is_binary("stuff\x1f", &binary) == NANOLOG_RET_SUCCESS);
-    REQUIRE(binary == 0);
+    REQUIRE_FALSE(binary);
   }
 }
 
@@ -322,9 +322,9 @@ TEST_CASE("nanolog_parse_binary_log") {
                          unsigned buf_len,
                          char const *fmt,
                          va_list args) {
-    int binary;
+    bool binary;
     REQUIRE(nanolog_fmt_is_binary(fmt, &binary) == NANOLOG_RET_SUCCESS);
-    REQUIRE(binary == 1);
+    REQUIRE(binary);
     REQUIRE(nanolog_parse_binary_log(
                 [](void *ctx_, nl_arg_type_t type, void const *p, unsigned len) {
                   auto const *pc{ static_cast<unsigned char const *>(p) };
