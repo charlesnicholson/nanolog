@@ -39,8 +39,9 @@ endif
 
 CFLAGS = --std=c17 -fexceptions
 CXXFLAGS = --std=c++20
-CPPFLAGS += -MMD -MP -g
-CPPFLAGS += -Os -flto
+CPPFLAGS += -MMD -MP
+#CPPFLAGS += -O0 -g3
+CPPFLAGS += -Os -g -flto
 CPPFLAGS += -Werror -Wall -Wextra
 
 ifneq '' '$(findstring clang,$(COMPILER_VERSION))'
@@ -64,10 +65,10 @@ CPPFLAGS += -DNANOLOG_PROVIDE_ASSERT_MACROS
 
 # ----- Targets and rules
 
-$(BUILD_DIR)/%.c.o: %.c
+$(BUILD_DIR)/%.c.o: %.c Makefile
 	mkdir -p $(dir $@) && $(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
 
-$(BUILD_DIR)/%.cc.o: %.cc
+$(BUILD_DIR)/%.cc.o: %.cc Makefile
 	mkdir -p $(dir $@) && $(CXX) $(CPPFLAGS) $(CXXFLAGS) -c $< -o $@
 
 LIBUNCLOG_OBJS := $(LIBUNCLOG_SRCS:%=$(BUILD_DIR)/%.o)
@@ -75,11 +76,11 @@ $(LIBUNCLOG_LIB): $(LIBUNCLOG_OBJS)
 	mkdir -p $(dir $@) && $(AR) $@ $(LIBUNCLOG_OBJS)
 
 UNCLOG_OBJS := $(UNCLOG_SRCS:%=$(BUILD_DIR)/%.o)
-$(UNCLOG_BIN): $(UNCLOG_OBJS) $(LIBUNCLOG_LIB)
+$(UNCLOG_BIN): $(UNCLOG_OBJS) $(LIBUNCLOG_LIB) Makefile
 	mkdir -p $(dir $@) && $(CXX) $(LDFLAGS) $(UNCLOG_OBJS) $(LIBUNCLOG_LIB) -o $@ && strip $@
 
 TESTS_OBJS := $(TESTS_SRCS:%=$(BUILD_DIR)/%.o)
-$(TESTS_BIN): $(TESTS_OBJS) $(LIBUNCLOG_LIB)
+$(TESTS_BIN): $(TESTS_OBJS) $(LIBUNCLOG_LIB) Makefile
 	mkdir -p $(dir $@) && $(CXX) $(LDFLAGS) $(TESTS_OBJS) $(LIBUNCLOG_LIB) -o $@
 
 $(TESTS_STAMP): $(TESTS_BIN)
