@@ -545,32 +545,40 @@ NL_NOINLINE void nanolog_log_critical_buf_func(
 }
 
 NL_NOINLINE void nanolog_log_assert(char const *fmt, ...) {
-  if (!s_log_handler) { return; }
-  va_list a; va_start(a, fmt);
-  s_log_handler(NULL, NL_SEV_ASSERT, NULL, NULL, 0, fmt, a);
-  va_end(a);
+  if (s_log_handler) {
+    va_list a; va_start(a, fmt);
+    s_log_handler(NULL, NL_SEV_ASSERT, NULL, NULL, 0, fmt, a);
+    va_end(a);
+  }
+  for (;;);
 }
 
 NL_NOINLINE void nanolog_log_assert_func(char const *fmt, char const *func, ...) {
-  if (!s_log_handler) { return; }
-  va_list a; va_start(a, func);
-  s_log_handler(NULL, NL_SEV_ASSERT, func, NULL, 0, fmt, a);
-  va_end(a);
+  if (s_log_handler) {
+    va_list a; va_start(a, func);
+    s_log_handler(NULL, NL_SEV_ASSERT, func, NULL, 0, fmt, a);
+    va_end(a);
+  }
+  for (;;);
 }
 
 NL_NOINLINE void nanolog_log_assert_ctx(char const *fmt, void *ctx, ...) {
-  if (!s_log_handler) { return; }
-  va_list a; va_start(a, ctx);
-  s_log_handler(ctx, NL_SEV_ASSERT, NULL, NULL, 0, fmt, a);
-  va_end(a);
+  if (s_log_handler) {
+    va_list a; va_start(a, ctx);
+    s_log_handler(ctx, NL_SEV_ASSERT, NULL, NULL, 0, fmt, a);
+    va_end(a);
+  }
+  for (;;);
 }
 
 NL_NOINLINE void nanolog_log_assert_ctx_func(
     char const *fmt, char const *func, void *ctx, ...) {
-  if (!s_log_handler) { return; }
-  va_list a; va_start(a, ctx);
-  s_log_handler(ctx, NL_SEV_ASSERT, func, NULL, 0, fmt, a);
-  va_end(a);
+  if (s_log_handler) {
+    va_list a; va_start(a, ctx);
+    s_log_handler(ctx, NL_SEV_ASSERT, func, NULL, 0, fmt, a);
+    va_end(a);
+  }
+  for (;;);
 }
 
 // clang-format on

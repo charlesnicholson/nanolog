@@ -115,6 +115,12 @@ void nanolog_log_sev_buf(unsigned sev,
 
 // Boilerplate, has to be before the public logging macros
 
+#ifdef __cplusplus
+#define NL_NORETURN [[noreturn]]
+#else
+#define NL_NORETURN _Noreturn
+#endif
+
 #define NL_STR_EVAL(X) #X
 #define NL_STR(X) NL_STR_EVAL(X)
 
@@ -588,10 +594,13 @@ void nanolog_log_critical_buf_func(char const *fmt,
                                    unsigned buf_len,
                                    ...);
 
-void nanolog_log_assert(char const *fmt, ...);
-void nanolog_log_assert_func(char const *fmt, char const *func, ...);
-void nanolog_log_assert_ctx(char const *fmt, void *ctx, ...);
-void nanolog_log_assert_ctx_func(char const *fmt, char const *func, void *ctx, ...);
+NL_NORETURN void nanolog_log_assert(char const *fmt, ...);
+NL_NORETURN void nanolog_log_assert_func(char const *fmt, char const *func, ...);
+NL_NORETURN void nanolog_log_assert_ctx(char const *fmt, void *ctx, ...);
+NL_NORETURN void nanolog_log_assert_ctx_func(char const *fmt,
+                                             char const *func,
+                                             void *ctx,
+                                             ...);
 
 #ifdef __cplusplus
 }
