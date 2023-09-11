@@ -65,27 +65,27 @@ bool load(state &s,
 
     if (strstr(name, "nanolog_log_") == name) {
       s.nl_funcs.push_back(&sym);
-    } else {
-      {  // noreturn functions
-        auto const found{ std::find_if(std::begin(noreturn_funcs),
-                                       std::end(noreturn_funcs),
-                                       [name](char const *f) {
-                                         auto const f_len{ unsigned(strlen(f)) };
-                                         return (strstr(name, f) == name) &&
-                                                ((name[f_len] == 0) || name[f_len] == '.');
-                                       }) };
-        if (found != std::end(noreturn_funcs)) {
-          s.noreturn_func_addrs.insert({ u32(sym.st_value & ~1u) });
-        }
-      }
+    }
 
-      {  // non-nanolog-function-address to symbol map
-        auto found{ s.non_nl_funcs_sym_map.find(sym.st_value) };
-        if (found == std::end(s.non_nl_funcs_sym_map)) {
-          found = s.non_nl_funcs_sym_map.insert({ sym.st_value, {} }).first;
-        }
-        found->second.push_back(&sym);
+    {  // noreturn functions
+      auto const found{ std::find_if(std::begin(noreturn_funcs),
+                                     std::end(noreturn_funcs),
+                                     [name](char const *f) {
+                                       auto const f_len{ unsigned(strlen(f)) };
+                                       return (strstr(name, f) == name) &&
+                                              ((name[f_len] == 0) || name[f_len] == '.');
+                                     }) };
+      if (found != std::end(noreturn_funcs)) {
+        s.noreturn_func_addrs.insert({ u32(sym.st_value & ~1u) });
       }
+    }
+
+    {  // non-nanolog-function-address to symbol map
+      auto found{ s.non_nl_funcs_sym_map.find(sym.st_value) };
+      if (found == std::end(s.non_nl_funcs_sym_map)) {
+        found = s.non_nl_funcs_sym_map.insert({ sym.st_value, {} }).first;
+      }
+      found->second.push_back(&sym);
     }
   }
 
@@ -151,9 +151,14 @@ int main(int argc, char const *argv[]) {
   if (!args_parse(argv, argc, cmd_args)) {
     return 1;
   }
+
   cmd_args.noreturn_funcs.push_back("exit");
   cmd_args.noreturn_funcs.push_back("_exit");
   cmd_args.noreturn_funcs.push_back("_mainCRTStartup");
+  cmd_args.noreturn_funcs.push_back("nanolog_log_assert");
+  cmd_args.noreturn_funcs.push_back("nanolog_log_assert_func");
+  cmd_args.noreturn_funcs.push_back("nanolog_log_assert_ctx");
+  cmd_args.noreturn_funcs.push_back("nanolog_log_assert_ctx_func");
 
   nanolog_set_threshold(cmd_args.log_threshold);
 

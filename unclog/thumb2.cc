@@ -130,7 +130,6 @@ int inst_is_log_call(inst const& i,
   if (strstr(name, "_critical")) { return NL_SEV_CRITICAL; }
   if (strstr(name, "_assert")) { return NL_SEV_ASSERT; }
   if (strstr(name, "_sev")) { return UNCLOG_SEV_DYNAMIC; }
-  if (strstr(name, "_buf")) { return UNCLOG_SEV_DYNAMIC; }
   // clang-format on
 
   return -1;
