@@ -461,7 +461,6 @@ void nanolog_log_sev_buf(unsigned sev,
       NL_LOG_ASSERT_CTX((CTX), __FILE__ "(" NL_STR(__LINE__) "): \"" #COND "\""); \
     } \
   } while (0)
-
 #define NL_ASSERT_MSG(COND, FMT, ...) \
   do { \
     if (NL_UNLIKELY(!(COND))) { \
@@ -481,7 +480,6 @@ void nanolog_log_sev_buf(unsigned sev,
 #define NL_ASSERT_FAIL() NL_LOG_ASSERT(__FILE__ "(" NL_STR(__LINE__) "): ASSERT FAIL")
 #define NL_ASSERT_FAIL_CTX(CTX) \
   NL_LOG_ASSERT_CTX((CTX), __FILE__ "(" NL_STR(__LINE__) "): ASSERT FAIL")
-
 #define NL_ASSERT_FAIL_MSG(FMT, ...) \
   NL_LOG_ASSERT(__FILE__ "(" NL_STR(__LINE__) "): " FMT, ##__VA_ARGS__);
 #define NL_ASSERT_FAIL_MSG_CTX(CTX, FMT, ...) \
