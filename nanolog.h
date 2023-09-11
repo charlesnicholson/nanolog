@@ -23,11 +23,17 @@ extern "C" {
 #endif
 
 // Configure function capturing: log handler will receive the current function name, at the
-// cost of slightly higher call-site register pressure. Useful for ASCII builds.
+// cost of slightly higher call-site register pressure and larger binary images.
+// They're mostly useful for ASCII builds.
 // For binary logs, the generated manifest always contains them; don't serialize them!
 
 #ifndef NL_CAPTURE_FUNCTION_NAMES
 #define NL_CAPTURE_FUNCTION_NAMES 1
+#endif
+
+// Configure whether the nanolog assert macros are enabled.
+#ifndef NANOLOG_PROVIDE_ASSERT_MACROS
+#define NANOLOG_PROVIDE_ASSERT_MACROS 1
 #endif
 
 // Public API
@@ -151,13 +157,13 @@ void nanolog_log_sev_buf(unsigned sev,
 #define NL_LOG_DBG_BUF(CTX, BUF, BUF_LEN, FMT, ...) \
   do { \
     static char const NL_ATTR_SEC(DEBUG) s_nanolog_fmt_str[] = FMT; \
-    nanlolog_log_debug_buf_func(s_nanolog_fmt_str, \
-                                __func__, \
-                                (void *)(CTX), \
-                                BUF, \
-                                BUF_LEN, \
-                                FMT, \
-                                ##__VA_ARGS__); \
+    nanolog_log_debug_buf_func(s_nanolog_fmt_str, \
+                               __func__, \
+                               (void *)(CTX), \
+                               BUF, \
+                               BUF_LEN, \
+                               FMT, \
+                               ##__VA_ARGS__); \
   } while (0)
 #else
 #define NL_LOG_DBG(FMT, ...) \
@@ -173,12 +179,12 @@ void nanolog_log_sev_buf(unsigned sev,
 #define NL_LOG_DBG_BUF(CTX, BUF, BUF_LEN, FMT, ...) \
   do { \
     static char const NL_ATTR_SEC(DEBUG) s_nanolog_fmt_str[] = FMT; \
-    nanlolog_log_debug_buf(s_nanolog_fmt_str, \
-                           (void *)(CTX), \
-                           BUF, \
-                           BUF_LEN, \
-                           FMT, \
-                           ##__VA_ARGS__); \
+    nanolog_log_debug_buf(s_nanolog_fmt_str, \
+                          (void *)(CTX), \
+                          BUF, \
+                          BUF_LEN, \
+                          FMT, \
+                          ##__VA_ARGS__); \
   } while (0)
 #endif
 #else
@@ -205,13 +211,13 @@ void nanolog_log_sev_buf(unsigned sev,
 #define NL_LOG_INF_BUF(CTX, BUF, BUF_LEN, FMT, ...) \
   do { \
     static char const NL_ATTR_SEC(INFO) s_nanolog_fmt_str[] = FMT; \
-    nanlolog_log_info_buf_func(s_nanolog_fmt_str, \
-                               __func__, \
-                               (void *)(CTX), \
-                               BUF, \
-                               BUF_LEN, \
-                               FMT, \
-                               ##__VA_ARGS__); \
+    nanolog_log_info_buf_func(s_nanolog_fmt_str, \
+                              __func__, \
+                              (void *)(CTX), \
+                              BUF, \
+                              BUF_LEN, \
+                              FMT, \
+                              ##__VA_ARGS__); \
   } while (0)
 #else
 #define NL_LOG_INF(FMT, ...) \
@@ -227,12 +233,12 @@ void nanolog_log_sev_buf(unsigned sev,
 #define NL_LOG_INF_BUF(CTX, BUF, BUF_LEN, FMT, ...) \
   do { \
     static char const NL_ATTR_SEC(INFO) s_nanolog_fmt_str[] = FMT; \
-    nanlolog_log_info_buf(s_nanolog_fmt_str, \
-                          (void *)(CTX), \
-                          BUF, \
-                          BUF_LEN, \
-                          FMT, \
-                          ##__VA_ARGS__); \
+    nanolog_log_info_buf(s_nanolog_fmt_str, \
+                         (void *)(CTX), \
+                         BUF, \
+                         BUF_LEN, \
+                         FMT, \
+                         ##__VA_ARGS__); \
   } while (0)
 #endif
 #else
@@ -262,13 +268,13 @@ void nanolog_log_sev_buf(unsigned sev,
 #define NL_LOG_WRN_BUF(CTX, BUF, BUF_LEN, FMT, ...) \
   do { \
     static char const NL_ATTR_SEC(WARNING) s_nanolog_fmt_str[] = FMT; \
-    nanlolog_log_warning_buf_func(s_nanolog_fmt_str, \
-                                  __func__, \
-                                  (void *)(CTX), \
-                                  BUF, \
-                                  BUF_LEN, \
-                                  FMT, \
-                                  ##__VA_ARGS__); \
+    nanolog_log_warning_buf_func(s_nanolog_fmt_str, \
+                                 __func__, \
+                                 (void *)(CTX), \
+                                 BUF, \
+                                 BUF_LEN, \
+                                 FMT, \
+                                 ##__VA_ARGS__); \
   } while (0)
 #else
 #define NL_LOG_WRN(FMT, ...) \
@@ -284,12 +290,12 @@ void nanolog_log_sev_buf(unsigned sev,
 #define NL_LOG_WRN_BUF(CTX, BUF, BUF_LEN, FMT, ...) \
   do { \
     static char const NL_ATTR_SEC(WARNING) s_nanolog_fmt_str[] = FMT; \
-    nanlolog_log_warning_buf(s_nanolog_fmt_str, \
-                             (void *)(CTX), \
-                             BUF, \
-                             BUF_LEN, \
-                             FMT, \
-                             ##__VA_ARGS__); \
+    nanolog_log_warning_buf(s_nanolog_fmt_str, \
+                            (void *)(CTX), \
+                            BUF, \
+                            BUF_LEN, \
+                            FMT, \
+                            ##__VA_ARGS__); \
   } while (0)
 #endif
 #else
@@ -319,13 +325,13 @@ void nanolog_log_sev_buf(unsigned sev,
 #define NL_LOG_ERR_BUF(CTX, BUF, BUF_LEN, FMT, ...) \
   do { \
     static char const NL_ATTR_SEC(ERROR) s_nanolog_fmt_str[] = FMT; \
-    nanlolog_log_warning_buf_func(s_nanolog_fmt_str, \
-                                  __func__, \
-                                  (void *)(CTX), \
-                                  BUF, \
-                                  BUF_LEN, \
-                                  FMT, \
-                                  ##__VA_ARGS__); \
+    nanolog_log_warning_buf_func(s_nanolog_fmt_str, \
+                                 __func__, \
+                                 (void *)(CTX), \
+                                 BUF, \
+                                 BUF_LEN, \
+                                 FMT, \
+                                 ##__VA_ARGS__); \
   } while (0)
 #else
 #define NL_LOG_ERR(FMT, ...) \
@@ -341,12 +347,12 @@ void nanolog_log_sev_buf(unsigned sev,
 #define NL_LOG_ERR_BUF(CTX, BUF, BUF_LEN, FMT, ...) \
   do { \
     static char const NL_ATTR_SEC(ERROR) s_nanolog_fmt_str[] = FMT; \
-    nanlolog_log_warning_buf(s_nanolog_fmt_str, \
-                             (void *)(CTX), \
-                             BUF, \
-                             BUF_LEN, \
-                             FMT, \
-                             ##__VA_ARGS__); \
+    nanolog_log_warning_buf(s_nanolog_fmt_str, \
+                            (void *)(CTX), \
+                            BUF, \
+                            BUF_LEN, \
+                            FMT, \
+                            ##__VA_ARGS__); \
   } while (0)
 #endif
 #else
@@ -373,13 +379,13 @@ void nanolog_log_sev_buf(unsigned sev,
 #define NL_LOG_CRT_BUF(CTX, BUF, BUF_LEN, FMT, ...) \
   do { \
     static char const NL_ATTR_SEC(CRITICAL) s_nanolog_fmt_str[] = FMT; \
-    nanlolog_log_critical_buf_func(s_nanolog_fmt_str, \
-                                   __func__, \
-                                   (void *)(CTX), \
-                                   BUF, \
-                                   BUF_LEN, \
-                                   FMT, \
-                                   ##__VA_ARGS__); \
+    nanolog_log_critical_buf_func(s_nanolog_fmt_str, \
+                                  __func__, \
+                                  (void *)(CTX), \
+                                  BUF, \
+                                  BUF_LEN, \
+                                  FMT, \
+                                  ##__VA_ARGS__); \
   } while (0)
 #else
 #define NL_LOG_CRT(FMT, ...) \
@@ -395,12 +401,12 @@ void nanolog_log_sev_buf(unsigned sev,
 #define NL_LOG_CRT_BUF(CTX, BUF, BUF_LEN, FMT, ...) \
   do { \
     static char const NL_ATTR_SEC(CRITICAL) s_nanolog_fmt_str[] = FMT; \
-    nanlolog_log_critical_buf(s_nanolog_fmt_str, \
-                              (void *)(CTX), \
-                              BUF, \
-                              BUF_LEN, \
-                              FMT, \
-                              ##__VA_ARGS__); \
+    nanolog_log_critical_buf(s_nanolog_fmt_str, \
+                             (void *)(CTX), \
+                             BUF, \
+                             BUF_LEN, \
+                             FMT, \
+                             ##__VA_ARGS__); \
   } while (0)
 #endif
 #else
@@ -441,7 +447,7 @@ void nanolog_log_sev_buf(unsigned sev,
 
 // Optional top-level minimal-footprint assert macros
 
-#ifdef NANOLOG_PROVIDE_ASSERT_MACROS
+#if NANOLOG_PROVIDE_ASSERT_MACROS
 
 #define NL_ASSERT(COND) \
   do { \
