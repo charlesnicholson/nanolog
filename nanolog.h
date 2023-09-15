@@ -83,8 +83,8 @@ typedef void (*nanolog_handler_cb_t)(void *ctx,
                                      va_list args);
 
 // Install a handler to be called on every log macro invocation.
-nanolog_ret_t nanolog_set_handler(nanolog_handler_cb_t handler);
-nanolog_handler_cb_t nanolog_get_handler(void);
+nanolog_ret_t nanolog_set_log_handler(nanolog_handler_cb_t handler);
+nanolog_handler_cb_t nanolog_get_log_handler(void);
 
 // Writes true to |out_is_binary| if fmt is a rewritten binary spec, false if ASCII.
 nanolog_ret_t nanolog_fmt_is_binary(char const *fmt, bool *out_is_binary);
@@ -112,6 +112,17 @@ void nanolog_log_sev_buf(unsigned sev,
                          unsigned len,
                          char const *fmt,
                          ...);
+
+#if NANOLOG_PROVIDE_ASSERT_MACROS == 1
+typedef void (*nanolog_assert_handler_cb_t)(void *ctx,
+                                            char const *file,
+                                            int line,
+                                            char const *fmt,
+                                            ...);
+
+nanolog_ret_t nanolog_set_assert_handler(nanolog_assert_handler_cb_t handler);
+nanolog_assert_handler_cb_t nanolog_get_assert_handler(void);
+#endif
 
 // Boilerplate, has to be before the public logging macros
 
@@ -458,38 +469,61 @@ void nanolog_log_sev_buf(unsigned sev,
 #define NL_ASSERT(COND) \
   do { \
     if (NL_UNLIKELY(!(COND))) { \
-      NL_LOG_ASSERT(__FILE__ "(" NL_STR(__LINE__) "): \"" #COND "\""); \
-    } \
-  } while (0)
-#define NL_ASSERT_CTX(CTX, COND) \
-  do { \
-    if (NL_UNLIKELY(!(COND))) { \
-      NL_LOG_ASSERT_CTX((CTX), __FILE__ "(" NL_STR(__LINE__) "): \"" #COND "\""); \
-    } \
-  } while (0)
-#define NL_ASSERT_MSG(COND, FMT, ...) \
-  do { \
-    if (NL_UNLIKELY(!(COND))) { \
-      NL_LOG_ASSERT(__FILE__ "(" NL_STR(__LINE__) "): \"" #COND "\" " FMT, \
-                    ##__VA_ARGS__); \
-    } \
-  } while (0)
-#define NL_ASSERT_MSG_CTX(CTX, COND, FMT, ...) \
-  do { \
-    if (NL_UNLIKELY(!(COND))) { \
-      NL_LOG_ASSERT_CTX((CTX), \
-                        __FILE__ "(" NL_STR(__LINE__) "): \"" #COND "\" " FMT, \
-                        ##__VA_ARGS__); \
+      nanolog_assert_fail(__FILE__ "(" NL_STR(__LINE__) "): \"" #COND "\"", \
+                          __FILE__, \
+                          __LINE__); \
     } \
   } while (0)
 
-#define NL_ASSERT_FAIL() NL_LOG_ASSERT(__FILE__ "(" NL_STR(__LINE__) "): ASSERT FAIL")
+#define NL_ASSERT_CTX(CTX, COND) \
+  do { \
+    if (NL_UNLIKELY(!(COND))) { \
+      nanolog_assert_fail_ctx(__FILE__ "(" NL_STR(__LINE__) "): \"" #COND "\"", \
+                              (CTX), \
+                              __FILE__, \
+                              __LINE__); \
+    } \
+  } while (0)
+
+#define NL_ASSERT_MSG(COND, FMT, ...) \
+  do { \
+    if (NL_UNLIKELY(!(COND))) { \
+      nanolog_assert_fail_msg(__FILE__ "(" NL_STR(__LINE__) "): \"" #COND "\" " FMT, \
+                              __FILE__, \
+                              __LINE__, \
+                              ##__VA_ARGS__); \
+    } \
+  } while (0)
+
+#define NL_ASSERT_MSG_CTX(CTX, COND, FMT, ...) \
+  do { \
+    if (NL_UNLIKELY(!(COND))) { \
+      nanolog_assert_fail_ctx_msg(__FILE__ "(" NL_STR(__LINE__) "): \"" #COND "\" " FMT, \
+                                  (CTX), \
+                                  __FILE__, \
+                                  __LINE__, \
+                                  ##__VA_ARGS__); \
+    } \
+  } while (0)
+
+#define NL_ASSERT_FAIL() \
+  nanolog_assert_fail(__FILE__ "(" NL_STR(__LINE__) "): ASSERT FAIL", __FILE__, __LINE__)
+
 #define NL_ASSERT_FAIL_CTX(CTX) \
-  NL_LOG_ASSERT_CTX((CTX), __FILE__ "(" NL_STR(__LINE__) "): ASSERT FAIL")
+  nanolog_assert_fail_ctx(__FILE__ "(" NL_STR(__LINE__) "): ASSERT FAIL", (CTX))
+
 #define NL_ASSERT_FAIL_MSG(FMT, ...) \
-  NL_LOG_ASSERT(__FILE__ "(" NL_STR(__LINE__) "): " FMT, ##__VA_ARGS__);
+  nanolog_assert_fail_msg(__FILE__ "(" NL_STR(__LINE__) "): " FMT, \
+                          __FILE__, \
+                          __LINE__, \
+                          ##__VA_ARGS__);
+
 #define NL_ASSERT_FAIL_MSG_CTX(CTX, FMT, ...) \
-  NL_LOG_ASSERT_CTX((CTX), __FILE__ "(" NL_STR(__LINE__) "): " FMT, ##__VA_ARGS__);
+  nanolog_assert_fail_ctx_msg(__FILE__ "(" NL_STR(__LINE__) "): " FMT, \
+                              (CTX), \
+                              __FILE__, \
+                              __LINE__, \
+                              ##__VA_ARGS__);
 
 #endif  // NANOLOG_PROVIDE_ASSERT_MACROS
 

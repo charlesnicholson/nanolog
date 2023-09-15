@@ -145,7 +145,7 @@ void on_log(void *,
 }  // namespace
 
 int main(int argc, char const *argv[]) {
-  nanolog_set_handler(on_log);
+  nanolog_set_log_handler(on_log);
 
   args cmd_args;
   if (!args_parse(argv, argc, cmd_args)) {
