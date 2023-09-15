@@ -34,15 +34,15 @@ TEST_CASE("nanolog_get_threshold") {
   REQUIRE(nanolog_get_threshold() == NL_SEV_DEBUG);
 }
 
-TEST_CASE("nanolog_set_handler") {
+TEST_CASE("nanolog_set_log_handler") {
   static int s_calls{ 0 };
-  REQUIRE(nanolog_set_handler([](void *,
-                                 unsigned,
-                                 char const *,
-                                 void const *,
-                                 unsigned,
-                                 char const *,
-                                 va_list) { ++s_calls; }) == NANOLOG_RET_SUCCESS);
+  REQUIRE(nanolog_set_log_handler([](void *,
+                                     unsigned,
+                                     char const *,
+                                     void const *,
+                                     unsigned,
+                                     char const *,
+                                     va_list) { ++s_calls; }) == NANOLOG_RET_SUCCESS);
   nanolog_log_sev(NL_SEV_ASSERT, "");
   REQUIRE(s_calls == 1);
 }
@@ -88,13 +88,13 @@ TEST_CASE("nanolog_log_sev") {
   std::string fmt;
   s_fmt = &fmt;
   static unsigned s_sev{ 12345 };
-  REQUIRE(nanolog_set_handler([](void *,
-                                 unsigned sev,
-                                 char const *,
-                                 void const *,
-                                 unsigned,
-                                 char const *fmt_,
-                                 va_list) {
+  REQUIRE(nanolog_set_log_handler([](void *,
+                                     unsigned sev,
+                                     char const *,
+                                     void const *,
+                                     unsigned,
+                                     char const *fmt_,
+                                     va_list) {
             *s_fmt = fmt_;
             s_sev = sev;
           }) == NANOLOG_RET_SUCCESS);
@@ -109,13 +109,13 @@ TEST_CASE("nanolog_log_sev_ctx") {
     unsigned sev;
   };
   std::vector<Log> captures;
-  REQUIRE(nanolog_set_handler([](void *ctx,
-                                 unsigned sev,
-                                 char const *,
-                                 void const *,
-                                 unsigned,
-                                 char const *fmt,
-                                 va_list) {
+  REQUIRE(nanolog_set_log_handler([](void *ctx,
+                                     unsigned sev,
+                                     char const *,
+                                     void const *,
+                                     unsigned,
+                                     char const *fmt,
+                                     va_list) {
             static_cast<std::vector<Log> *>(ctx)->emplace_back(
                 Log{ .fmt = fmt, .sev = sev });
           }) == NANOLOG_RET_SUCCESS);
@@ -326,15 +326,15 @@ char const *make_bin_payload(char const *fmt, unsigned guid, byte_vec &storage) 
 }  // namespace
 
 TEST_CASE("nanolog_parse_binary_log") {
-  nanolog_handler_cb_t const old_handler{ nanolog_get_handler() };
+  nanolog_handler_cb_t const old_handler{ nanolog_get_log_handler() };
 
-  nanolog_set_handler([](void *ctx,
-                         unsigned sev,
-                         char const *,
-                         void const *buf,
-                         unsigned buf_len,
-                         char const *fmt,
-                         va_list args) {
+  nanolog_set_log_handler([](void *ctx,
+                             unsigned sev,
+                             char const *,
+                             void const *buf,
+                             unsigned buf_len,
+                             char const *fmt,
+                             va_list args) {
     bool binary;
     REQUIRE(nanolog_fmt_is_binary(fmt, &binary) == NANOLOG_RET_SUCCESS);
     REQUIRE(binary);
@@ -633,5 +633,5 @@ TEST_CASE("nanolog_parse_binary_log") {
     REQUIRE(logs[11].type == NL_ARG_TYPE_LOG_END);
   }
 
-  nanolog_set_handler(old_handler);
+  nanolog_set_log_handler(old_handler);
 }

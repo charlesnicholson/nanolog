@@ -23,12 +23,12 @@ unsigned nanolog_get_threshold(void) {
   return s_log_threshold;
 }
 
-nanolog_ret_t nanolog_set_handler(nanolog_handler_cb_t handler) {
+nanolog_ret_t nanolog_set_log_handler(nanolog_handler_cb_t handler) {
   s_log_handler = handler;
   return NANOLOG_RET_SUCCESS;
 }
 
-nanolog_handler_cb_t nanolog_get_handler(void) {
+nanolog_handler_cb_t nanolog_get_log_handler(void) {
   return s_log_handler;
 }
 
