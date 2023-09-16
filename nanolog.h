@@ -640,6 +640,24 @@ void nanolog_log_critical_buf_func(char const *fmt,
                                    unsigned buf_len,
                                    ...);
 
+#if NANOLOG_PROVIDE_ASSERT_MACROS == 1
+void nanolog_assert_fail(char const *desc);
+void nanolog_assert_fail_ctx(char const *desc, void *ctx);
+void nanolog_assert_fail_msg(char const *desc, ...);
+void nanolog_assert_fail_ctx_msg(char const *desc, void *ctx, ...);
+void nanolog_assert_fail_file_line(char const *desc, char const *file, int line);
+void nanolog_assert_fail_ctx_file_line(char const *desc,
+                                       void *ctx,
+                                       char const *file,
+                                       int line);
+void nanolog_assert_fail_msg_file_line(char const *desc, char const *file, int line, ...);
+void nanolog_assert_fail_ctx_msg_file_line(char const *desc,
+                                           void *ctx,
+                                           char const *file,
+                                           int line,
+                                           ...);
+#endif  // NANOLOG_PROVIDE_ASSERT_MACROS == 1
+
 #ifdef __cplusplus
 }
 #endif

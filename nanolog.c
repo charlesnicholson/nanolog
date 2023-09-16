@@ -544,4 +544,54 @@ NL_NOINLINE void nanolog_log_critical_buf_func(
   va_end(a);
 }
 
+#if NANOLOG_PROVIDE_ASSERT_MACROS == 1
+void nanolog_assert_fail(char const *desc) {
+  va_list a;
+  s_log_handler(NULL, NL_SEV_ASSERT, NULL, NULL, 0, desc, a);
+}
+
+void nanolog_assert_fail_ctx(char const *desc, void *ctx) {
+  va_list a; s_log_handler(ctx, NL_SEV_ASSERT, NULL, NULL, 0, desc, a);
+}
+
+void nanolog_assert_fail_msg(char const *desc, ...) {
+  va_list a; va_start(a, desc);
+  s_log_handler(NULL, NL_SEV_ASSERT, NULL, NULL, 0, desc, a);
+  va_end(a);
+}
+
+void nanolog_assert_fail_ctx_msg(char const *desc, void *ctx, ...) {
+  va_list a; va_start(a, ctx);
+  s_log_handler(ctx, NL_SEV_ASSERT, NULL, NULL, 0, desc, a);
+  va_end(a);
+}
+
+void nanolog_assert_fail_file_line(char const *desc, char const *file, int line) {
+  va_list a; s_log_handler(NULL, NL_SEV_ASSERT, NULL, NULL, 0, desc, a);
+}
+
+void nanolog_assert_fail_ctx_file_line(char const *desc,
+                                       void *ctx,
+                                       char const *file,
+                                       int line) {
+  va_list a; s_log_handler(ctx, NL_SEV_ASSERT, NULL, NULL, 0, desc, a);
+}
+
+void nanolog_assert_fail_msg_file_line(char const *desc, char const *file, int line, ...) {
+  va_list a; va_start(a, line);
+  s_log_handler(NULL, NL_SEV_ASSERT, NULL, NULL, 0, desc, a);
+  va_end(a);
+}
+
+void nanolog_assert_fail_ctx_msg_file_line(char const *desc,
+                                           void *ctx,
+                                           char const *file,
+                                           int line,
+                                           ...) {
+  va_list a; va_start(a, line);
+  s_log_handler(ctx, NL_SEV_ASSERT, NULL, NULL, 0, desc, a);
+  va_end(a);
+}
+#endif  // NANOLOG_PROVIDE_ASSERT_MACROS == 1
+
 // clang-format on
