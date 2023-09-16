@@ -61,8 +61,6 @@ CPPFLAGS += -Wconversion
 endif
 CPPFLAGS += -Wno-padded
 
-CPPFLAGS += -DNANOLOG_PROVIDE_ASSERT_MACROS
-
 # ----- Targets and rules
 
 $(BUILD_DIR)/%.c.o: %.c Makefile
