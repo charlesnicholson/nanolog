@@ -66,7 +66,7 @@ std::string& emit_python(char const* s, std::string& out) {
     npf_format_spec_t fs;
     int const n{ (*s != '%') ? 0 : npf_parse_format_spec(s, &fs) };
 
-    if (NL_LIKELY(!n)) {
+    if (NANOLOG_LIKELY(!n)) {
       switch (*s) {
         // clang-format off
         case '{': out += "{{"; break;
@@ -164,7 +164,7 @@ std::string& emit_format_specifiers(char const* s, std::string& out) {
     npf_format_spec_t fs;
     int const n{ (*s != '%') ? 0 : npf_parse_format_spec(s, &fs) };
     s += n;
-    if (NL_LIKELY(!n)) {
+    if (NANOLOG_LIKELY(!n)) {
       ++s;
       continue;
     }
@@ -344,7 +344,7 @@ void emit_bin_fmt_str(char const* str, unsigned guid, byte_vec& fmt_bin_mem) {
   while (*cur) {
     npf_format_spec_t fs;
     int const n{ (*cur != '%') ? 0 : npf_parse_format_spec(cur, &fs) };
-    if (NL_LIKELY(!n)) {
+    if (NANOLOG_LIKELY(!n)) {
       ++cur;
       continue;
     }
