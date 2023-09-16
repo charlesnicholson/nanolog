@@ -173,14 +173,14 @@ int main(int argc, char const *argv[]) {
   for (auto const &[_, syms] : s.non_nl_funcs_sym_map) {
     func_log_call_analysis lca{ *syms[0] };
     ++stats.analyzed_functions;
-    switch (NL_EXPECT(thumb2_analyze_func(s.e,
-                                          lca.func,
-                                          *s.nl_hdr,
-                                          s.nl_funcs,
-                                          s.noreturn_func_addrs,
-                                          lca,
-                                          stats),
-                      thumb2_analyze_func_ret::SUCCESS)) {
+    switch (NANOLOG_EXPECT(thumb2_analyze_func(s.e,
+                                               lca.func,
+                                               *s.nl_hdr,
+                                               s.nl_funcs,
+                                               s.noreturn_func_addrs,
+                                               lca,
+                                               stats),
+                           thumb2_analyze_func_ret::SUCCESS)) {
       case thumb2_analyze_func_ret::SUCCESS:
         break;
 
@@ -313,7 +313,7 @@ int main(int argc, char const *argv[]) {
              unsigned(s.nl_hdr->sh_size),
              unsigned(fmt_bin_mem.size()));
 
-  if (NL_UNLIKELY(nanolog_get_threshold() == NL_SEV_DEBUG)) {
+  if (NANOLOG_UNLIKELY(nanolog_get_threshold() == NL_SEV_DEBUG)) {
     for (auto i{ 0u }, n{ unsigned(fmt_strs.size()) }; i < n; ++i) {
       unsigned char const *src{ &fmt_bin_mem[fmt_bin_addrs[i]] };
       NL_LOG_DBG("  %s\n", fmt_strs[i]);

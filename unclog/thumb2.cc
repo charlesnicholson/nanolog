@@ -228,11 +228,11 @@ simulate_results simulate(inst const& i,
                           func_state& fs,
                           path_state& path) {
   bool const it_skip{ path.it_rem && !(path.it_flags & 1) };
-  if (NL_UNLIKELY(path.it_rem)) {
+  if (NANOLOG_UNLIKELY(path.it_rem)) {
     --path.it_rem;
     path.it_flags >>= 1u;
   }
-  if (NL_UNLIKELY(it_skip)) {  // If inside an if-then and skip bit, don't sim.
+  if (NANOLOG_UNLIKELY(it_skip)) {  // If inside an if-then and skip bit, don't sim.
     path.rs.regs[reg::PC] += i.len;
     return simulate_results::SUCCESS;
   }
@@ -323,7 +323,7 @@ simulate_results simulate(inst const& i,
       break;
 
     case inst_type::IF_THEN:
-      if (NL_UNLIKELY(!branch(i.addr, fs))) {
+      if (NANOLOG_UNLIKELY(!branch(i.addr, fs))) {
         return simulate_results::TERMINATE_PATH;
       }
       process_it(i.i.if_then, path);
@@ -435,7 +435,7 @@ simulate_results simulate(inst const& i,
 
     case inst_type::TABLE_BRANCH_HALF: {
       auto const& tbh{ i.i.table_branch_half };
-      if (NL_UNLIKELY(!table_branch(i.addr, 2, tbh.n, tbh.m, path, fs))) {
+      if (NANOLOG_UNLIKELY(!table_branch(i.addr, 2, tbh.n, tbh.m, path, fs))) {
         NL_LOG_ERR("  TBH failure\n");
         return simulate_results::FAILURE;
       }
@@ -444,7 +444,7 @@ simulate_results simulate(inst const& i,
 
     case inst_type::TABLE_BRANCH_BYTE: {
       auto const& tbb{ i.i.table_branch_byte };
-      if (NL_UNLIKELY(!table_branch(i.addr, 1, tbb.n, tbb.m, path, fs))) {
+      if (NANOLOG_UNLIKELY(!table_branch(i.addr, 1, tbb.n, tbb.m, path, fs))) {
         NL_LOG_ERR("  TBB failure\n");
         return simulate_results::FAILURE;
       }
@@ -577,7 +577,7 @@ thumb2_analyze_func_ret thumb2_analyze_func(
     ++out_stats.analyzed_paths;
 
     for (;;) {
-      if (NL_UNLIKELY(func.st_size && (path.rs.regs[reg::PC] >= s.func_end))) {
+      if (NANOLOG_UNLIKELY(func.st_size && (path.rs.regs[reg::PC] >= s.func_end))) {
         NL_LOG_DBG("  Stopping path: Ran off the end!\n");
         return thumb2_analyze_func_ret::ERR_RAN_OFF_END_OF_FUNC;
       }
@@ -590,7 +590,7 @@ thumb2_analyze_func_ret thumb2_analyze_func(
 
       ++out_stats.decoded_insts;
 
-      if (NL_UNLIKELY(debug)) {
+      if (NANOLOG_UNLIKELY(debug)) {
         NL_LOG_DBG("    %x: %04x ", path.rs.regs[reg::PC], pc_i.w0);
         if (pc_i.len == 2) {
           NL_LOG_DBG("       ");
@@ -601,13 +601,13 @@ thumb2_analyze_func_ret thumb2_analyze_func(
         NL_LOG_DBG("\n");
       }
 
-      if (NL_UNLIKELY(!decode_ok)) {
+      if (NANOLOG_UNLIKELY(!decode_ok)) {
         NL_LOG_DBG("  Stopping path: Unknown instruction!\n");
         return thumb2_analyze_func_ret::ERR_INSTRUCTION_DECODE;
       }
 
       if (int const sev{ inst_is_log_call(pc_i, log_funcs, e.strtab) };
-          NL_UNLIKELY(sev != -1)) {
+          NANOLOG_UNLIKELY(sev != -1)) {
         bool already_discovered = false;
         switch (process_log_call(pc_i, path, nl_sec_hdr, sev, s, out_lca)) {
           case PROCESS_LOG_CALL_RET_SUCCESS:
@@ -630,7 +630,7 @@ thumb2_analyze_func_ret thumb2_analyze_func(
       }
 
       simulate_results const sr{ simulate(pc_i, noreturn_func_addrs, s, path) };
-      if (NL_UNLIKELY(sr == simulate_results::FAILURE)) {
+      if (NANOLOG_UNLIKELY(sr == simulate_results::FAILURE)) {
         return thumb2_analyze_func_ret::ERR_SIMULATE_LOGIC_INCOMPLETE;
       }
 

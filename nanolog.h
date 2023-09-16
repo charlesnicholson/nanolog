@@ -27,13 +27,19 @@ extern "C" {
 // They're mostly useful for ASCII builds.
 // For binary logs, the generated manifest always contains them; don't serialize them!
 
-#ifndef NL_CAPTURE_FUNCTION_NAMES
-#define NL_CAPTURE_FUNCTION_NAMES 1
+#ifndef NANOLOG_LOG_CAPTURE_FUNCTION_NAMES
+#define NANOLOG_LOG_CAPTURE_FUNCTION_NAMES 1
 #endif
 
 // Configure whether the nanolog assert macros are enabled.
 #ifndef NANOLOG_PROVIDE_ASSERT_MACROS
 #define NANOLOG_PROVIDE_ASSERT_MACROS 1
+#endif
+
+// Configure whether the nanolog assert macros capture file + line.
+// (File + line are always baked into the failure string, which may be binary)
+#ifndef NANOLOG_ASSERT_CAPTURE_FILE_LINE
+#define NANOLOG_ASSERT_CAPTURE_FILE_LINE 1
 #endif
 
 // Public API
@@ -62,7 +68,7 @@ typedef enum {
   NL_ARG_TYPE_STRING_PRECISION_LITERAL = 11,
   NL_ARG_TYPE_LOG_END = 0xF,
 
-  // Synthetic values emitted by runtime, not packed into binary
+  // Synthetic values emitted by runtime, not pre-baked into patched elf
   NL_ARG_TYPE_LOG_START = 0xAA,
   NL_ARG_TYPE_GUID = 0xAB,
   NL_ARG_TYPE_STRING_LEN = 0xAC,
@@ -127,29 +133,29 @@ nanolog_assert_handler_cb_t nanolog_get_assert_handler(void);
 // Boilerplate, has to be before the public logging macros
 
 #ifdef __cplusplus
-#define NL_NORETURN [[noreturn]]
+#define NANOLOG_NORETURN [[noreturn]]
 #else
-#define NL_NORETURN _Noreturn
+#define NANOLOG_NORETURN _Noreturn
 #endif
 
 #define NL_STR_EVAL(X) #X
 #define NL_STR(X) NL_STR_EVAL(X)
 
 #ifdef __arm__
-#define NL_ATTR_SEC(SEV) \
+#define NANOLOG_SECTION(SEV) \
   __attribute__((section(".nanolog." #SEV "." NL_STR(__LINE__) "." NL_STR(__COUNTER__))))
 #else
-#define NL_ATTR_SEC(SEV)
+#define NANOLOG_SECTION(SEV)
 #endif
 
 #ifdef __GNUC__
-#define NL_LIKELY(COND) __builtin_expect(!!(COND), 1)
-#define NL_UNLIKELY(COND) __builtin_expect(!!(COND), 0)
-#define NL_EXPECT(COND, VAL) __builtin_expect(COND, VAL)
+#define NANOLOG_LIKELY(COND) __builtin_expect(!!(COND), 1)
+#define NANOLOG_UNLIKELY(COND) __builtin_expect(!!(COND), 0)
+#define NANOLOG_EXPECT(COND, VAL) __builtin_expect(COND, VAL)
 #else
-#define NL_LIKELY(COND) COND
-#define NL_UNLIKELY(COND) COND
-#define NL_EXPECT(COND, VAL) COND
+#define NANOLOG_LIKELY(COND) COND
+#define NANOLOG_UNLIKELY(COND) COND
+#define NANOLOG_EXPECT(COND, VAL) COND
 #endif
 
 // Public logging macros
@@ -157,15 +163,15 @@ nanolog_assert_handler_cb_t nanolog_get_assert_handler(void);
 ////// DEBUG
 
 #if NL_LOG_SEVERITY_THRESHOLD <= NL_SEV_DEBUG
-#if NL_CAPTURE_FUNCTION_NAMES == 1
+#if NANOLOG_LOG_CAPTURE_FUNCTION_NAMES == 1
 #define NL_LOG_DBG(FMT, ...) \
   do { \
-    static char const NL_ATTR_SEC(DEBUG) s_nanolog_fmt_str[] = FMT; \
+    static char const NANOLOG_SECTION(DEBUG) s_nanolog_fmt_str[] = FMT; \
     nanolog_log_debug_func(s_nanolog_fmt_str, __func__, ##__VA_ARGS__); \
   } while (0)
 #define NL_LOG_DBG_CTX(CTX, FMT, ...) \
   do { \
-    static char const NL_ATTR_SEC(DEBUG) s_nanolog_fmt_str[] = FMT; \
+    static char const NANOLOG_SECTION(DEBUG) s_nanolog_fmt_str[] = FMT; \
     nanolog_log_debug_ctx_func(s_nanolog_fmt_str, \
                                __func__, \
                                (void *)(CTX), \
@@ -173,7 +179,7 @@ nanolog_assert_handler_cb_t nanolog_get_assert_handler(void);
   } while (0)
 #define NL_LOG_DBG_BUF(CTX, BUF, BUF_LEN, FMT, ...) \
   do { \
-    static char const NL_ATTR_SEC(DEBUG) s_nanolog_fmt_str[] = FMT; \
+    static char const NANOLOG_SECTION(DEBUG) s_nanolog_fmt_str[] = FMT; \
     nanolog_log_debug_buf_func(s_nanolog_fmt_str, \
                                __func__, \
                                (void *)(CTX), \
@@ -182,20 +188,20 @@ nanolog_assert_handler_cb_t nanolog_get_assert_handler(void);
                                FMT, \
                                ##__VA_ARGS__); \
   } while (0)
-#else
+#else  // NANOLOG_LOG_CAPTURE_FUNCTION_NAMES == 1
 #define NL_LOG_DBG(FMT, ...) \
   do { \
-    static char const NL_ATTR_SEC(DEBUG) s_nanolog_fmt_str[] = FMT; \
+    static char const NANOLOG_SECTION(DEBUG) s_nanolog_fmt_str[] = FMT; \
     nanolog_log_debug(s_nanolog_fmt_str, ##__VA_ARGS__); \
   } while (0)
 #define NL_LOG_DBG_CTX(CTX, FMT, ...) \
   do { \
-    static char const NL_ATTR_SEC(DEBUG) s_nanolog_fmt_str[] = FMT; \
+    static char const NANOLOG_SECTION(DEBUG) s_nanolog_fmt_str[] = FMT; \
     nanolog_log_debug_ctx(s_nanolog_fmt_str, (void *)(CTX), ##__VA_ARGS__); \
   } while (0)
 #define NL_LOG_DBG_BUF(CTX, BUF, BUF_LEN, FMT, ...) \
   do { \
-    static char const NL_ATTR_SEC(DEBUG) s_nanolog_fmt_str[] = FMT; \
+    static char const NANOLOG_SECTION(DEBUG) s_nanolog_fmt_str[] = FMT; \
     nanolog_log_debug_buf(s_nanolog_fmt_str, \
                           (void *)(CTX), \
                           BUF, \
@@ -203,31 +209,31 @@ nanolog_assert_handler_cb_t nanolog_get_assert_handler(void);
                           FMT, \
                           ##__VA_ARGS__); \
   } while (0)
-#endif
-#else
+#endif  // NANOLOG_LOG_CAPTURE_FUNCTION_NAMES == 1
+#else   // NL_LOG_SEVERITY_THRESHOLD <= NL_SEV_DEBUG
 #define NL_LOG_DBG(FMT, ...) (void)sizeof((FMT, ##__VA_ARGS__))
 #define NL_LOG_DBG_CTX(CTX, FMT, ...) (void)sizeof((FMT, CTX, ##__VA_ARGS__))
 #define NL_LOG_DBG_BUF(CTX, BUF, BUF_LEN, FMT, ...) \
   (void)sizeof((CTX, BUF, BUF_LEN, FMT, ##__VA_ARGS__))
-#endif
+#endif  // NL_LOG_SEVERITY_THRESHOLD <= NL_SEV_DEBUG
 
 ////// INFO
 
 #if NL_LOG_SEVERITY_THRESHOLD <= NL_SEV_INFO
-#if NL_CAPTURE_FUNCTION_NAMES == 1
+#if NANOLOG_LOG_CAPTURE_FUNCTION_NAMES == 1
 #define NL_LOG_INF(FMT, ...) \
   do { \
-    static char const NL_ATTR_SEC(INFO) s_nanolog_fmt_str[] = FMT; \
+    static char const NANOLOG_SECTION(INFO) s_nanolog_fmt_str[] = FMT; \
     nanolog_log_info_func(s_nanolog_fmt_str, __func__, ##__VA_ARGS__); \
   } while (0)
 #define NL_LOG_INF_CTX(CTX, FMT, ...) \
   do { \
-    static char const NL_ATTR_SEC(INFO) s_nanolog_fmt_str[] = FMT; \
+    static char const NANOLOG_SECTION(INFO) s_nanolog_fmt_str[] = FMT; \
     nanolog_log_info_ctx_func(s_nanolog_fmt_str, __func__, (void *)(CTX), ##__VA_ARGS__); \
   } while (0)
 #define NL_LOG_INF_BUF(CTX, BUF, BUF_LEN, FMT, ...) \
   do { \
-    static char const NL_ATTR_SEC(INFO) s_nanolog_fmt_str[] = FMT; \
+    static char const NANOLOG_SECTION(INFO) s_nanolog_fmt_str[] = FMT; \
     nanolog_log_info_buf_func(s_nanolog_fmt_str, \
                               __func__, \
                               (void *)(CTX), \
@@ -236,20 +242,20 @@ nanolog_assert_handler_cb_t nanolog_get_assert_handler(void);
                               FMT, \
                               ##__VA_ARGS__); \
   } while (0)
-#else
+#else  // NANOLOG_LOG_CAPTURE_FUNCTION_NAMES == 1
 #define NL_LOG_INF(FMT, ...) \
   do { \
-    static char const NL_ATTR_SEC(INFO) s_nanolog_fmt_str[] = FMT; \
+    static char const NANOLOG_SECTION(INFO) s_nanolog_fmt_str[] = FMT; \
     nanolog_log_info(s_nanolog_fmt_str, ##__VA_ARGS__); \
   } while (0)
 #define NL_LOG_INF_CTX(CTX, FMT, ...) \
   do { \
-    static char const NL_ATTR_SEC(INFO) s_nanolog_fmt_str[] = FMT; \
+    static char const NANOLOG_SECTION(INFO) s_nanolog_fmt_str[] = FMT; \
     nanolog_log_info_ctx(s_nanolog_fmt_str, (void *)(CTX), ##__VA_ARGS__); \
   } while (0)
 #define NL_LOG_INF_BUF(CTX, BUF, BUF_LEN, FMT, ...) \
   do { \
-    static char const NL_ATTR_SEC(INFO) s_nanolog_fmt_str[] = FMT; \
+    static char const NANOLOG_SECTION(INFO) s_nanolog_fmt_str[] = FMT; \
     nanolog_log_info_buf(s_nanolog_fmt_str, \
                          (void *)(CTX), \
                          BUF, \
@@ -257,26 +263,26 @@ nanolog_assert_handler_cb_t nanolog_get_assert_handler(void);
                          FMT, \
                          ##__VA_ARGS__); \
   } while (0)
-#endif
-#else
+#endif  // NANOLOG_LOG_CAPTURE_FUNCTION_NAMES == 1
+#else   // NL_LOG_SEVERITY_THRESHOLD <= NL_SEV_INFO
 #define NL_LOG_INF(FMT, ...) (void)sizeof((FMT, ##__VA_ARGS__))
 #define NL_LOG_INF_CTX(CTX, FMT, ...) (void)sizeof((FMT, CTX, ##__VA_ARGS__))
 #define NL_LOG_INF_BUF(CTX, BUF, BUF_LEN, FMT, ...) \
   (void)sizeof((CTX, BUF, BUF_LEN, FMT, ##__VA_ARGS__))
-#endif
+#endif  // NL_LOG_SEVERITY_THRESHOLD <= NL_SEV_INFO
 
 ////// WARNING
 
 #if NL_LOG_SEVERITY_THRESHOLD <= NL_SEV_WARNING
-#if NL_CAPTURE_FUNCTION_NAMES == 1
+#if NANOLOG_LOG_CAPTURE_FUNCTION_NAMES == 1
 #define NL_LOG_WRN(FMT, ...) \
   do { \
-    static char const NL_ATTR_SEC(WARNING) s_nanolog_fmt_str[] = FMT; \
+    static char const NANOLOG_SECTION(WARNING) s_nanolog_fmt_str[] = FMT; \
     nanolog_log_warning_func(s_nanolog_fmt_str, __func__, ##__VA_ARGS__); \
   } while (0)
 #define NL_LOG_WRN_CTX(CTX, FMT, ...) \
   do { \
-    static char const NL_ATTR_SEC(WARNING) s_nanolog_fmt_str[] = FMT; \
+    static char const NANOLOG_SECTION(WARNING) s_nanolog_fmt_str[] = FMT; \
     nanolog_log_warning_ctx_func(s_nanolog_fmt_str, \
                                  __func__, \
                                  (void *)(CTX), \
@@ -284,7 +290,7 @@ nanolog_assert_handler_cb_t nanolog_get_assert_handler(void);
   } while (0)
 #define NL_LOG_WRN_BUF(CTX, BUF, BUF_LEN, FMT, ...) \
   do { \
-    static char const NL_ATTR_SEC(WARNING) s_nanolog_fmt_str[] = FMT; \
+    static char const NANOLOG_SECTION(WARNING) s_nanolog_fmt_str[] = FMT; \
     nanolog_log_warning_buf_func(s_nanolog_fmt_str, \
                                  __func__, \
                                  (void *)(CTX), \
@@ -293,20 +299,20 @@ nanolog_assert_handler_cb_t nanolog_get_assert_handler(void);
                                  FMT, \
                                  ##__VA_ARGS__); \
   } while (0)
-#else
+#else  // NANOLOG_LOG_CAPTURE_FUNCTION_NAMES == 1
 #define NL_LOG_WRN(FMT, ...) \
   do { \
-    static char const NL_ATTR_SEC(WARNING) s_nanolog_fmt_str[] = FMT; \
+    static char const NANOLOG_SECTION(WARNING) s_nanolog_fmt_str[] = FMT; \
     nanolog_log_warning(s_nanolog_fmt_str, ##__VA_ARGS__); \
   } while (0)
 #define NL_LOG_WRN_CTX(CTX, FMT, ...) \
   do { \
-    static char const NL_ATTR_SEC(WARNING) s_nanolog_fmt_str[] = FMT; \
+    static char const NANOLOG_SECTION(WARNING) s_nanolog_fmt_str[] = FMT; \
     nanolog_log_warning_ctx(s_nanolog_fmt_str, (void *)(CTX), ##__VA_ARGS__); \
   } while (0)
 #define NL_LOG_WRN_BUF(CTX, BUF, BUF_LEN, FMT, ...) \
   do { \
-    static char const NL_ATTR_SEC(WARNING) s_nanolog_fmt_str[] = FMT; \
+    static char const NANOLOG_SECTION(WARNING) s_nanolog_fmt_str[] = FMT; \
     nanolog_log_warning_buf(s_nanolog_fmt_str, \
                             (void *)(CTX), \
                             BUF, \
@@ -314,26 +320,26 @@ nanolog_assert_handler_cb_t nanolog_get_assert_handler(void);
                             FMT, \
                             ##__VA_ARGS__); \
   } while (0)
-#endif
-#else
+#endif  // NANOLOG_LOG_CAPTURE_FUNCTION_NAMES == 1
+#else   // NL_LOG_SEVERITY_THRESHOLD <= NL_SEV_WARNING
 #define NL_LOG_WRN(FMT, ...) (void)sizeof((FMT, ##__VA_ARGS__))
 #define NL_LOG_WRN_CTX(CTX, FMT, ...) (void)sizeof((FMT, CTX, ##__VA_ARGS__))
 #define NL_LOG_WRN_BUF(CTX, BUF, BUF_LEN, FMT, ...) \
   (void)sizeof((CTX, BUF, BUF_LEN, FMT, ##__VA_ARGS__))
-#endif
+#endif  // NL_LOG_SEVERITY_THRESHOLD <= NL_SEV_WARNING
 
 ////// ERROR
 
 #if NL_LOG_SEVERITY_THRESHOLD <= NL_SEV_ERROR
-#if NL_CAPTURE_FUNCTION_NAMES == 1
+#if NANOLOG_LOG_CAPTURE_FUNCTION_NAMES == 1
 #define NL_LOG_ERR(FMT, ...) \
   do { \
-    static char const NL_ATTR_SEC(ERROR) s_nanolog_fmt_str[] = FMT; \
+    static char const NANOLOG_SECTION(ERROR) s_nanolog_fmt_str[] = FMT; \
     nanolog_log_error_func(s_nanolog_fmt_str, __func__, ##__VA_ARGS__); \
   } while (0)
 #define NL_LOG_ERR_CTX(CTX, FMT, ...) \
   do { \
-    static char const NL_ATTR_SEC(ERROR) s_nanolog_fmt_str[] = FMT; \
+    static char const NANOLOG_SECTION(ERROR) s_nanolog_fmt_str[] = FMT; \
     nanolog_log_error_ctx_func(s_nanolog_fmt_str, \
                                __func__, \
                                (void *)(CTX), \
@@ -341,7 +347,7 @@ nanolog_assert_handler_cb_t nanolog_get_assert_handler(void);
   } while (0)
 #define NL_LOG_ERR_BUF(CTX, BUF, BUF_LEN, FMT, ...) \
   do { \
-    static char const NL_ATTR_SEC(ERROR) s_nanolog_fmt_str[] = FMT; \
+    static char const NANOLOG_SECTION(ERROR) s_nanolog_fmt_str[] = FMT; \
     nanolog_log_warning_buf_func(s_nanolog_fmt_str, \
                                  __func__, \
                                  (void *)(CTX), \
@@ -350,20 +356,20 @@ nanolog_assert_handler_cb_t nanolog_get_assert_handler(void);
                                  FMT, \
                                  ##__VA_ARGS__); \
   } while (0)
-#else
+#else  // NANOLOG_LOG_CAPTURE_FUNCTION_NAMES == 1
 #define NL_LOG_ERR(FMT, ...) \
   do { \
-    static char const NL_ATTR_SEC(ERROR) s_nanolog_fmt_str[] = FMT; \
+    static char const NANOLOG_SECTION(ERROR) s_nanolog_fmt_str[] = FMT; \
     nanolog_log_error(s_nanolog_fmt_str, ##__VA_ARGS__); \
   } while (0)
 #define NL_LOG_ERR_CTX(CTX, FMT, ...) \
   do { \
-    static char const NL_ATTR_SEC(ERROR) s_nanolog_fmt_str[] = FMT; \
+    static char const NANOLOG_SECTION(ERROR) s_nanolog_fmt_str[] = FMT; \
     nanolog_log_error_ctx(s_nanolog_fmt_str, (void *)(CTX), ##__VA_ARGS__); \
   } while (0)
 #define NL_LOG_ERR_BUF(CTX, BUF, BUF_LEN, FMT, ...) \
   do { \
-    static char const NL_ATTR_SEC(ERROR) s_nanolog_fmt_str[] = FMT; \
+    static char const NANOLOG_SECTION(ERROR) s_nanolog_fmt_str[] = FMT; \
     nanolog_log_warning_buf(s_nanolog_fmt_str, \
                             (void *)(CTX), \
                             BUF, \
@@ -371,31 +377,31 @@ nanolog_assert_handler_cb_t nanolog_get_assert_handler(void);
                             FMT, \
                             ##__VA_ARGS__); \
   } while (0)
-#endif
-#else
+#endif  // NANOLOG_LOG_CAPTURE_FUNCTION_NAMES == 1
+#else   // NL_LOG_SEVERITY_THRESHOLD <= NL_SEV_ERROR
 #define NL_LOG_ERR(FMT, ...) (void)sizeof((FMT, ##__VA_ARGS__))
 #define NL_LOG_ERR_CTX(CTX, FMT, ...) (void)sizeof((FMT, CTX, ##__VA_ARGS__))
 #define NL_LOG_ERR_BUF(CTX, BUF, BUF_LEN, FMT, ...) \
   (void)sizeof((CTX, BUF, BUF_LEN, FMT, ##__VA_ARGS__))
-#endif
+#endif  // NL_LOG_SEVERITY_THRESHOLD <= NL_SEV_ERROR
 
 ////// CRITICAL
 
 #if NL_LOG_SEVERITY_THRESHOLD <= NL_SEV_CRITICAL
-#if NL_CAPTURE_FUNCTION_NAMES == 1
+#if NANOLOG_LOG_CAPTURE_FUNCTION_NAMES == 1
 #define NL_LOG_CRT(FMT, ...) \
   do { \
-    static char const NL_ATTR_SEC(CRITICAL) s_nanolog_fmt_str[] = FMT; \
+    static char const NANOLOG_SECTION(CRITICAL) s_nanolog_fmt_str[] = FMT; \
     nanolog_log_critical_func(s_nanolog_fmt_str, __func__, ##__VA_ARGS__); \
   } while (0)
 #define NL_LOG_CRT_CTX(CTX, FMT, ...) \
   do { \
-    static char const NL_ATTR_SEC(CRITICAL) s_nanolog_fmt_str[] = FMT; \
+    static char const NANOLOG_SECTION(CRITICAL) s_nanolog_fmt_str[] = FMT; \
     nanolog_log_critical_func(s_nanolog_fmt_str, __func__, (void *)(CTX), ##__VA_ARGS__); \
   } while (0)
 #define NL_LOG_CRT_BUF(CTX, BUF, BUF_LEN, FMT, ...) \
   do { \
-    static char const NL_ATTR_SEC(CRITICAL) s_nanolog_fmt_str[] = FMT; \
+    static char const NANOLOG_SECTION(CRITICAL) s_nanolog_fmt_str[] = FMT; \
     nanolog_log_critical_buf_func(s_nanolog_fmt_str, \
                                   __func__, \
                                   (void *)(CTX), \
@@ -404,20 +410,20 @@ nanolog_assert_handler_cb_t nanolog_get_assert_handler(void);
                                   FMT, \
                                   ##__VA_ARGS__); \
   } while (0)
-#else
+#else  // NANOLOG_LOG_CAPTURE_FUNCTION_NAMES == 1
 #define NL_LOG_CRT(FMT, ...) \
   do { \
-    static char const NL_ATTR_SEC(CRITICAL) s_nanolog_fmt_str[] = FMT; \
+    static char const NANOLOG_SECTION(CRITICAL) s_nanolog_fmt_str[] = FMT; \
     nanolog_log_critical(s_nanolog_fmt_str, ##__VA_ARGS__); \
   } while (0)
 #define NL_LOG_CRT_CTX(CTX, FMT, ...) \
   do { \
-    static char const NL_ATTR_SEC(CRITICAL) s_nanolog_fmt_str[] = FMT; \
+    static char const NANOLOG_SECTION(CRITICAL) s_nanolog_fmt_str[] = FMT; \
     nanolog_log_critical(s_nanolog_fmt_str, (void *)(CTX), ##__VA_ARGS__); \
   } while (0)
 #define NL_LOG_CRT_BUF(CTX, BUF, BUF_LEN, FMT, ...) \
   do { \
-    static char const NL_ATTR_SEC(CRITICAL) s_nanolog_fmt_str[] = FMT; \
+    static char const NANOLOG_SECTION(CRITICAL) s_nanolog_fmt_str[] = FMT; \
     nanolog_log_critical_buf(s_nanolog_fmt_str, \
                              (void *)(CTX), \
                              BUF, \
@@ -425,107 +431,113 @@ nanolog_assert_handler_cb_t nanolog_get_assert_handler(void);
                              FMT, \
                              ##__VA_ARGS__); \
   } while (0)
-#endif
-#else
+#endif  // NANOLOG_LOG_CAPTURE_FUNCTION_NAMES == 1
+#else   // NL_LOG_SEVERITY_THRESHOLD <= NL_SEV_CRITICAL
 #define NL_LOG_CRT(FMT, ...) (void)sizeof((FMT, ##__VA_ARGS__))
 #define NL_LOG_CRT_CTX(CTX, FMT, ...) (void)sizeof((FMT, CTX, ##__VA_ARGS__))
 #define NL_LOG_CRT_BUF(CTX, BUF, BUF_LEN, FMT, ...) \
   (void)sizeof((CTX, BUF, BUF_LEN, FMT, ##__VA_ARGS__))
-#endif
-
-////// ASSERT
-
-#if NL_CAPTURE_FUNCTION_NAMES == 1
-#define NL_LOG_ASSERT(FMT, ...) \
-  do { \
-    static char const NL_ATTR_SEC(ASSERT) s_nanolog_fmt_str[] = FMT; \
-    nanolog_log_assert_func(s_nanolog_fmt_str, __func__, ##__VA_ARGS__); \
-  } while (0)
-#define NL_LOG_ASSERT_CTX(CTX, FMT, ...) \
-  do { \
-    static char const NL_ATTR_SEC(ASSERT) s_nanolog_fmt_str[] = FMT; \
-    nanolog_log_assert_ctx_func(s_nanolog_fmt_str, \
-                                __func__, \
-                                (void *)(CTX), \
-                                ##__VA_ARGS__); \
-  } while (0)
-#else
-#define NL_LOG_ASSERT(FMT, ...) \
-  do { \
-    static char const NL_ATTR_SEC(ASSERT) s_nanolog_fmt_str[] = FMT; \
-    nanolog_log_assert(s_nanolog_fmt_str, ##__VA_ARGS__); \
-  } while (0)
-#define NL_LOG_ASSERT_CTX(CTX, FMT, ...) \
-  do { \
-    static char const NL_ATTR_SEC(ASSERT) s_nanolog_fmt_str[] = FMT; \
-    nanolog_log_assert_ctx(s_nanolog_fmt_str, (void *)(CTX), ##__VA_ARGS__); \
-  } while (0)
-#endif
+#endif  // NL_LOG_SEVERITY_THRESHOLD <= NL_SEV_CRITICAL
 
 // Optional top-level minimal-footprint assert macros
 
-#if NANOLOG_PROVIDE_ASSERT_MACROS
-
+#if NANOLOG_PROVIDE_ASSERT_MACROS == 1
+#if NANOLOG_ASSERT_CAPTURE_FILE_LINE == 1
 #define NL_ASSERT(COND) \
   do { \
-    if (NL_UNLIKELY(!(COND))) { \
-      nanolog_assert_fail(__FILE__ "(" NL_STR(__LINE__) "): \"" #COND "\"", \
-                          __FILE__, \
-                          __LINE__); \
+    if (NANOLOG_UNLIKELY(!(COND))) { \
+      nanolog_assert_fail_file_line(__FILE__ "(" NL_STR(__LINE__) "): \"" #COND "\"", \
+                                    __FILE__, \
+                                    __LINE__); \
     } \
   } while (0)
-
 #define NL_ASSERT_CTX(CTX, COND) \
   do { \
-    if (NL_UNLIKELY(!(COND))) { \
-      nanolog_assert_fail_ctx(__FILE__ "(" NL_STR(__LINE__) "): \"" #COND "\"", \
-                              (CTX), \
-                              __FILE__, \
-                              __LINE__); \
+    if (NANOLOG_UNLIKELY(!(COND))) { \
+      nanolog_assert_fail_ctx_file_line(__FILE__ "(" NL_STR(__LINE__) "): \"" #COND "\"", \
+                                        (CTX), \
+                                        __FILE__, \
+                                        __LINE__); \
     } \
   } while (0)
-
 #define NL_ASSERT_MSG(COND, FMT, ...) \
   do { \
-    if (NL_UNLIKELY(!(COND))) { \
+    if (NANOLOG_UNLIKELY(!(COND))) { \
+      nanolog_assert_fail_msg_file_line(__FILE__ "(" NL_STR(__LINE__) "): \"" #COND \
+                                                                      "\" " FMT, \
+                                        __FILE__, \
+                                        __LINE__, \
+                                        ##__VA_ARGS__); \
+    } \
+  } while (0)
+#define NL_ASSERT_MSG_CTX(CTX, COND, FMT, ...) \
+  do { \
+    if (NANOLOG_UNLIKELY(!(COND))) { \
+      nanolog_assert_fail_ctx_msg_file_line(__FILE__ "(" NL_STR(__LINE__) "): \"" #COND \
+                                                                          "\" " FMT, \
+                                            (CTX), \
+                                            __FILE__, \
+                                            __LINE__, \
+                                            ##__VA_ARGS__); \
+    } \
+  } while (0)
+#define NL_ASSERT_FAIL() \
+  nanolog_assert_fail_file_line(__FILE__ "(" NL_STR(__LINE__) "): ASSERT FAIL", \
+                                __FILE__, \
+                                __LINE__)
+#define NL_ASSERT_FAIL_CTX(CTX) \
+  nanolog_assert_fail_ctx_file_line(__FILE__ "(" NL_STR(__LINE__) "): ASSERT FAIL", (CTX))
+#define NL_ASSERT_FAIL_MSG(FMT, ...) \
+  nanolog_assert_fail_msg_file_line(__FILE__ "(" NL_STR(__LINE__) "): " FMT, \
+                                    __FILE__, \
+                                    __LINE__, \
+                                    ##__VA_ARGS__);
+#define NL_ASSERT_FAIL_MSG_CTX(CTX, FMT, ...) \
+  nanolog_assert_fail_ctx_msg_file_line(__FILE__ "(" NL_STR(__LINE__) "): " FMT, \
+                                        (CTX), \
+                                        __FILE__, \
+                                        __LINE__, \
+                                        ##__VA_ARGS__);
+#else  // NANOLOG_ASSERT_CAPTURE_FILE_LINE == 1
+#define NL_ASSERT(COND) \
+  do { \
+    if (NANOLOG_UNLIKELY(!(COND))) { \
+      nanolog_assert_fail(__FILE__ "(" NL_STR(__LINE__) "): \"" #COND "\""); \
+    } \
+  } while (0)
+#define NL_ASSERT_CTX(CTX, COND) \
+  do { \
+    if (NANOLOG_UNLIKELY(!(COND))) { \
+      nanolog_assert_fail_ctx(__FILE__ "(" NL_STR(__LINE__) "): \"" #COND "\"", (CTX)); \
+    } \
+  } while (0)
+#define NL_ASSERT_MSG(COND, FMT, ...) \
+  do { \
+    if (NANOLOG_UNLIKELY(!(COND))) { \
       nanolog_assert_fail_msg(__FILE__ "(" NL_STR(__LINE__) "): \"" #COND "\" " FMT, \
-                              __FILE__, \
-                              __LINE__, \
                               ##__VA_ARGS__); \
     } \
   } while (0)
-
 #define NL_ASSERT_MSG_CTX(CTX, COND, FMT, ...) \
   do { \
-    if (NL_UNLIKELY(!(COND))) { \
+    if (NANOLOG_UNLIKELY(!(COND))) { \
       nanolog_assert_fail_ctx_msg(__FILE__ "(" NL_STR(__LINE__) "): \"" #COND "\" " FMT, \
                                   (CTX), \
-                                  __FILE__, \
-                                  __LINE__, \
                                   ##__VA_ARGS__); \
     } \
   } while (0)
-
 #define NL_ASSERT_FAIL() \
-  nanolog_assert_fail(__FILE__ "(" NL_STR(__LINE__) "): ASSERT FAIL", __FILE__, __LINE__)
-
+  nanolog_assert_fail(__FILE__ "(" NL_STR(__LINE__) "): ASSERT FAIL")
 #define NL_ASSERT_FAIL_CTX(CTX) \
   nanolog_assert_fail_ctx(__FILE__ "(" NL_STR(__LINE__) "): ASSERT FAIL", (CTX))
-
 #define NL_ASSERT_FAIL_MSG(FMT, ...) \
-  nanolog_assert_fail_msg(__FILE__ "(" NL_STR(__LINE__) "): " FMT, \
-                          __FILE__, \
-                          __LINE__, \
-                          ##__VA_ARGS__);
-
+  nanolog_assert_fail_msg(__FILE__ "(" NL_STR(__LINE__) "): " FMT, ##__VA_ARGS__);
 #define NL_ASSERT_FAIL_MSG_CTX(CTX, FMT, ...) \
   nanolog_assert_fail_ctx_msg(__FILE__ "(" NL_STR(__LINE__) "): " FMT, \
                               (CTX), \
-                              __FILE__, \
-                              __LINE__, \
                               ##__VA_ARGS__);
-
-#endif  // NANOLOG_PROVIDE_ASSERT_MACROS
+#endif  // NANOLOG_ASSERT_CAPTURE_FILE_LINE == 1
+#endif  // NANOLOG_PROVIDE_ASSERT_MACROS == 1
 
 // Implementation details
 
@@ -627,14 +639,6 @@ void nanolog_log_critical_buf_func(char const *fmt,
                                    void const *buf,
                                    unsigned buf_len,
                                    ...);
-
-NL_NORETURN void nanolog_log_assert(char const *fmt, ...);
-NL_NORETURN void nanolog_log_assert_func(char const *fmt, char const *func, ...);
-NL_NORETURN void nanolog_log_assert_ctx(char const *fmt, void *ctx, ...);
-NL_NORETURN void nanolog_log_assert_ctx_func(char const *fmt,
-                                             char const *func,
-                                             void *ctx,
-                                             ...);
 
 #ifdef __cplusplus
 }
