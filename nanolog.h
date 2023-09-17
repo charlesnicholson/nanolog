@@ -76,10 +76,6 @@ typedef enum {
   NL_ARG_TYPE_BUFFER = 0xAE,
 } nl_arg_type_t;
 
-// Set the runtime log threshold for enabled log calls
-nanolog_ret_t nanolog_set_threshold(unsigned severity);
-unsigned nanolog_get_threshold(void);
-
 typedef struct nanolog_log_details {
   unsigned sev;
   void *log_ctx;            // LOG_<SEV>_CTX or log_sev_ctx or ASSERT_CTX
@@ -98,6 +94,10 @@ typedef void (*nanolog_handler_cb_t)(nanolog_log_details_t const *details,
 nanolog_ret_t nanolog_set_log_handler(nanolog_handler_cb_t handler);
 nanolog_handler_cb_t nanolog_get_log_handler(void);
 
+// Set the runtime log threshold for enabled log calls
+nanolog_ret_t nanolog_set_threshold(unsigned severity);
+unsigned nanolog_get_threshold(void);
+
 // Writes true to |out_is_binary| if fmt is a rewritten binary spec, false if ASCII.
 nanolog_ret_t nanolog_fmt_is_binary(char const *fmt, bool *out_is_binary);
 
@@ -113,58 +113,20 @@ nanolog_ret_t nanolog_parse_binary_log(nanolog_binary_field_handler_cb_t cb,
                                        va_list args);
 
 // Direct log functions, for dynamic runtime severity.
-void nanolog_log_sev(unsigned sev, char const *func, char const *fmt, ...);
-void nanolog_log_sev_ctx(unsigned sev, void *ctx, char const *func, char const *fmt, ...);
-void nanolog_log_sev_buf(unsigned sev,
+void nanolog_log_sev(char const *fmt, unsigned sev, char const *func, ...);
+void nanolog_log_sev_ctx(char const *fmt, unsigned sev, void *ctx, char const *func, ...);
+void nanolog_log_sev_buf(char const *fmt,
+                         unsigned sev,
                          void *ctx,
                          char const *func,
                          void const *buf,
                          unsigned len,
-                         char const *fmt,
                          ...);
 
 #if NANOLOG_PROVIDE_ASSERT_MACROS == 1
 typedef void (*nanolog_assert_handler_cb_t)(void);
 nanolog_ret_t nanolog_set_assert_handler(nanolog_assert_handler_cb_t handler);
 nanolog_assert_handler_cb_t nanolog_get_assert_handler(void);
-#endif
-
-// Boilerplate, has to be before the public logging macros
-
-#ifdef __cplusplus
-#define NANOLOG_NORETURN [[noreturn]]
-#else
-#define NANOLOG_NORETURN _Noreturn
-#endif
-
-#ifdef _MSC_VER
-#define NANOLOG_NOINLINE __declspec(noinline)
-#define NANOLOG_FALLTHROUGH
-#elif defined(__GNUC__) || defined(__clang__)
-#define NANOLOG_NOINLINE __attribute__((noinline))
-#define NANOLOG_FALLTHROUGH __attribute__((fallthrough))
-#else
-#error Unrecognized compiler, please implement NANOLOG_NOINLINE
-#endif
-
-#define NL_STR_EVAL(X) #X
-#define NL_STR(X) NL_STR_EVAL(X)
-
-#ifdef __arm__
-#define NANOLOG_SECTION(SEV) \
-  __attribute__((section(".nanolog." #SEV "." NL_STR(__LINE__) "." NL_STR(__COUNTER__))))
-#else
-#define NANOLOG_SECTION(SEV)
-#endif
-
-#ifdef __GNUC__
-#define NANOLOG_LIKELY(COND) __builtin_expect(!!(COND), 1)
-#define NANOLOG_UNLIKELY(COND) __builtin_expect(!!(COND), 0)
-#define NANOLOG_EXPECT(COND, VAL) __builtin_expect(COND, VAL)
-#else
-#define NANOLOG_LIKELY(COND) COND
-#define NANOLOG_UNLIKELY(COND) COND
-#define NANOLOG_EXPECT(COND, VAL) COND
 #endif
 
 // Public logging macros
@@ -547,6 +509,43 @@ nanolog_assert_handler_cb_t nanolog_get_assert_handler(void);
 #endif  // NANOLOG_PROVIDE_ASSERT_MACROS == 1
 
 // Implementation details
+
+#ifdef __cplusplus
+#define NANOLOG_NORETURN [[noreturn]]
+#else
+#define NANOLOG_NORETURN _Noreturn
+#endif
+
+#ifdef _MSC_VER
+#define NANOLOG_NOINLINE __declspec(noinline)
+#define NANOLOG_FALLTHROUGH
+#elif defined(__GNUC__) || defined(__clang__)
+#define NANOLOG_NOINLINE __attribute__((noinline))
+#define NANOLOG_FALLTHROUGH __attribute__((fallthrough))
+#else
+#error Unrecognized compiler, please implement NANOLOG_NOINLINE
+#endif
+
+#define NL_STR_EVAL(X) #X
+#define NL_STR(X) NL_STR_EVAL(X)
+
+#ifdef __arm__
+#define NANOLOG_SECTION(SEV) \
+  __attribute__((section(".nanolog." #SEV "." NL_STR(__LINE__) "." NL_STR(__COUNTER__))))
+#else
+#define NANOLOG_SECTION(SEV)
+#endif
+
+#ifdef __GNUC__
+#define NANOLOG_LIKELY(COND) __builtin_expect(!!(COND), 1)
+#define NANOLOG_UNLIKELY(COND) __builtin_expect(!!(COND), 0)
+#define NANOLOG_EXPECT(COND, VAL) __builtin_expect(COND, VAL)
+#else
+#define NANOLOG_LIKELY(COND) COND
+#define NANOLOG_UNLIKELY(COND) COND
+#define NANOLOG_EXPECT(COND, VAL) COND
+#endif
+
 
 enum {
   NL_BINARY_LOG_MARKER = 0x1F,  // starts replacement binary payloads

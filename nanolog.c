@@ -305,29 +305,30 @@ _Static_assert(sizeof(uintmax_t) == 8, "");
 // be macro-generated but that often makes debugging more opaque.
 
 // clang-format off
-NANOLOG_NOINLINE void nanolog_log_sev(unsigned sev, char const *func, char const *fmt, ...) {
+NANOLOG_NOINLINE void nanolog_log_sev(
+    char const *fmt, unsigned sev, char const *func, ...) {
   if (s_log_threshold > sev) { return; }
-  va_list a; va_start(a, fmt);
+  va_list a; va_start(a, func);
   s_log_handler(&(nanolog_log_details_t){ .sev = sev | NL_DYNAMIC_SEV_BIT,
       .log_ctx = NULL, .assert_file = NULL, .assert_line = 0, .log_func = func,
       .log_buf = NULL, .log_buf_len = 0 }, fmt, a);
   va_end(a);
 }
 
-NANOLOG_NOINLINE void nanolog_log_sev_ctx(unsigned sev, void *ctx, char const *func,
-    char const *fmt, ...) {
+NANOLOG_NOINLINE void nanolog_log_sev_ctx(
+    char const *fmt, unsigned sev, void *ctx, char const *func, ...) {
   if (s_log_threshold > sev) { return; }
-  va_list a; va_start(a, fmt);
+  va_list a; va_start(a, func);
   s_log_handler(&(nanolog_log_details_t){ .sev = sev | NL_DYNAMIC_SEV_BIT,
       .log_ctx = ctx, .assert_file = NULL, .assert_line = 0, .log_func = func,
       .log_buf = NULL, .log_buf_len = 0 }, fmt, a);
   va_end(a);
 }
 
-NANOLOG_NOINLINE void nanolog_log_sev_buf(unsigned sev, void *ctx, char const *func,
-    void const *buf, unsigned len, char const *fmt, ...) {
+NANOLOG_NOINLINE void nanolog_log_sev_buf(char const *fmt, unsigned sev, void *ctx,
+    char const *func, void const *buf, unsigned len, ...) {
   if (s_log_threshold > sev) { return; }
-  va_list a; va_start(a, fmt);
+  va_list a; va_start(a, len);
   s_log_handler(&(nanolog_log_details_t){ .sev = sev | NL_DYNAMIC_SEV_BIT,
       .log_ctx = ctx, .assert_file = NULL, .assert_line = 0, .log_func = func,
       .log_buf = buf, .log_buf_len = len }, fmt, a);
