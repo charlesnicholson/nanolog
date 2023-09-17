@@ -48,6 +48,7 @@ ifneq '' '$(findstring clang,$(COMPILER_VERSION))'
 CFLAGS += -Wno-declaration-after-statement
 
 CPPFLAGS += -Weverything \
+			-Wno-unknown-warning-option \
 			-Wno-poison-system-directories \
 			-Wno-format-pedantic \
 			-Wno-unsafe-buffer-usage
