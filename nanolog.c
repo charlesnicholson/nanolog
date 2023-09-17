@@ -43,13 +43,13 @@ nanolog_handler_cb_t nanolog_get_log_handler(void) {
 #endif
 
 // clang-format off
-NL_NOINLINE void nanolog_log_sev(unsigned sev, char const *fmt, ...) {
+NL_NOINLINE void nanolog_log_sev(unsigned sev, char const *func, char const *fmt, ...) {
   if (!s_log_handler || (s_log_threshold > sev)) {
     return;
   }
   va_list a; va_start(a, fmt);
   s_log_handler(&(nanolog_log_details_t){ .sev = sev | NL_DYNAMIC_SEV_BIT,
-      .log_ctx = NULL, .assert_file = NULL, .assert_line = 0, .log_func = NULL,
+      .log_ctx = NULL, .assert_file = NULL, .assert_line = 0, .log_func = func,
       .log_buf = NULL, .log_buf_len = 0 }, fmt, a);
   va_end(a);
 }

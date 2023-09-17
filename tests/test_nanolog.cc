@@ -39,7 +39,7 @@ TEST_CASE("nanolog_set_log_handler") {
   REQUIRE(nanolog_set_log_handler(
               [](nanolog_log_details_t const *, char const *, va_list) { ++s_calls; }) ==
           NANOLOG_RET_SUCCESS);
-  nanolog_log_sev(NL_SEV_ASSERT, "");
+  nanolog_log_sev(NL_SEV_ASSERT, __func__, "");
   REQUIRE(s_calls == 1);
 }
 
@@ -89,7 +89,7 @@ TEST_CASE("nanolog_log_sev") {
                 *s_fmt = fmt_;
                 s_sev = d->sev;
               }) == NANOLOG_RET_SUCCESS);
-  nanolog_log_sev(NL_SEV_WARNING, "logging is fun");
+  nanolog_log_sev(NL_SEV_WARNING, __func__, "logging is fun");
   REQUIRE(fmt == "logging is fun");
   REQUIRE_EQ(s_sev, NL_SEV_WARNING | NL_DYNAMIC_SEV_BIT);
 }
