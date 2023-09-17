@@ -565,7 +565,7 @@ nanolog_ret_t nanolog_varint_encode(uint32_t val,
 
 nanolog_ret_t nanolog_varint_decode(void const *p, uint32_t *out_val, unsigned *out_len);
 
-// Private logging API (use the macros, not these)
+// Partial applications of the various parameters, to minimize call-site footprint.
 
 void nanolog_log_debug(char const *fmt, ...);
 void nanolog_log_debug_func(char const *fmt, char const *func, ...);

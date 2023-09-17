@@ -8,7 +8,15 @@
 #include <assert.h>  // _Static_assert on msvc
 #endif
 
-static nanolog_handler_cb_t s_log_handler = NULL;
+static void nanolog_default_log_handler(nanolog_log_details_t const *details,
+                                        char const *fmt,
+                                        va_list args) {
+  (void)details;
+  (void)fmt;
+  (void)args;
+}
+
+static nanolog_handler_cb_t s_log_handler = &nanolog_default_log_handler;
 static unsigned s_log_threshold = NL_SEV_DEBUG;
 
 nanolog_ret_t nanolog_set_threshold(unsigned severity) {
@@ -24,6 +32,9 @@ unsigned nanolog_get_threshold(void) {
 }
 
 nanolog_ret_t nanolog_set_log_handler(nanolog_handler_cb_t handler) {
+  if (!handler) {
+    return NANOLOG_RET_ERR_BAD_ARG;
+  }
   s_log_handler = handler;
   return NANOLOG_RET_SUCCESS;
 }
@@ -41,6 +52,9 @@ NANOLOG_NORETURN static void nanolog_default_assert_handler(void) {
 static nanolog_assert_handler_cb_t s_assert_handler_cb = &nanolog_default_assert_handler;
 
 nanolog_ret_t nanolog_set_assert_handler(nanolog_assert_handler_cb_t handler) {
+  if (!handler) {
+    return NANOLOG_RET_ERR_BAD_ARG;
+  }
   s_assert_handler_cb = handler;
   return NANOLOG_RET_SUCCESS;
 }
@@ -51,40 +65,6 @@ nanolog_assert_handler_cb_t nanolog_get_assert_handler(void) {
 #endif
 
 // clang-format off
-NANOLOG_NOINLINE void nanolog_log_sev(unsigned sev, char const *func, char const *fmt, ...) {
-  if (!s_log_handler || (s_log_threshold > sev)) {
-    return;
-  }
-  va_list a; va_start(a, fmt);
-  s_log_handler(&(nanolog_log_details_t){ .sev = sev | NL_DYNAMIC_SEV_BIT,
-      .log_ctx = NULL, .assert_file = NULL, .assert_line = 0, .log_func = func,
-      .log_buf = NULL, .log_buf_len = 0 }, fmt, a);
-  va_end(a);
-}
-
-NANOLOG_NOINLINE void nanolog_log_sev_ctx(unsigned sev, void *ctx, char const *func,
-    char const *fmt, ...) {
-  if (!s_log_handler || (s_log_threshold > sev)) {
-    return;
-  }
-  va_list a; va_start(a, fmt);
-  s_log_handler(&(nanolog_log_details_t){ .sev = sev | NL_DYNAMIC_SEV_BIT,
-      .log_ctx = ctx, .assert_file = NULL, .assert_line = 0, .log_func = func,
-      .log_buf = NULL, .log_buf_len = 0 }, fmt, a);
-  va_end(a);
-}
-
-NANOLOG_NOINLINE void nanolog_log_sev_buf(unsigned sev, void *ctx, char const *func,
-    void const *buf, unsigned len, char const *fmt, ...) {
-  if (!s_log_handler || (s_log_threshold > sev)) {
-    return;
-  }
-  va_list a; va_start(a, fmt);
-  s_log_handler(&(nanolog_log_details_t){ .sev = sev | NL_DYNAMIC_SEV_BIT,
-      .log_ctx = ctx, .assert_file = NULL, .assert_line = 0, .log_func = func,
-      .log_buf = buf, .log_buf_len = len }, fmt, a);
-  va_end(a);
-}
 // clang-format on
 
 nanolog_ret_t nanolog_fmt_is_binary(char const *fmt, bool *out_is_binary) {
@@ -325,9 +305,37 @@ _Static_assert(sizeof(uintmax_t) == 8, "");
 // be macro-generated but that often makes debugging more opaque.
 
 // clang-format off
+NANOLOG_NOINLINE void nanolog_log_sev(unsigned sev, char const *func, char const *fmt, ...) {
+  if (s_log_threshold > sev) { return; }
+  va_list a; va_start(a, fmt);
+  s_log_handler(&(nanolog_log_details_t){ .sev = sev | NL_DYNAMIC_SEV_BIT,
+      .log_ctx = NULL, .assert_file = NULL, .assert_line = 0, .log_func = func,
+      .log_buf = NULL, .log_buf_len = 0 }, fmt, a);
+  va_end(a);
+}
+
+NANOLOG_NOINLINE void nanolog_log_sev_ctx(unsigned sev, void *ctx, char const *func,
+    char const *fmt, ...) {
+  if (s_log_threshold > sev) { return; }
+  va_list a; va_start(a, fmt);
+  s_log_handler(&(nanolog_log_details_t){ .sev = sev | NL_DYNAMIC_SEV_BIT,
+      .log_ctx = ctx, .assert_file = NULL, .assert_line = 0, .log_func = func,
+      .log_buf = NULL, .log_buf_len = 0 }, fmt, a);
+  va_end(a);
+}
+
+NANOLOG_NOINLINE void nanolog_log_sev_buf(unsigned sev, void *ctx, char const *func,
+    void const *buf, unsigned len, char const *fmt, ...) {
+  if (s_log_threshold > sev) { return; }
+  va_list a; va_start(a, fmt);
+  s_log_handler(&(nanolog_log_details_t){ .sev = sev | NL_DYNAMIC_SEV_BIT,
+      .log_ctx = ctx, .assert_file = NULL, .assert_line = 0, .log_func = func,
+      .log_buf = buf, .log_buf_len = len }, fmt, a);
+  va_end(a);
+}
 
 NANOLOG_NOINLINE void nanolog_log_debug(char const *fmt, ...) {
-  if (!s_log_handler || (s_log_threshold > NL_SEV_DEBUG)) { return; }
+  if (s_log_threshold > NL_SEV_DEBUG) { return; }
   va_list a; va_start(a, fmt);
   s_log_handler(&(nanolog_log_details_t){
     .sev = NL_SEV_DEBUG, .log_ctx = NULL, .assert_file = NULL, .assert_line = 0,
@@ -336,7 +344,7 @@ NANOLOG_NOINLINE void nanolog_log_debug(char const *fmt, ...) {
 }
 
 NANOLOG_NOINLINE void nanolog_log_debug_func(char const *fmt, char const *func, ...) {
-  if (!s_log_handler || (s_log_threshold > NL_SEV_DEBUG)) { return; }
+  if (s_log_threshold > NL_SEV_DEBUG) { return; }
   va_list a; va_start(a, func);
   s_log_handler(&(nanolog_log_details_t){
     .sev = NL_SEV_DEBUG, .log_ctx = NULL, .assert_file = NULL, .assert_line = 0,
@@ -345,7 +353,7 @@ NANOLOG_NOINLINE void nanolog_log_debug_func(char const *fmt, char const *func, 
 }
 
 NANOLOG_NOINLINE void nanolog_log_debug_ctx(char const *fmt, void *ctx, ...) {
-  if (!s_log_handler || (s_log_threshold > NL_SEV_DEBUG)) { return; }
+  if (s_log_threshold > NL_SEV_DEBUG) { return; }
   va_list a; va_start(a, ctx);
   s_log_handler(&(nanolog_log_details_t){
     .sev = NL_SEV_DEBUG, .log_ctx = ctx, .assert_file = NULL, .assert_line = 0,
@@ -355,7 +363,7 @@ NANOLOG_NOINLINE void nanolog_log_debug_ctx(char const *fmt, void *ctx, ...) {
 
 NANOLOG_NOINLINE void nanolog_log_debug_ctx_func(
     char const *fmt, char const *func, void *ctx, ...) {
-  if (!s_log_handler || (s_log_threshold > NL_SEV_DEBUG)) { return; }
+  if (s_log_threshold > NL_SEV_DEBUG) { return; }
   va_list a; va_start(a, ctx);
   s_log_handler(&(nanolog_log_details_t){
     .sev = NL_SEV_DEBUG, .log_ctx = ctx, .assert_file = NULL, .assert_line = 0,
@@ -365,7 +373,7 @@ NANOLOG_NOINLINE void nanolog_log_debug_ctx_func(
 
 NANOLOG_NOINLINE void nanolog_log_debug_buf(
     char const *fmt, void *ctx, void const *buf, unsigned buf_len, ...) {
-  if (!s_log_handler || (s_log_threshold > NL_SEV_DEBUG)) { return; }
+  if (s_log_threshold > NL_SEV_DEBUG) { return; }
   va_list a; va_start(a, buf_len);
   s_log_handler(&(nanolog_log_details_t){
     .sev = NL_SEV_DEBUG, .log_ctx = ctx, .assert_file = NULL, .assert_line = 0,
@@ -375,7 +383,7 @@ NANOLOG_NOINLINE void nanolog_log_debug_buf(
 
 NANOLOG_NOINLINE void nanolog_log_debug_buf_func(
     char const *fmt, char const *func, void *ctx, void const *buf, unsigned buf_len, ...) {
-  if (!s_log_handler || (s_log_threshold > NL_SEV_DEBUG)) { return; }
+  if (s_log_threshold > NL_SEV_DEBUG) { return; }
   va_list a; va_start(a, buf_len);
   s_log_handler(&(nanolog_log_details_t){
     .sev = NL_SEV_DEBUG, .log_ctx = ctx, .assert_file = NULL, .assert_line = 0,
@@ -384,7 +392,7 @@ NANOLOG_NOINLINE void nanolog_log_debug_buf_func(
 }
 
 NANOLOG_NOINLINE void nanolog_log_info(char const *fmt, ...) {
-  if (!s_log_handler || (s_log_threshold > NL_SEV_INFO)) { return; }
+  if (s_log_threshold > NL_SEV_INFO) { return; }
   va_list a; va_start(a, fmt);
   s_log_handler(&(nanolog_log_details_t){
     .sev = NL_SEV_INFO, .log_ctx = NULL, .assert_file = NULL, .assert_line = 0,
@@ -393,7 +401,7 @@ NANOLOG_NOINLINE void nanolog_log_info(char const *fmt, ...) {
 }
 
 NANOLOG_NOINLINE void nanolog_log_info_func(char const *fmt, char const *func, ...) {
-  if (!s_log_handler || (s_log_threshold > NL_SEV_INFO)) { return; }
+  if (s_log_threshold > NL_SEV_INFO) { return; }
   va_list a; va_start(a, func);
   s_log_handler(&(nanolog_log_details_t){
     .sev = NL_SEV_INFO, .log_ctx = NULL, .assert_file = NULL, .assert_line = 0,
@@ -402,7 +410,7 @@ NANOLOG_NOINLINE void nanolog_log_info_func(char const *fmt, char const *func, .
 }
 
 NANOLOG_NOINLINE void nanolog_log_info_ctx(char const *fmt, void *ctx, ...) {
-  if (!s_log_handler || (s_log_threshold > NL_SEV_INFO)) { return; }
+  if (s_log_threshold > NL_SEV_INFO) { return; }
   va_list a; va_start(a, ctx);
   s_log_handler(&(nanolog_log_details_t){
     .sev = NL_SEV_INFO, .log_ctx = ctx, .assert_file = NULL, .assert_line = 0,
@@ -412,7 +420,7 @@ NANOLOG_NOINLINE void nanolog_log_info_ctx(char const *fmt, void *ctx, ...) {
 
 NANOLOG_NOINLINE void nanolog_log_info_ctx_func(
     char const *fmt, char const *func, void *ctx, ...) {
-  if (!s_log_handler || (s_log_threshold > NL_SEV_INFO)) { return; }
+  if (s_log_threshold > NL_SEV_INFO) { return; }
   va_list a; va_start(a, ctx);
   s_log_handler(&(nanolog_log_details_t){
     .sev = NL_SEV_INFO, .log_ctx = ctx, .assert_file = NULL, .assert_line = 0,
@@ -422,7 +430,7 @@ NANOLOG_NOINLINE void nanolog_log_info_ctx_func(
 
 NANOLOG_NOINLINE void nanolog_log_info_buf(
     char const *fmt, void *ctx, void const *buf, unsigned buf_len, ...) {
-  if (!s_log_handler || (s_log_threshold > NL_SEV_INFO)) { return; }
+  if (s_log_threshold > NL_SEV_INFO) { return; }
   va_list a; va_start(a, buf_len);
   s_log_handler(&(nanolog_log_details_t){
     .sev = NL_SEV_INFO, .log_ctx = ctx, .assert_file = NULL, .assert_line = 0,
@@ -432,7 +440,7 @@ NANOLOG_NOINLINE void nanolog_log_info_buf(
 
 NANOLOG_NOINLINE void nanolog_log_info_buf_func(
     char const *fmt, char const *func, void *ctx, void const *buf, unsigned buf_len, ...) {
-  if (!s_log_handler || (s_log_threshold > NL_SEV_INFO)) { return; }
+  if (s_log_threshold > NL_SEV_INFO) { return; }
   va_list a; va_start(a, buf_len);
   s_log_handler(&(nanolog_log_details_t){
     .sev = NL_SEV_INFO, .log_ctx = ctx, .assert_file = NULL, .assert_line = 0,
@@ -441,7 +449,7 @@ NANOLOG_NOINLINE void nanolog_log_info_buf_func(
 }
 
 NANOLOG_NOINLINE void nanolog_log_warning(char const *fmt, ...) {
-  if (!s_log_handler || (s_log_threshold > NL_SEV_WARNING)) { return; }
+  if (s_log_threshold > NL_SEV_WARNING) { return; }
   va_list a; va_start(a, fmt);
   s_log_handler(&(nanolog_log_details_t){
     .sev = NL_SEV_WARNING, .log_ctx = NULL, .assert_file = NULL, .assert_line = 0,
@@ -450,7 +458,7 @@ NANOLOG_NOINLINE void nanolog_log_warning(char const *fmt, ...) {
 }
 
 NANOLOG_NOINLINE void nanolog_log_warning_func(char const *fmt, char const *func, ...) {
-  if (!s_log_handler || (s_log_threshold > NL_SEV_WARNING)) { return; }
+  if (s_log_threshold > NL_SEV_WARNING) { return; }
   va_list a; va_start(a, func);
   s_log_handler(&(nanolog_log_details_t){
     .sev = NL_SEV_WARNING, .log_ctx = NULL, .assert_file = NULL, .assert_line = 0,
@@ -459,7 +467,7 @@ NANOLOG_NOINLINE void nanolog_log_warning_func(char const *fmt, char const *func
 }
 
 NANOLOG_NOINLINE void nanolog_log_warning_ctx(char const *fmt, void *ctx, ...) {
-  if (!s_log_handler || (s_log_threshold > NL_SEV_WARNING)) { return; }
+  if (s_log_threshold > NL_SEV_WARNING) { return; }
   va_list a; va_start(a, ctx);
   s_log_handler(&(nanolog_log_details_t){
     .sev = NL_SEV_WARNING, .log_ctx = ctx, .assert_file = NULL, .assert_line = 0,
@@ -469,7 +477,7 @@ NANOLOG_NOINLINE void nanolog_log_warning_ctx(char const *fmt, void *ctx, ...) {
 
 NANOLOG_NOINLINE void nanolog_log_warning_ctx_func(
     char const *fmt, char const *func, void *ctx, ...) {
-  if (!s_log_handler || (s_log_threshold > NL_SEV_WARNING)) { return; }
+  if (s_log_threshold > NL_SEV_WARNING) { return; }
   va_list a; va_start(a, ctx);
   s_log_handler(&(nanolog_log_details_t){
     .sev = NL_SEV_WARNING, .log_ctx = ctx, .assert_file = NULL, .assert_line = 0,
@@ -479,7 +487,7 @@ NANOLOG_NOINLINE void nanolog_log_warning_ctx_func(
 
 NANOLOG_NOINLINE void nanolog_log_warning_buf(
     char const *fmt, void *ctx, void const *buf, unsigned buf_len, ...) {
-  if (!s_log_handler || (s_log_threshold > NL_SEV_WARNING)) { return; }
+  if (s_log_threshold > NL_SEV_WARNING) { return; }
   va_list a; va_start(a, buf_len);
   s_log_handler(&(nanolog_log_details_t){
     .sev = NL_SEV_WARNING, .log_ctx = ctx, .assert_file = NULL, .assert_line = 0,
@@ -489,7 +497,7 @@ NANOLOG_NOINLINE void nanolog_log_warning_buf(
 
 NANOLOG_NOINLINE void nanolog_log_warning_buf_func(
     char const *fmt, char const *func, void *ctx, void const *buf, unsigned buf_len, ...) {
-  if (!s_log_handler || (s_log_threshold > NL_SEV_WARNING)) { return; }
+  if (s_log_threshold > NL_SEV_WARNING) { return; }
   va_list a; va_start(a, buf_len);
   s_log_handler(&(nanolog_log_details_t){
     .sev = NL_SEV_WARNING, .log_ctx = ctx, .assert_file = NULL, .assert_line = 0,
@@ -498,7 +506,7 @@ NANOLOG_NOINLINE void nanolog_log_warning_buf_func(
 }
 
 NANOLOG_NOINLINE void nanolog_log_error(char const *fmt, ...) {
-  if (!s_log_handler || (s_log_threshold > NL_SEV_ERROR)) { return; }
+  if (s_log_threshold > NL_SEV_ERROR) { return; }
   va_list a; va_start(a, fmt);
   s_log_handler(&(nanolog_log_details_t){
     .sev = NL_SEV_ERROR, .log_ctx = NULL, .assert_file = NULL, .assert_line = 0,
@@ -507,7 +515,7 @@ NANOLOG_NOINLINE void nanolog_log_error(char const *fmt, ...) {
 }
 
 NANOLOG_NOINLINE void nanolog_log_error_func(char const *fmt, char const *func, ...) {
-  if (!s_log_handler || (s_log_threshold > NL_SEV_ERROR)) { return; }
+  if (s_log_threshold > NL_SEV_ERROR) { return; }
   va_list a; va_start(a, func);
   s_log_handler(&(nanolog_log_details_t){
     .sev = NL_SEV_ERROR, .log_ctx = NULL, .assert_file = NULL, .assert_line = 0,
@@ -516,7 +524,7 @@ NANOLOG_NOINLINE void nanolog_log_error_func(char const *fmt, char const *func, 
 }
 
 NANOLOG_NOINLINE void nanolog_log_error_ctx(char const *fmt, void *ctx, ...) {
-  if (!s_log_handler || (s_log_threshold > NL_SEV_ERROR)) { return; }
+  if (s_log_threshold > NL_SEV_ERROR) { return; }
   va_list a; va_start(a, ctx);
   s_log_handler(&(nanolog_log_details_t){
     .sev = NL_SEV_ERROR, .log_ctx = ctx, .assert_file = NULL, .assert_line = 0,
@@ -526,7 +534,7 @@ NANOLOG_NOINLINE void nanolog_log_error_ctx(char const *fmt, void *ctx, ...) {
 
 NANOLOG_NOINLINE void nanolog_log_error_ctx_func(
     char const *fmt, char const *func, void *ctx, ...) {
-  if (!s_log_handler || (s_log_threshold > NL_SEV_ERROR)) { return; }
+  if (s_log_threshold > NL_SEV_ERROR) { return; }
   va_list a; va_start(a, ctx);
   s_log_handler(&(nanolog_log_details_t){
     .sev = NL_SEV_ERROR, .log_ctx = ctx, .assert_file = NULL, .assert_line = 0,
@@ -536,7 +544,7 @@ NANOLOG_NOINLINE void nanolog_log_error_ctx_func(
 
 NANOLOG_NOINLINE void nanolog_log_error_buf(
     char const *fmt, void *ctx, void const *buf, unsigned buf_len, ...) {
-  if (!s_log_handler || (s_log_threshold > NL_SEV_ERROR)) { return; }
+  if (s_log_threshold > NL_SEV_ERROR) { return; }
   va_list a; va_start(a, buf_len);
   s_log_handler(&(nanolog_log_details_t){
     .sev = NL_SEV_ERROR, .log_ctx = ctx, .assert_file = NULL, .assert_line = 0,
@@ -546,7 +554,7 @@ NANOLOG_NOINLINE void nanolog_log_error_buf(
 
 NANOLOG_NOINLINE void nanolog_log_error_buf_func(
     char const *fmt, char const *func, void *ctx, void const *buf, unsigned buf_len, ...) {
-  if (!s_log_handler || (s_log_threshold > NL_SEV_ERROR)) { return; }
+  if (s_log_threshold > NL_SEV_ERROR) { return; }
   va_list a; va_start(a, buf_len);
   s_log_handler(&(nanolog_log_details_t){
     .sev = NL_SEV_ERROR, .log_ctx = ctx, .assert_file = NULL, .assert_line = 0,
@@ -555,7 +563,7 @@ NANOLOG_NOINLINE void nanolog_log_error_buf_func(
 }
 
 NANOLOG_NOINLINE void nanolog_log_critical(char const *fmt, ...) {
-  if (!s_log_handler || (s_log_threshold > NL_SEV_CRITICAL)) { return; }
+  if (s_log_threshold > NL_SEV_CRITICAL) { return; }
   va_list a; va_start(a, fmt);
   s_log_handler(&(nanolog_log_details_t){
     .sev = NL_SEV_CRITICAL, .log_ctx = NULL, .assert_file = NULL, .assert_line = 0,
@@ -564,7 +572,7 @@ NANOLOG_NOINLINE void nanolog_log_critical(char const *fmt, ...) {
 }
 
 NANOLOG_NOINLINE void nanolog_log_critical_func(char const *fmt, char const *func, ...) {
-  if (!s_log_handler || (s_log_threshold > NL_SEV_CRITICAL)) { return; }
+  if (s_log_threshold > NL_SEV_CRITICAL) { return; }
   va_list a; va_start(a, func);
   s_log_handler(&(nanolog_log_details_t){
     .sev = NL_SEV_CRITICAL, .log_ctx = NULL, .assert_file = NULL, .assert_line = 0,
@@ -573,7 +581,7 @@ NANOLOG_NOINLINE void nanolog_log_critical_func(char const *fmt, char const *fun
 }
 
 NANOLOG_NOINLINE void nanolog_log_critical_ctx(char const *fmt, void *ctx, ...) {
-  if (!s_log_handler || (s_log_threshold > NL_SEV_CRITICAL)) { return; }
+  if (s_log_threshold > NL_SEV_CRITICAL) { return; }
   va_list a; va_start(a, ctx);
   s_log_handler(&(nanolog_log_details_t){
     .sev = NL_SEV_CRITICAL, .log_ctx = ctx, .assert_file = NULL, .assert_line = 0,
@@ -583,7 +591,7 @@ NANOLOG_NOINLINE void nanolog_log_critical_ctx(char const *fmt, void *ctx, ...) 
 
 NANOLOG_NOINLINE void nanolog_log_critical_ctx_func(
     char const *fmt, char const *func, void *ctx, ...) {
-  if (!s_log_handler || (s_log_threshold > NL_SEV_CRITICAL)) { return; }
+  if (s_log_threshold > NL_SEV_CRITICAL) { return; }
   va_list a; va_start(a, ctx);
   s_log_handler(&(nanolog_log_details_t){
     .sev = NL_SEV_CRITICAL, .log_ctx = ctx, .assert_file = NULL, .assert_line = 0,
@@ -593,7 +601,7 @@ NANOLOG_NOINLINE void nanolog_log_critical_ctx_func(
 
 NANOLOG_NOINLINE void nanolog_log_critical_buf(
     char const *fmt, void *ctx, void const *buf, unsigned buf_len, ...) {
-  if (!s_log_handler || (s_log_threshold > NL_SEV_CRITICAL)) { return; }
+  if (s_log_threshold > NL_SEV_CRITICAL) { return; }
   va_list a; va_start(a, buf_len);
   s_log_handler(&(nanolog_log_details_t){
     .sev = NL_SEV_CRITICAL, .log_ctx = ctx, .assert_file = NULL, .assert_line = 0,
@@ -603,7 +611,7 @@ NANOLOG_NOINLINE void nanolog_log_critical_buf(
 
 NANOLOG_NOINLINE void nanolog_log_critical_buf_func(
     char const *fmt, char const *func, void *ctx, void const *buf, unsigned buf_len, ...) {
-  if (!s_log_handler || (s_log_threshold > NL_SEV_CRITICAL)) { return; }
+  if (s_log_threshold > NL_SEV_CRITICAL) { return; }
   va_list a; va_start(a, buf_len);
   s_log_handler(&(nanolog_log_details_t){
     .sev = NL_SEV_CRITICAL, .log_ctx = ctx, .assert_file = NULL, .assert_line = 0,
