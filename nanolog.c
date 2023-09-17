@@ -42,64 +42,42 @@ nanolog_handler_cb_t nanolog_get_log_handler(void) {
 #error Unrecognized compiler, please implement NL_NOINLINE
 #endif
 
+// clang-format off
 NL_NOINLINE void nanolog_log_sev(unsigned sev, char const *fmt, ...) {
   if (!s_log_handler || (s_log_threshold > sev)) {
     return;
   }
-  va_list a;
-  va_start(a, fmt);
+  va_list a; va_start(a, fmt);
   s_log_handler(&(nanolog_log_details_t){ .sev = sev | NL_DYNAMIC_SEV_BIT,
-                                          .log_ctx = NULL,
-                                          .assert_file = NULL,
-                                          .assert_line = 0,
-                                          .log_func = NULL,
-                                          .log_buf = NULL,
-                                          .log_buf_len = 0 },
-                fmt,
-                a);
+      .log_ctx = NULL, .assert_file = NULL, .assert_line = 0, .log_func = NULL,
+      .log_buf = NULL, .log_buf_len = 0 }, fmt, a);
   va_end(a);
 }
 
-NL_NOINLINE void nanolog_log_sev_ctx(unsigned sev, void *ctx, char const *fmt, ...) {
+NL_NOINLINE void nanolog_log_sev_ctx(unsigned sev, void *ctx, char const *func,
+    char const *fmt, ...) {
   if (!s_log_handler || (s_log_threshold > sev)) {
     return;
   }
-  va_list a;
-  va_start(a, fmt);
+  va_list a; va_start(a, fmt);
   s_log_handler(&(nanolog_log_details_t){ .sev = sev | NL_DYNAMIC_SEV_BIT,
-                                          .log_ctx = ctx,
-                                          .assert_file = NULL,
-                                          .assert_line = 0,
-                                          .log_func = NULL,
-                                          .log_buf = NULL,
-                                          .log_buf_len = 0 },
-                fmt,
-                a);
+      .log_ctx = ctx, .assert_file = NULL, .assert_line = 0, .log_func = func,
+      .log_buf = NULL, .log_buf_len = 0 }, fmt, a);
   va_end(a);
 }
 
-NL_NOINLINE void nanolog_log_sev_buf(unsigned sev,
-                                     void *ctx,
-                                     void const *buf,
-                                     unsigned len,
-                                     char const *fmt,
-                                     ...) {
+NL_NOINLINE void nanolog_log_sev_buf(unsigned sev, void *ctx, char const *func,
+    void const *buf, unsigned len, char const *fmt, ...) {
   if (!s_log_handler || (s_log_threshold > sev)) {
     return;
   }
-  va_list a;
-  va_start(a, fmt);
+  va_list a; va_start(a, fmt);
   s_log_handler(&(nanolog_log_details_t){ .sev = sev | NL_DYNAMIC_SEV_BIT,
-                                          .log_ctx = ctx,
-                                          .assert_file = NULL,
-                                          .assert_line = 0,
-                                          .log_func = NULL,
-                                          .log_buf = buf,
-                                          .log_buf_len = len },
-                fmt,
-                a);
+      .log_ctx = ctx, .assert_file = NULL, .assert_line = 0, .log_func = func,
+      .log_buf = buf, .log_buf_len = len }, fmt, a);
   va_end(a);
 }
+// clang-format on
 
 nanolog_ret_t nanolog_fmt_is_binary(char const *fmt, bool *out_is_binary) {
   if (!fmt || !out_is_binary) {

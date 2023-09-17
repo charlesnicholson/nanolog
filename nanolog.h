@@ -114,9 +114,10 @@ nanolog_ret_t nanolog_parse_binary_log(nanolog_binary_field_handler_cb_t cb,
 
 // Direct log functions, for dynamic runtime severity.
 void nanolog_log_sev(unsigned sev, char const *fmt, ...);
-void nanolog_log_sev_ctx(unsigned sev, void *ctx, char const *fmt, ...);
+void nanolog_log_sev_ctx(unsigned sev, void *ctx, char const *func, char const *fmt, ...);
 void nanolog_log_sev_buf(unsigned sev,
                          void *ctx,
+                         char const *func,
                          void const *buf,
                          unsigned len,
                          char const *fmt,

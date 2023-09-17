@@ -107,7 +107,7 @@ TEST_CASE("nanolog_log_sev_ctx") {
               }) == NANOLOG_RET_SUCCESS);
 
   SUBCASE("marks severity as dynamic") {
-    nanolog_log_sev_ctx(NL_SEV_ERROR, &captures, "hello");
+    nanolog_log_sev_ctx(NL_SEV_ERROR, &captures, __func__, "hello");
     REQUIRE(captures.size() == 1);
     REQUIRE(captures[0].fmt == "hello");
     REQUIRE_EQ(captures[0].sev, NL_SEV_ERROR | NL_DYNAMIC_SEV_BIT);
@@ -562,6 +562,7 @@ TEST_CASE("nanolog_parse_binary_log") {
     char const bin_buf[] = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 };
     nanolog_log_sev_buf(NL_SEV_DEBUG,
                         &logs,
+                        __func__,
                         bin_buf,
                         sizeof(bin_buf),
                         make_bin_payload("", 0, buf));
