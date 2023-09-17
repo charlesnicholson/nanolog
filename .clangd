@@ -1,2 +1,2 @@
 CompileFlags:
-  Add: [--std=c++20, -DNANOLOG_PROVIDE_ASSERT_MACROS, -Wall, -Wextra]
+  CompilationDatabase: .

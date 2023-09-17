@@ -80,11 +80,17 @@ typedef enum {
 nanolog_ret_t nanolog_set_threshold(unsigned severity);
 unsigned nanolog_get_threshold(void);
 
-typedef void (*nanolog_handler_cb_t)(void *ctx,
-                                     unsigned sev,
-                                     char const *func,  // NULL if not capturing
-                                     void const *buf,   // nanolog_log_buf
-                                     unsigned buf_len,  // nanolog_log_buf
+typedef struct nanolog_log_details {
+  unsigned sev;
+  void *log_ctx;            // LOG_<SEV>_CTX or log_sev_ctx or ASSERT_CTX
+  char const *assert_file;  // if NANOLOG_ASSERT_CAPTURE_FILE_LINE
+  int assert_line;          // if NANOLOG_ASSERT_CAPTURE_FILE_LINE
+  char const *log_func;     // if NANOLOG_LOG_CAPTURE_FUNCTION_NAMES
+  void const *log_buf;      // LOG_<SEV>_BUF or log_sev_buf
+  unsigned log_buf_len;     // LOG_<SEV>_BUF or log_sev_buf
+} nanolog_log_details_t;
+
+typedef void (*nanolog_handler_cb_t)(nanolog_log_details_t const *details,
                                      char const *fmt,
                                      va_list args);
 
@@ -102,10 +108,7 @@ typedef void (*nanolog_binary_field_handler_cb_t)(void *ctx,
 
 // Calls |cb| with every arg. Serialize all non-NULL payloads as-is to your target.
 nanolog_ret_t nanolog_parse_binary_log(nanolog_binary_field_handler_cb_t cb,
-                                       void *ctx,
-                                       unsigned sev,
-                                       void const *buf,   // nanolog_log_buf
-                                       unsigned buf_len,  // nanolog_log_buf
+                                       nanolog_log_details_t const *details,
                                        char const *fmt,
                                        va_list args);
 

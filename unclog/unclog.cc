@@ -125,13 +125,7 @@ bool write_file(void const *buf, unsigned len, char const *output_file) {
   return ok;
 }
 
-void on_log(void *,
-            unsigned,
-            char const *,
-            void const *,
-            unsigned,
-            char const *fmt,
-            va_list args) {
+void on_log(nanolog_log_details_t const *, char const *fmt, va_list args) {
 #ifndef _MSC_VER
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wformat-nonliteral"

@@ -45,7 +45,13 @@ CPPFLAGS += -Os -g -flto
 CPPFLAGS += -Werror -Wall -Wextra
 
 ifneq '' '$(findstring clang,$(COMPILER_VERSION))'
-CPPFLAGS += -Weverything -Wno-poison-system-directories -Wno-format-pedantic
+CFLAGS += -Wno-declaration-after-statement
+
+CPPFLAGS += -Weverything \
+			-Wno-poison-system-directories \
+			-Wno-format-pedantic \
+			-Wno-unsafe-buffer-usage
+
 CXXFLAGS += -Wno-c++98-compat-pedantic \
 			-Wno-gnu-zero-variadic-macro-arguments \
 			-Wno-missing-prototypes \
@@ -55,7 +61,6 @@ CXXFLAGS += -Wno-c++98-compat-pedantic \
 			-Wno-cast-align \
 			-Wno-unused-function \
 			-Wno-c++98-compat
-CFLAGS += -Wno-declaration-after-statement
 else
 CPPFLAGS += -Wconversion
 endif
