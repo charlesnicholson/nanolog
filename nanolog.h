@@ -124,12 +124,7 @@ void nanolog_log_sev_buf(unsigned sev,
                          ...);
 
 #if NANOLOG_PROVIDE_ASSERT_MACROS == 1
-typedef void (*nanolog_assert_handler_cb_t)(void *ctx,
-                                            char const *file,
-                                            int line,
-                                            char const *fmt,
-                                            ...);
-
+typedef void (*nanolog_assert_handler_cb_t)(void);
 nanolog_ret_t nanolog_set_assert_handler(nanolog_assert_handler_cb_t handler);
 nanolog_assert_handler_cb_t nanolog_get_assert_handler(void);
 #endif
@@ -140,6 +135,16 @@ nanolog_assert_handler_cb_t nanolog_get_assert_handler(void);
 #define NANOLOG_NORETURN [[noreturn]]
 #else
 #define NANOLOG_NORETURN _Noreturn
+#endif
+
+#ifdef _MSC_VER
+#define NANOLOG_NOINLINE __declspec(noinline)
+#define NANOLOG_FALLTHROUGH
+#elif defined(__GNUC__) || defined(__clang__)
+#define NANOLOG_NOINLINE __attribute__((noinline))
+#define NANOLOG_FALLTHROUGH __attribute__((fallthrough))
+#else
+#error Unrecognized compiler, please implement NANOLOG_NOINLINE
 #endif
 
 #define NL_STR_EVAL(X) #X
@@ -643,13 +648,17 @@ void nanolog_log_critical_buf_func(char const *fmt,
                                    ...);
 
 #if NANOLOG_PROVIDE_ASSERT_MACROS == 1
-void nanolog_assert_fail(char const *msg, ...);
-void nanolog_assert_fail_file_line(char const *msg, char const *file, int line, ...);
-void nanolog_assert_fail_ctx(char const *msg, void *ctx, ...);
-void nanolog_assert_fail_ctx_file_line(char const *msg,
-                                       void *ctx,
-                                       char const *file,
-                                       int line);
+NANOLOG_NORETURN void nanolog_assert_fail(char const *fmt, ...);
+NANOLOG_NORETURN void nanolog_assert_fail_file_line(char const *fmt,
+                                                    char const *file,
+                                                    int line,
+                                                    ...);
+NANOLOG_NORETURN void nanolog_assert_fail_ctx(char const *fmt, void *ctx, ...);
+NANOLOG_NORETURN void nanolog_assert_fail_ctx_file_line(char const *fmt,
+                                                        void *ctx,
+                                                        char const *file,
+                                                        int line,
+                                                        ...);
 #endif
 
 #ifdef __cplusplus
