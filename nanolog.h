@@ -467,22 +467,22 @@ nanolog_assert_handler_cb_t nanolog_get_assert_handler(void);
 #define NL_ASSERT_MSG(COND, FMT, ...) \
   do { \
     if (NANOLOG_UNLIKELY(!(COND))) { \
-      nanolog_assert_fail_msg_file_line(__FILE__ "(" NL_STR(__LINE__) "): \"" #COND \
-                                                                      "\" " FMT, \
-                                        __FILE__, \
-                                        __LINE__, \
-                                        ##__VA_ARGS__); \
+      nanolog_assert_fail_file_line(__FILE__ "(" NL_STR(__LINE__) "): \"" #COND \
+                                                                  "\" " FMT, \
+                                    __FILE__, \
+                                    __LINE__, \
+                                    ##__VA_ARGS__); \
     } \
   } while (0)
 #define NL_ASSERT_MSG_CTX(CTX, COND, FMT, ...) \
   do { \
     if (NANOLOG_UNLIKELY(!(COND))) { \
-      nanolog_assert_fail_ctx_msg_file_line(__FILE__ "(" NL_STR(__LINE__) "): \"" #COND \
-                                                                          "\" " FMT, \
-                                            (CTX), \
-                                            __FILE__, \
-                                            __LINE__, \
-                                            ##__VA_ARGS__); \
+      nanolog_assert_fail_ctx_file_line(__FILE__ "(" NL_STR(__LINE__) "): \"" #COND \
+                                                                      "\" " FMT, \
+                                        (CTX), \
+                                        __FILE__, \
+                                        __LINE__, \
+                                        ##__VA_ARGS__); \
     } \
   } while (0)
 #define NL_ASSERT_FAIL() \
@@ -492,16 +492,16 @@ nanolog_assert_handler_cb_t nanolog_get_assert_handler(void);
 #define NL_ASSERT_FAIL_CTX(CTX) \
   nanolog_assert_fail_ctx_file_line(__FILE__ "(" NL_STR(__LINE__) "): ASSERT FAIL", (CTX))
 #define NL_ASSERT_FAIL_MSG(FMT, ...) \
-  nanolog_assert_fail_msg_file_line(__FILE__ "(" NL_STR(__LINE__) "): " FMT, \
+  nanolog_assert_fail_file_line(__FILE__ "(" NL_STR(__LINE__) "): " FMT, \
+                                __FILE__, \
+                                __LINE__, \
+                                ##__VA_ARGS__);
+#define NL_ASSERT_FAIL_MSG_CTX(CTX, FMT, ...) \
+  nanolog_assert_fail_ctx_file_line(__FILE__ "(" NL_STR(__LINE__) "): " FMT, \
+                                    (CTX), \
                                     __FILE__, \
                                     __LINE__, \
                                     ##__VA_ARGS__);
-#define NL_ASSERT_FAIL_MSG_CTX(CTX, FMT, ...) \
-  nanolog_assert_fail_ctx_msg_file_line(__FILE__ "(" NL_STR(__LINE__) "): " FMT, \
-                                        (CTX), \
-                                        __FILE__, \
-                                        __LINE__, \
-                                        ##__VA_ARGS__);
 #else  // NANOLOG_ASSERT_CAPTURE_FILE_LINE == 1
 #define NL_ASSERT(COND) \
   do { \
@@ -518,16 +518,16 @@ nanolog_assert_handler_cb_t nanolog_get_assert_handler(void);
 #define NL_ASSERT_MSG(COND, FMT, ...) \
   do { \
     if (NANOLOG_UNLIKELY(!(COND))) { \
-      nanolog_assert_fail_msg(__FILE__ "(" NL_STR(__LINE__) "): \"" #COND "\" " FMT, \
-                              ##__VA_ARGS__); \
+      nanolog_assert_fail(__FILE__ "(" NL_STR(__LINE__) "): \"" #COND "\" " FMT, \
+                          ##__VA_ARGS__); \
     } \
   } while (0)
 #define NL_ASSERT_MSG_CTX(CTX, COND, FMT, ...) \
   do { \
     if (NANOLOG_UNLIKELY(!(COND))) { \
-      nanolog_assert_fail_ctx_msg(__FILE__ "(" NL_STR(__LINE__) "): \"" #COND "\" " FMT, \
-                                  (CTX), \
-                                  ##__VA_ARGS__); \
+      nanolog_assert_fail_ctx(__FILE__ "(" NL_STR(__LINE__) "): \"" #COND "\" " FMT, \
+                              (CTX), \
+                              ##__VA_ARGS__); \
     } \
   } while (0)
 #define NL_ASSERT_FAIL() \
@@ -535,11 +535,9 @@ nanolog_assert_handler_cb_t nanolog_get_assert_handler(void);
 #define NL_ASSERT_FAIL_CTX(CTX) \
   nanolog_assert_fail_ctx(__FILE__ "(" NL_STR(__LINE__) "): ASSERT FAIL", (CTX))
 #define NL_ASSERT_FAIL_MSG(FMT, ...) \
-  nanolog_assert_fail_msg(__FILE__ "(" NL_STR(__LINE__) "): " FMT, ##__VA_ARGS__);
+  nanolog_assert_fail(__FILE__ "(" NL_STR(__LINE__) "): " FMT, ##__VA_ARGS__);
 #define NL_ASSERT_FAIL_MSG_CTX(CTX, FMT, ...) \
-  nanolog_assert_fail_ctx_msg(__FILE__ "(" NL_STR(__LINE__) "): " FMT, \
-                              (CTX), \
-                              ##__VA_ARGS__);
+  nanolog_assert_fail_ctx(__FILE__ "(" NL_STR(__LINE__) "): " FMT, (CTX), ##__VA_ARGS__);
 #endif  // NANOLOG_ASSERT_CAPTURE_FILE_LINE == 1
 #endif  // NANOLOG_PROVIDE_ASSERT_MACROS == 1
 
@@ -643,6 +641,16 @@ void nanolog_log_critical_buf_func(char const *fmt,
                                    void const *buf,
                                    unsigned buf_len,
                                    ...);
+
+#if NANOLOG_PROVIDE_ASSERT_MACROS == 1
+void nanolog_assert_fail(char const *msg, ...);
+void nanolog_assert_fail_file_line(char const *msg, char const *file, int line, ...);
+void nanolog_assert_fail_ctx(char const *msg, void *ctx, ...);
+void nanolog_assert_fail_ctx_file_line(char const *msg,
+                                       void *ctx,
+                                       char const *file,
+                                       int line);
+#endif
 
 #ifdef __cplusplus
 }

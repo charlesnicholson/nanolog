@@ -602,5 +602,31 @@ NL_NOINLINE void nanolog_log_critical_buf_func(
     .log_func = func, .log_buf = buf, .log_buf_len = buf_len }, fmt, a);
   va_end(a);
 }
-
 // clang-format on
+
+#if NANOLOG_PROVIDE_ASSERT_MACROS == 1
+void nanolog_assert_fail(char const *msg, ...) {
+  (void)msg;
+}
+
+void nanolog_assert_fail_file_line(char const *msg, char const *file, int line, ...) {
+  (void)msg;
+  (void)file;
+  (void)line;
+}
+
+void nanolog_assert_fail_ctx(char const *msg, void *ctx, ...) {
+  (void)msg;
+  (void)ctx;
+}
+
+void nanolog_assert_fail_ctx_file_line(char const *msg,
+                                       void *ctx,
+                                       char const *file,
+                                       int line) {
+  (void)msg;
+  (void)ctx;
+  (void)file;
+  (void)line;
+}
+#endif
