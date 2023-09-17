@@ -39,7 +39,7 @@ TEST_CASE("nanolog_set_log_handler") {
   REQUIRE(nanolog_set_log_handler(
               [](nanolog_log_details_t const *, char const *, va_list) { ++s_calls; }) ==
           NANOLOG_RET_SUCCESS);
-  nanolog_log_sev(NL_SEV_ASSERT, __func__, "");
+  nanolog_log_sev("", NL_SEV_ASSERT, __func__);
   REQUIRE(s_calls == 1);
 }
 
@@ -89,7 +89,7 @@ TEST_CASE("nanolog_log_sev") {
                 *s_fmt = fmt_;
                 s_sev = d->sev;
               }) == NANOLOG_RET_SUCCESS);
-  nanolog_log_sev(NL_SEV_WARNING, __func__, "logging is fun");
+  nanolog_log_sev("logging is fun", NL_SEV_WARNING, __func__);
   REQUIRE(fmt == "logging is fun");
   REQUIRE_EQ(s_sev, NL_SEV_WARNING | NL_DYNAMIC_SEV_BIT);
 }
@@ -107,7 +107,7 @@ TEST_CASE("nanolog_log_sev_ctx") {
               }) == NANOLOG_RET_SUCCESS);
 
   SUBCASE("marks severity as dynamic") {
-    nanolog_log_sev_ctx(NL_SEV_ERROR, &captures, __func__, "hello");
+    nanolog_log_sev_ctx("hello", NL_SEV_ERROR, &captures, __func__);
     REQUIRE(captures.size() == 1);
     REQUIRE(captures[0].fmt == "hello");
     REQUIRE_EQ(captures[0].sev, NL_SEV_ERROR | NL_DYNAMIC_SEV_BIT);
@@ -560,12 +560,12 @@ TEST_CASE("nanolog_parse_binary_log") {
 
   SUBCASE("buffer") {
     char const bin_buf[] = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 };
-    nanolog_log_sev_buf(NL_SEV_DEBUG,
+    nanolog_log_sev_buf(make_bin_payload("", 0, buf),
+                        NL_SEV_DEBUG,
                         &logs,
                         __func__,
                         bin_buf,
-                        sizeof(bin_buf),
-                        make_bin_payload("", 0, buf));
+                        sizeof(bin_buf));
     REQUIRE(logs.size() == 5);
     REQUIRE(logs[0].type == NL_ARG_TYPE_LOG_START);
     REQUIRE(logs[1].type == NL_ARG_TYPE_GUID);
