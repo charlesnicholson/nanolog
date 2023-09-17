@@ -37,8 +37,8 @@ TEST_CASE("nanolog_get_threshold") {
 TEST_CASE("nanolog_set_log_handler") {
   static int s_calls{ 0 };
   REQUIRE(nanolog_set_log_handler(
-              [](nanolog_log_details_t const *, char const *, va_list) { ++s_calls; }) ==
-          NANOLOG_RET_SUCCESS);
+              [](nanolog_log_details_t const *, char const *, va_list) { ++s_calls; },
+              nullptr) == NANOLOG_RET_SUCCESS);
   nanolog_log_sev("", NL_SEV_ASSERT, __func__);
   REQUIRE(s_calls == 1);
 }
@@ -88,7 +88,7 @@ TEST_CASE("nanolog_log_sev") {
               [](nanolog_log_details_t const *d, char const *fmt_, va_list) {
                 *s_fmt = fmt_;
                 s_sev = d->sev;
-              }) == NANOLOG_RET_SUCCESS);
+              }, nullptr) == NANOLOG_RET_SUCCESS);
   nanolog_log_sev("logging is fun", NL_SEV_WARNING, __func__);
   REQUIRE(fmt == "logging is fun");
   REQUIRE_EQ(s_sev, NL_SEV_WARNING | NL_DYNAMIC_SEV_BIT);
@@ -104,7 +104,8 @@ TEST_CASE("nanolog_log_sev_ctx") {
               [](nanolog_log_details_t const *d, char const *fmt, va_list) {
                 static_cast<std::vector<Log> *>(d->log_ctx)
                     ->emplace_back(Log{ .fmt = fmt, .sev = d->sev });
-              }) == NANOLOG_RET_SUCCESS);
+              },
+              nullptr) == NANOLOG_RET_SUCCESS);
 
   SUBCASE("marks severity as dynamic") {
     nanolog_log_sev_ctx("hello", NL_SEV_ERROR, &captures, __func__);
@@ -328,7 +329,7 @@ TEST_CASE("nanolog_parse_binary_log") {
                     d,
                     fmt,
                     args) == NANOLOG_RET_SUCCESS);
-      });
+      }, nullptr);
 
   std::vector<BinaryLog> logs;
   byte_vec buf;
@@ -612,5 +613,5 @@ TEST_CASE("nanolog_parse_binary_log") {
     REQUIRE(logs[11].type == NL_ARG_TYPE_LOG_END);
   }
 
-  nanolog_set_log_handler(old_handler);
+  nanolog_set_log_handler(old_handler, nullptr);
 }

@@ -139,7 +139,7 @@ void on_log(nanolog_log_details_t const *, char const *fmt, va_list args) {
 }  // namespace
 
 int main(int argc, char const *argv[]) {
-  nanolog_set_log_handler(on_log);
+  nanolog_set_log_handler(on_log, nullptr);
 
   args cmd_args;
   if (!args_parse(argv, argc, cmd_args)) {
