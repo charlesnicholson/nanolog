@@ -78,6 +78,7 @@ typedef enum {
 
 typedef struct nanolog_log_details {
   unsigned sev;
+  void *handler_ctx;        // nanolog_set_log_handler
   void *log_ctx;            // LOG_<SEV>_CTX or log_sev_ctx or ASSERT_CTX
   char const *assert_file;  // if NANOLOG_ASSERT_CAPTURE_FILE_LINE
   int assert_line;          // if NANOLOG_ASSERT_CAPTURE_FILE_LINE
@@ -91,7 +92,7 @@ typedef void (*nanolog_handler_cb_t)(nanolog_log_details_t const *details,
                                      va_list args);
 
 // Install a handler to be called on every log macro invocation.
-nanolog_ret_t nanolog_set_log_handler(nanolog_handler_cb_t handler);
+nanolog_ret_t nanolog_set_log_handler(nanolog_handler_cb_t handler, void *ctx);
 nanolog_handler_cb_t nanolog_get_log_handler(void);
 
 // Set the runtime log threshold for enabled log calls
