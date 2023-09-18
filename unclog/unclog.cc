@@ -149,10 +149,10 @@ int main(int argc, char const *argv[]) {
   cmd_args.noreturn_funcs.push_back("exit");
   cmd_args.noreturn_funcs.push_back("_exit");
   cmd_args.noreturn_funcs.push_back("_mainCRTStartup");
-  cmd_args.noreturn_funcs.push_back("nanolog_log_assert");
-  cmd_args.noreturn_funcs.push_back("nanolog_log_assert_func");
-  cmd_args.noreturn_funcs.push_back("nanolog_log_assert_ctx");
-  cmd_args.noreturn_funcs.push_back("nanolog_log_assert_ctx_func");
+  cmd_args.noreturn_funcs.push_back("nanolog_assert_fail");
+  cmd_args.noreturn_funcs.push_back("nanolog_assert_fail_file_line");
+  cmd_args.noreturn_funcs.push_back("nanolog_assert_fail_ctx");
+  cmd_args.noreturn_funcs.push_back("nanolog_assert_fail_ctx_file_line");
 
   nanolog_set_threshold(cmd_args.log_threshold);
 
