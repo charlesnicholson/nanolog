@@ -63,7 +63,8 @@ bool load(state &s,
     }
     char const *name{ &s.e.strtab[sym.st_name] };
 
-    if (strstr(name, "nanolog_log_") == name) {
+    if ((strstr(name, "nanolog_log_") == name) ||
+        (strstr(name, "nanolog_assert_fail_") == name)) {
       s.nl_funcs.push_back(&sym);
     }
 
