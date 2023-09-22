@@ -19,7 +19,7 @@ std::string& emit_escaped_json(char const* s, std::string& out) {
   out.clear();
   while (*s) {
     switch (*s) {
-      // clang-format off
+        // clang-format off
       case '"': out += "\\\""; break;
       case '\\': out += "\\\\"; break;
       case '\b': out += "\\b"; break;
@@ -44,7 +44,7 @@ std::string& emit_escaped_json(char const* s, std::string& out) {
 
 char const* emit_severity(unsigned sev) {
   switch (sev) {
-    // clang-format off
+      // clang-format off
     case NL_SEV_DEBUG: return "debug";
     case NL_SEV_INFO: return "info";
     case NL_SEV_WARNING: return "warning";
@@ -68,7 +68,7 @@ std::string& emit_python(char const* s, std::string& out) {
 
     if (NANOLOG_LIKELY(!n)) {
       switch (*s) {
-        // clang-format off
+          // clang-format off
         case '{': out += "{{"; break;
         case '}': out += "}}"; break;
         default: out += *s;
@@ -100,7 +100,7 @@ std::string& emit_python(char const* s, std::string& out) {
     }
 
     switch (fs.field_width_opt) {
-      // clang-format off
+        // clang-format off
       case NPF_FMT_SPEC_OPT_NONE: break;
       case NPF_FMT_SPEC_OPT_STAR: out += "{}"; break;
       case NPF_FMT_SPEC_OPT_LITERAL:
@@ -116,7 +116,7 @@ std::string& emit_python(char const* s, std::string& out) {
       case NPF_FMT_SPEC_CONV_FLOAT_SHORTEST:
       case NPF_FMT_SPEC_CONV_FLOAT_HEX:
         switch (fs.prec_opt) {
-          // clang-format off
+            // clang-format off
           case NPF_FMT_SPEC_OPT_NONE: break;
           case NPF_FMT_SPEC_OPT_STAR: out += ".{}"; break;
           case NPF_FMT_SPEC_OPT_LITERAL:
@@ -138,7 +138,7 @@ std::string& emit_python(char const* s, std::string& out) {
     }
 
     switch (fs.conv_spec) {
-      // clang-format off
+        // clang-format off
       case NPF_FMT_SPEC_CONV_POINTER:
       case NPF_FMT_SPEC_CONV_HEX_INT: out += fs.case_adjust ? 'x' : 'X'; break;
       case NPF_FMT_SPEC_CONV_CHAR: out += 'c'; break;
@@ -180,7 +180,7 @@ std::string& emit_format_specifiers(char const* s, std::string& out) {
 
     out += "      {\n        \"type\": ";
     switch (fs.conv_spec) {
-      // clang-format off
+        // clang-format off
       case NPF_FMT_SPEC_CONV_WRITEBACK: out += "\"writeback\""; break;
       case NPF_FMT_SPEC_CONV_CHAR: out += "\"char\""; break;
       case NPF_FMT_SPEC_CONV_POINTER: out += "\"pointer\""; break;
@@ -201,7 +201,7 @@ std::string& emit_format_specifiers(char const* s, std::string& out) {
     if (fs.length_modifier != NPF_FMT_SPEC_LEN_MOD_NONE) {
       out += ",\n        \"length\": ";
       switch (fs.length_modifier) {
-        // clang-format off
+          // clang-format off
         case NPF_FMT_SPEC_LEN_MOD_NONE: break;
         case NPF_FMT_SPEC_LEN_MOD_SHORT: out += "\"short\""; break;
         case NPF_FMT_SPEC_LEN_MOD_LONG_DOUBLE: out += "\"long-double\""; break;
@@ -447,9 +447,8 @@ void emit_bin_fmt_str(char const* str, unsigned guid, byte_vec& fmt_bin_mem) {
 void emit_bin_fmt_strs(std::vector<char const*> const& fmt_strs,
                        std::vector<u32>& fmt_bin_addrs,
                        byte_vec& fmt_bin_mem) {
-  for (auto str : fmt_strs) {
+  for (auto guid{ 0u }; auto str : fmt_strs) {
     fmt_bin_addrs.push_back(unsigned(fmt_bin_mem.size()));
-    auto const guid{ fmt_bin_addrs.empty() ? 0 : unsigned(fmt_bin_addrs.size() - 1) };
-    emit_bin_fmt_str(str, guid, fmt_bin_mem);
+    emit_bin_fmt_str(str, guid++, fmt_bin_mem);
   }
 }
