@@ -154,6 +154,7 @@ int main(int argc, char const *argv[]) {
   cmd_args.noreturn_funcs.push_back("nanolog_assert_fail_file_line");
   cmd_args.noreturn_funcs.push_back("nanolog_assert_fail_ctx");
   cmd_args.noreturn_funcs.push_back("nanolog_assert_fail_ctx_file_line");
+  cmd_args.noreturn_funcs.push_back("nanolog_default_assert_handler");
 
   nanolog_set_threshold(cmd_args.log_threshold);
 
