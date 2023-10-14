@@ -818,6 +818,14 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
     return true;
   }
 
+  // 4.6.11 ASR (reg), T2 encoding (pg 4-36)
+  if (((w0 & 0xFFE0u) == 0xFA40u) && ((w1 & 0xF0F0u) == 0xF000u)) {
+    out_inst.type = inst_type::RSHIFT_ARITH_REG;
+    out_inst.dr = u16(1u << ((w1 >> 8u) & 0xFu));
+    out_inst.i.rshift_arith_reg = { .n = u8(w0 & 0xFu), .m = u8(w1 & 0xFu) };
+    return true;
+  }
+
   // 4.6.12 B, T3 encoding (pg 4-38)
   if (((w0 & 0xF800u) == 0xF000u) && ((w1 & 0xD000u) == 0x8000u)) {
     u32 const imm11{ w1 & 0x7FFu }, imm6{ w0 & 0x3Fu }, j1{ (w1 >> 13u) & 1u },
