@@ -66,9 +66,6 @@ nanolog_assert_handler_cb_t nanolog_get_assert_handler(void) {
 }
 #endif
 
-// clang-format off
-// clang-format on
-
 nanolog_ret_t nanolog_fmt_is_binary(char const *fmt, bool *out_is_binary) {
   if (!fmt || !out_is_binary) {
     return NANOLOG_RET_ERR_BAD_ARG;
@@ -511,9 +508,9 @@ NANOLOG_NOINLINE void nanolog_log_warning_buf_func(
 NANOLOG_NOINLINE void nanolog_log_error(char const *fmt, ...) {
   if (s_log_threshold > NL_SEV_ERROR) { return; }
   va_list a; va_start(a, fmt);
-  s_log_handler(&(nanolog_log_details_t){
-    .sev = NL_SEV_ERROR, .log_ctx = NULL, .assert_file = NULL, .assert_line = 0,
-    .log_func = NULL, .log_buf = NULL, .log_buf_len = 0 }, fmt, a);
+  s_log_handler(&(nanolog_log_details_t){ .sev = NL_SEV_ERROR,
+    .log_ctx = NULL, .assert_file = NULL, .assert_line = 0, .log_func = NULL,
+    .log_buf = NULL, .log_buf_len = 0 }, fmt, a);
   va_end(a);
 }
 
