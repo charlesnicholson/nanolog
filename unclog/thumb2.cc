@@ -34,7 +34,6 @@ struct func_state {
         func_ofs{ s.sh_offset + func_start - s.sh_addr },
         e(e_),
         lca(lca_) {
-    discovered_log_strs.reserve(32);
   }
 
   elf_symbol32 const& f;
@@ -43,7 +42,6 @@ struct func_state {
   func_log_call_analysis& lca;
   path_state_stack paths;
   std::vector<bool> taken_branches;
-  u32_set discovered_log_strs;
 };
 
 path_state path_state_branch(path_state const& p, u32 label) {
@@ -475,7 +473,7 @@ process_log_call_ret process_log_call(inst const& pc_i,
                                       path_state const& path,
                                       elf_section_hdr32 const& nl_sec_hdr,
                                       int sev,
-                                      func_state& fs,
+                                      func_state&,
                                       func_log_call_analysis& lca) {
   if (!reg_test_known(path.rs.known, reg::R0)) {
     NL_LOG_DBG("  Found log function, R0 is unknown\n");
@@ -487,12 +485,6 @@ process_log_call_ret process_log_call(inst const& pc_i,
                              (fmt_str_addr > (nl_sec_hdr.sh_addr + nl_sec_hdr.sh_size)))) {
     NL_LOG_ERR("  Found log function, R0 is invalid: 0x%08x\n", fmt_str_addr);
     return PROCESS_LOG_CALL_RET_ERR_R0_INVALID;
-  }
-
-  auto [_, inserted]{ fs.discovered_log_strs.insert(fmt_str_addr) };
-  if (!inserted) {
-    NL_LOG_DBG("  Found log function, already discovered\n");
-    return PROCESS_LOG_CALL_RET_ERR_ALREADY_DISCOVERED;
   }
 
   lca.log_calls.push_back(log_call{ .fmt_str_addr = path.rs.regs[reg::R0],
