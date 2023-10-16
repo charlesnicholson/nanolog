@@ -43,7 +43,7 @@ struct aligned_deleter {
 
 using byte_vec = std::vector<byte>;
 using bytes_ptr = std::unique_ptr<byte[], detail::aligned_deleter>;
-using file_ptr = std::unique_ptr<FILE, decltype(&fclose)>;
+using file_ptr = std::unique_ptr<FILE, int (*)(FILE *)>;
 
 inline file_ptr open_file(char const *fn, char const *mode) {
   auto file_ptr_close = [](FILE *fp) { return fp ? std::fclose(fp) : 0; };
