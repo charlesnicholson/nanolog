@@ -23,9 +23,11 @@ using u8 = uint8_t;
 using u16 = uint16_t;
 using u32 = uint32_t;
 using i32 = int32_t;
+using u64 = uint64_t;
 
 using u32_set = std::unordered_set<u32>;
 using u32_vec = std::vector<u32>;
+using u64_set = std::unordered_set<u64>;
 
 using byte = unsigned char;
 

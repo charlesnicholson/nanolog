@@ -41,6 +41,7 @@ struct func_state {
   elf const& e;
   func_log_call_analysis& lca;
   path_state_stack paths;
+  u64_set discovered_log_calls;
   std::vector<bool> taken_branches;
 };
 
@@ -473,7 +474,7 @@ process_log_call_ret process_log_call(inst const& pc_i,
                                       path_state const& path,
                                       elf_section_hdr32 const& nl_sec_hdr,
                                       int sev,
-                                      func_state&,
+                                      func_state& fs,
                                       func_log_call_analysis& lca) {
   if (!reg_test_known(path.rs.known, reg::R0)) {
     NL_LOG_DBG("  Found log function, R0 is unknown\n");
@@ -487,31 +488,35 @@ process_log_call_ret process_log_call(inst const& pc_i,
     return PROCESS_LOG_CALL_RET_ERR_R0_INVALID;
   }
 
-  lca.log_calls.push_back(log_call{ .fmt_str_addr = path.rs.regs[reg::R0],
-                                    .log_func_call_addr = pc_i.addr,
-                                    .node_idx = path.rs.mut_node_idxs[reg::R0],
-                                    .s = fmt_str_strat::UNKNOWN,
-                                    .severity = u8(sev) });
-  auto& log_call{ lca.log_calls[lca.log_calls.size() - 1] };
+  if (auto [_, inserted]{ fs.discovered_log_calls.insert((u64(pc_i.addr) << 32u) |
+                                                         path.rs.regs[reg::R0]) };
+      inserted) {
+    lca.log_calls.push_back(log_call{ .fmt_str_addr = path.rs.regs[reg::R0],
+                                      .log_func_call_addr = pc_i.addr,
+                                      .node_idx = path.rs.mut_node_idxs[reg::R0],
+                                      .s = fmt_str_strat::UNKNOWN,
+                                      .severity = u8(sev) });
+    auto& log_call{ lca.log_calls[lca.log_calls.size() - 1] };
 
-  NL_LOG_DBG("  Found log function, format string 0x%08x\n", path.rs.regs[reg::R0]);
-  inst const& r0_i{ lca.reg_muts[path.rs.mut_node_idxs[reg::R0]].i };
-  switch (r0_i.type) {
-    case inst_type::LOAD_LIT:
-      log_call.s = fmt_str_strat::DIRECT_LOAD;
-      break;
-    case inst_type::MOV_REG:
-      log_call.s = fmt_str_strat::MOV_FROM_DIRECT_LOAD;
-      break;
-    case inst_type::ADD_IMM:
-      log_call.s = fmt_str_strat::ADD_IMM_FROM_BASE_REG;
-      break;
-    default:
-      NL_LOG_DBG("Unrecognized pattern!\n***\n");
-      NL_LOG_DBG("0x%x\n", r0_i.addr);
-      inst_print(r0_i);
-      NL_LOG_DBG("\n***\n");
-      return PROCESS_LOG_CALL_RET_UNRECOGNIZED_PATTERN;
+    NL_LOG_DBG("  Found log function, format string 0x%08x\n", path.rs.regs[reg::R0]);
+    inst const& r0_i{ lca.reg_muts[path.rs.mut_node_idxs[reg::R0]].i };
+    switch (r0_i.type) {
+      case inst_type::LOAD_LIT:
+        log_call.s = fmt_str_strat::DIRECT_LOAD;
+        break;
+      case inst_type::MOV_REG:
+        log_call.s = fmt_str_strat::MOV_FROM_DIRECT_LOAD;
+        break;
+      case inst_type::ADD_IMM:
+        log_call.s = fmt_str_strat::ADD_IMM_FROM_BASE_REG;
+        break;
+      default:
+        NL_LOG_DBG("Unrecognized pattern!\n***\n");
+        NL_LOG_DBG("0x%x\n", r0_i.addr);
+        inst_print(r0_i);
+        NL_LOG_DBG("\n***\n");
+        return PROCESS_LOG_CALL_RET_UNRECOGNIZED_PATTERN;
+    }
   }
   return PROCESS_LOG_CALL_RET_SUCCESS;
 }
