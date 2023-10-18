@@ -137,35 +137,9 @@ void on_log(nanolog_log_details_t const *, char const *fmt, va_list args) {
 #endif
 }
 
-}  // namespace
-
-int main(int argc, char const *argv[]) {
-  nanolog_set_log_handler(on_log, nullptr);
-
-  args cmd_args;
-  if (!args_parse(argv, argc, cmd_args)) {
-    return 1;
-  }
-
-  cmd_args.noreturn_funcs.push_back("exit");
-  cmd_args.noreturn_funcs.push_back("_exit");
-  cmd_args.noreturn_funcs.push_back("_mainCRTStartup");
-  cmd_args.noreturn_funcs.push_back("nanolog_assert_fail");
-  cmd_args.noreturn_funcs.push_back("nanolog_assert_fail_file_line");
-  cmd_args.noreturn_funcs.push_back("nanolog_assert_fail_ctx");
-  cmd_args.noreturn_funcs.push_back("nanolog_assert_fail_ctx_file_line");
-  cmd_args.noreturn_funcs.push_back("nanolog_default_assert_handler");
-
-  nanolog_set_threshold(cmd_args.log_threshold);
-
-  state s;
-  if (!load(s, cmd_args.noreturn_funcs, cmd_args.input_elf)) {
-    return 1;
-  }
-
-  analysis_stats stats;
-
-  std::vector<func_log_call_analysis> log_call_funcs;
+int analyze_functions(state const &s,
+                      std::vector<func_log_call_analysis> &log_call_funcs,
+                      analysis_stats &stats) {
   for (auto const &[_, syms] : s.non_nl_funcs_sym_map) {
     func_log_call_analysis lca{ *syms[0] };
     ++stats.analyzed_functions;
@@ -228,11 +202,11 @@ int main(int argc, char const *argv[]) {
     }
   }
 
-  NL_LOG_DBG("\n%u functions visited, %u instructions decoded, %u paths analyzed\n\n",
-             stats.analyzed_functions,
-             stats.decoded_insts,
-             stats.analyzed_paths);
+  return 0;
+}
 
+void print_analysis(state const &s,
+                    std::vector<func_log_call_analysis> const &log_call_funcs) {
   NL_LOG_DBG("\nLog calls:\n");
   for (auto const &f : log_call_funcs) {
     NL_LOG_DBG("  %s\n", &s.e.strtab[f.func.st_name]);
@@ -267,11 +241,59 @@ int main(int argc, char const *argv[]) {
 
       NL_LOG_DBG("\"%s\"\n",
                  &s.e.bytes[s.nl_hdr->sh_offset + (lc.fmt_str_addr - s.nl_hdr->sh_addr)]);
+    }
+  }
+}
 
+void find_missed_log_strings(state &s,
+                             std::vector<func_log_call_analysis> const &log_call_funcs) {
+  for (auto const &f : log_call_funcs) {
+    for (auto const &lc : f.log_calls) {
       s.missed_nl_strs_map.erase(lc.fmt_str_addr);
     }
   }
+}
 
+}  // namespace
+
+int main(int argc, char const *argv[]) {
+  nanolog_set_log_handler(on_log, nullptr);
+
+  args cmd_args;
+  if (!args_parse(argv, argc, cmd_args)) {
+    return 1;
+  }
+
+  cmd_args.noreturn_funcs.push_back("exit");
+  cmd_args.noreturn_funcs.push_back("_exit");
+  cmd_args.noreturn_funcs.push_back("_mainCRTStartup");
+  cmd_args.noreturn_funcs.push_back("nanolog_assert_fail");
+  cmd_args.noreturn_funcs.push_back("nanolog_assert_fail_file_line");
+  cmd_args.noreturn_funcs.push_back("nanolog_assert_fail_ctx");
+  cmd_args.noreturn_funcs.push_back("nanolog_assert_fail_ctx_file_line");
+  cmd_args.noreturn_funcs.push_back("nanolog_default_assert_handler");
+
+  nanolog_set_threshold(cmd_args.log_threshold);
+
+  state s;
+  if (!load(s, cmd_args.noreturn_funcs, cmd_args.input_elf)) {
+    return 1;
+  }
+
+  analysis_stats stats;
+  std::vector<func_log_call_analysis> log_call_funcs;
+  if (auto const err{ analyze_functions(s, log_call_funcs, stats) }; err) {
+    return err;
+  }
+
+  NL_LOG_DBG("\n%u functions visited, %u instructions decoded, %u paths analyzed\n\n",
+             stats.analyzed_functions,
+             stats.decoded_insts,
+             stats.analyzed_paths);
+
+  print_analysis(s, log_call_funcs);
+
+  find_missed_log_strings(s, log_call_funcs);
   if (!s.missed_nl_strs_map.empty()) {
     NL_LOG_ERR("\nMissed format strings:\n");
     for (auto const &[addr, str] : s.missed_nl_strs_map) {

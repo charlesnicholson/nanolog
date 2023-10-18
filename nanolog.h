@@ -567,7 +567,8 @@ while (0)
 
 #ifdef __arm__
 #define NANOLOG_SECTION(SEV) \
-  __attribute__((section(".nanolog." #SEV "." NL_STR(__LINE__) "." NL_STR(__COUNTER__))))
+  __attribute__((section(".nanolog." #SEV "." __FILE__ \
+                         "." NL_STR(__LINE__) "." NL_STR(__COUNTER__))))
 #else
 #define NANOLOG_SECTION(SEV)
 #endif

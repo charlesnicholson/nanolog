@@ -23,9 +23,11 @@ using u8 = uint8_t;
 using u16 = uint16_t;
 using u32 = uint32_t;
 using i32 = int32_t;
+using u64 = uint64_t;
 
 using u32_set = std::unordered_set<u32>;
 using u32_vec = std::vector<u32>;
+using u64_set = std::unordered_set<u64>;
 
 using byte = unsigned char;
 
@@ -43,7 +45,7 @@ struct aligned_deleter {
 
 using byte_vec = std::vector<byte>;
 using bytes_ptr = std::unique_ptr<byte[], detail::aligned_deleter>;
-using file_ptr = std::unique_ptr<FILE, decltype(&fclose)>;
+using file_ptr = std::unique_ptr<FILE, int (*)(FILE *)>;
 
 inline file_ptr open_file(char const *fn, char const *mode) {
   auto file_ptr_close = [](FILE *fp) { return fp ? std::fclose(fp) : 0; };

@@ -34,7 +34,6 @@ struct func_state {
         func_ofs{ s.sh_offset + func_start - s.sh_addr },
         e(e_),
         lca(lca_) {
-    discovered_log_strs.reserve(32);
   }
 
   elf_symbol32 const& f;
@@ -42,8 +41,8 @@ struct func_state {
   elf const& e;
   func_log_call_analysis& lca;
   path_state_stack paths;
+  u64_set discovered_log_calls;
   std::vector<bool> taken_branches;
-  u32_set discovered_log_strs;
 };
 
 path_state path_state_branch(path_state const& p, u32 label) {
@@ -489,9 +488,9 @@ process_log_call_ret process_log_call(inst const& pc_i,
     return PROCESS_LOG_CALL_RET_ERR_R0_INVALID;
   }
 
-  auto [_, inserted]{ fs.discovered_log_strs.insert(fmt_str_addr) };
-  if (!inserted) {
-    NL_LOG_DBG("  Found log function, already discovered\n");
+  if (auto [_, inserted]{ fs.discovered_log_calls.insert((u64(pc_i.addr) << 32u) |
+                                                         path.rs.regs[reg::R0]) };
+      !inserted) {
     return PROCESS_LOG_CALL_RET_ERR_ALREADY_DISCOVERED;
   }
 
