@@ -490,33 +490,35 @@ process_log_call_ret process_log_call(inst const& pc_i,
 
   if (auto [_, inserted]{ fs.discovered_log_calls.insert((u64(pc_i.addr) << 32u) |
                                                          path.rs.regs[reg::R0]) };
-      inserted) {
-    lca.log_calls.push_back(log_call{ .fmt_str_addr = path.rs.regs[reg::R0],
-                                      .log_func_call_addr = pc_i.addr,
-                                      .node_idx = path.rs.mut_node_idxs[reg::R0],
-                                      .s = fmt_str_strat::UNKNOWN,
-                                      .severity = u8(sev) });
-    auto& log_call{ lca.log_calls[lca.log_calls.size() - 1] };
+      !inserted) {
+    return PROCESS_LOG_CALL_RET_ERR_ALREADY_DISCOVERED;
+  }
 
-    NL_LOG_DBG("  Found log function, format string 0x%08x\n", path.rs.regs[reg::R0]);
-    inst const& r0_i{ lca.reg_muts[path.rs.mut_node_idxs[reg::R0]].i };
-    switch (r0_i.type) {
-      case inst_type::LOAD_LIT:
-        log_call.s = fmt_str_strat::DIRECT_LOAD;
-        break;
-      case inst_type::MOV_REG:
-        log_call.s = fmt_str_strat::MOV_FROM_DIRECT_LOAD;
-        break;
-      case inst_type::ADD_IMM:
-        log_call.s = fmt_str_strat::ADD_IMM_FROM_BASE_REG;
-        break;
-      default:
-        NL_LOG_DBG("Unrecognized pattern!\n***\n");
-        NL_LOG_DBG("0x%x\n", r0_i.addr);
-        inst_print(r0_i);
-        NL_LOG_DBG("\n***\n");
-        return PROCESS_LOG_CALL_RET_UNRECOGNIZED_PATTERN;
-    }
+  lca.log_calls.push_back(log_call{ .fmt_str_addr = path.rs.regs[reg::R0],
+                                    .log_func_call_addr = pc_i.addr,
+                                    .node_idx = path.rs.mut_node_idxs[reg::R0],
+                                    .s = fmt_str_strat::UNKNOWN,
+                                    .severity = u8(sev) });
+  auto& log_call{ lca.log_calls[lca.log_calls.size() - 1] };
+
+  NL_LOG_DBG("  Found log function, format string 0x%08x\n", path.rs.regs[reg::R0]);
+  inst const& r0_i{ lca.reg_muts[path.rs.mut_node_idxs[reg::R0]].i };
+  switch (r0_i.type) {
+    case inst_type::LOAD_LIT:
+      log_call.s = fmt_str_strat::DIRECT_LOAD;
+      break;
+    case inst_type::MOV_REG:
+      log_call.s = fmt_str_strat::MOV_FROM_DIRECT_LOAD;
+      break;
+    case inst_type::ADD_IMM:
+      log_call.s = fmt_str_strat::ADD_IMM_FROM_BASE_REG;
+      break;
+    default:
+      NL_LOG_DBG("Unrecognized pattern!\n***\n");
+      NL_LOG_DBG("0x%x\n", r0_i.addr);
+      inst_print(r0_i);
+      NL_LOG_DBG("\n***\n");
+      return PROCESS_LOG_CALL_RET_UNRECOGNIZED_PATTERN;
   }
   return PROCESS_LOG_CALL_RET_SUCCESS;
 }
