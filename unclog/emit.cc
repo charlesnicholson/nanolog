@@ -279,6 +279,40 @@ std::string& emit_format_specifiers(char const* s, std::string& out) {
   }
   return out;
 }
+
+bool parse_assert_string(char const* s,
+                         char const*& assert_file_start,
+                         int& assert_file_len,
+                         char const*& assert_line_start,
+                         int& assert_line_len) {
+  assert_file_start = s;
+
+  auto i{ 0 };
+  while (s[i]) {
+    if (s[i] == '(') {
+      assert_file_len = i;
+      break;
+    }
+    ++i;
+  }
+
+  if (!s[i]) {
+    return false;
+  }
+
+  auto const line_start_off{ ++i };
+  assert_line_start = &s[line_start_off];
+
+  while (s[i]) {
+    if (s[i] == ')') {
+      assert_line_len = i - line_start_off;
+      break;
+    }
+    ++i;
+  }
+
+  return s[i];
+}
 }  // namespace
 
 bool emit_json_manifest(std::vector<char const*> const& fmt_strs,
@@ -301,6 +335,27 @@ bool emit_json_manifest(std::vector<char const*> const& fmt_strs,
     std::fprintf(f.get(), "  {\n");
     std::fprintf(f.get(), "    \"guid\": %u,\n", i);
     std::fprintf(f.get(), "    \"severity\": \"%s\",\n", emit_severity(fmt_str_sevs[i]));
+
+    if (fmt_str_sevs[i] == NL_SEV_ASSERT) {
+      char const* assert_file_start;
+      int assert_file_len;
+      char const* assert_line_start;
+      int assert_line_len;
+      parse_assert_string(fmt_strs[i],
+                          assert_file_start,
+                          assert_file_len,
+                          assert_line_start,
+                          assert_line_len);
+      std::fprintf(f.get(),
+                   "    \"assert_file\": \"%.*s\",\n",
+                   assert_file_len,
+                   assert_file_start);
+      std::fprintf(f.get(),
+                   "    \"assert_line\": \"%.*s\",\n",
+                   assert_line_len,
+                   assert_line_start);
+    }
+
     std::fprintf(f.get(), "    \"function\": \"%s\",\n", fmt_funcs[i]);
 
     std::fprintf(f.get(),
