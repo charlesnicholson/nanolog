@@ -173,7 +173,8 @@ struct imm_shift {
   X(VCOMPARE, vcompare, { u8 quiet_nan_exc, with_zero, d, m; }) \
   X(VCONVERT_FP_INT, vconvert_fp_int, { u8 d, m, to_int, int_unsigned, round_zero; }) \
   X(VDIV, vdiv, { u8 d, n, m; }) \
-  X(VMULT_ACCUM, vmult_accum, { u8 op1_neg, d, n, m; }) \
+  X(VFMA, vfma, { u8 op1_neg, d, n, m; }) \
+  X(VFNMA, vfnma, { u8 op1_neg, d, n, m; }) \
   X(VLOAD, vload, { u16 imm; u8 single_reg, add, n, d; }) \
   X(VLOAD_MULT, vload_mult, { u32 imm; u8 d, n, wback, regs, single_regs, add; }) \
   X(VMOV_IMM, vmov_imm, { float imm; u8 d, regs; }) \

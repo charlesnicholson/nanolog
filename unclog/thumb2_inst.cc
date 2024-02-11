@@ -1967,11 +1967,23 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
   if (((w0 & 0xFFB0u) == 0xEEA0u) && ((w1 & 0xF10u) == 0xA00u)) {
     u8 const vn{ u8(w0 & 0xFu) }, vm{ u8(w1 & 0xFu) }, vd{ u8((w1 >> 12u) & 0xFu) },
         N{ u8((w1 >> 7u) & 1u) }, M{ u8((w1 >> 5u) & 1u) }, D{ u8((w0 >> 6u) & 1u) };
-    out_inst.type = inst_type::VMULT_ACCUM;
-    out_inst.i.vmult_accum = { .op1_neg = u8((w1 >> 6u) & 1u),
-                               .d = u8((vd << 1u) | D),
-                               .n = u8((vn << 1u) | N),
-                               .m = u8((vm << 1u) | M) };
+    out_inst.type = inst_type::VFMA;
+    out_inst.i.vfma = { .op1_neg = u8((w1 >> 6u) & 1u),
+                        .d = u8((vd << 1u) | D),
+                        .n = u8((vn << 1u) | N),
+                        .m = u8((vm << 1u) | M) };
+    return true;
+  }
+
+  // A7.7.228 VFNMA, VFNMS, T1 encoding (pg A7-577)
+  if (((w0 & 0xFFB0u) == 0xEE90u) && ((w1 & 0xA10u) == 0xA00u)) {
+    u8 const vd{ u8((w1 >> 12u) & 0xFu) }, vn{ u8(w0 & 0xFu) }, vm{ u8(w1 & 0xFu) },
+        D{ u8((w0 >> 6u) & 1u) }, N{ u8((w1 >> 7u) & 1u) }, M{ u8((w1 >> 5u) & 1u) };
+    out_inst.type = inst_type::VFNMA;
+    out_inst.i.vfnma = { .op1_neg = u8((w1 >> 6u) & 1u),
+                         .d = u8((vd << 1u) | D),
+                         .n = u8((vn << 1u) | N),
+                         .m = u8((vm << 1u) | M) };
     return true;
   }
 
@@ -3113,9 +3125,18 @@ void inst_print(inst const& i) {
       NL_LOG_DBG("VDIV S%d, S%d, S%d", int(v.d), int(v.n), int(v.m));
     } break;
 
-    case inst_type::VMULT_ACCUM: {
-      auto const& v{ i.i.vmult_accum };
+    case inst_type::VFMA: {
+      auto const& v{ i.i.vfma };
       NL_LOG_DBG("VFM%c.F32 S%d, S%d, S%d",
+                 v.op1_neg ? 'S' : 'A',
+                 int(v.d),
+                 int(v.n),
+                 int(v.m));
+    } break;
+
+    case inst_type::VFNMA: {
+      auto const& v{ i.i.vfnma };
+      NL_LOG_DBG("VFNM%c.F32 S%d, S%d, S%d",
                  v.op1_neg ? 'S' : 'A',
                  int(v.d),
                  int(v.n),
