@@ -182,6 +182,7 @@ struct imm_shift {
   X(VMOV_SPECIAL_FROM, vmov_special_from, { u8 t; }) \
   X(VMOV_SPECIAL_TO, vmov_special_to, { u8 t; }) \
   X(VMUL, vmul, { u8 d, n, m; }) \
+  X(VNMUL, vnmul, { u8 d, n, m; }) \
   X(VNEG, vneg, { u8 d, m; }) \
   X(VPOP, vpop, { u16 imm; u8 d, single_regs, regs; }) \
   X(VPUSH, vpush, { u16 imm; u8 d, single_regs, regs; }) \
