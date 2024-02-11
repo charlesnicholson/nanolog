@@ -168,6 +168,7 @@ struct imm_shift {
   X(TEST_EQUIV_REG, test_equiv_reg, { imm_shift shift; u8 n, m; }) \
   X(TEST_REG, test_reg, { imm_shift shift; u8 n, m; }) \
   X(UNDEFINED, undefined, {}) \
+  X(VABS, vabs, { u8 d, m; }) \
   X(VADD, vadd, { u8 d, n, m; }) \
   X(VCOMPARE, vcompare, { u8 quiet_nan_exc, with_zero, d, m; }) \
   X(VCONVERT_FP_INT, vconvert_fp_int, { u8 d, m, to_int, int_unsigned, round_zero; }) \

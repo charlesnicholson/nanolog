@@ -1887,6 +1887,15 @@ bool decode_32bit_inst(u16 const w0, u16 const w1, inst& out_inst) {
     return true;
   }
 
+  // A7.7.220 VABS, T1 encoding (pg A7-565)
+  if (((w0 & 0xFFBFu) == 0xEEB0u) && ((w1 & 0xFD0u) == 0xAC0u)) {
+    u8 const vd{ u8((w1 >> 12u) & 0xFu) }, vm{ u8(w1 & 0xFu) }, D{ u8((w0 >> 6u) & 1u) },
+        M{ u8((w1 >> 5u) & 1u) };
+    out_inst.type = inst_type::VABS;
+    out_inst.i.vabs = { .d = u8((vd << 1u) | D), .m = u8((vm << 1u) | M) };
+    return true;
+  }
+
   // A7.7.221 VADD, T1 encoding (pg A7-566)
   if (((w0 & 0xFFB0u) == 0xEE30u) && ((w1 & 0xF50u) == 0xA00u)) {
     u8 const D{ u8((w0 >> 6u) & 1u) }, N{ u8((w1 >> 7u) & 1u) }, M{ u8((w1 >> 5u) & 1u) },
@@ -3074,6 +3083,11 @@ void inst_print(inst const& i) {
     case inst_type::VADD: {
       auto const& v{ i.i.vadd };
       NL_LOG_DBG("VADD.F32 S%d, S%d, S%d", int(v.d), int(v.n), int(v.m));
+    } break;
+
+    case inst_type::VABS: {
+      auto const& v{ i.i.vabs };
+      NL_LOG_DBG("VABS.F32 S%d S%d", int(v.d), int(v.m));
     } break;
 
     case inst_type::VCOMPARE: {
