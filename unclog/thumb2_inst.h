@@ -168,11 +168,13 @@ struct imm_shift {
   X(TEST_EQUIV_REG, test_equiv_reg, { imm_shift shift; u8 n, m; }) \
   X(TEST_REG, test_reg, { imm_shift shift; u8 n, m; }) \
   X(UNDEFINED, undefined, {}) \
+  X(VABS, vabs, { u8 d, m; }) \
   X(VADD, vadd, { u8 d, n, m; }) \
   X(VCOMPARE, vcompare, { u8 quiet_nan_exc, with_zero, d, m; }) \
   X(VCONVERT_FP_INT, vconvert_fp_int, { u8 d, m, to_int, int_unsigned, round_zero; }) \
   X(VDIV, vdiv, { u8 d, n, m; }) \
-  X(VMULT_ACCUM, vmult_accum, { u8 op1_neg, d, n, m; }) \
+  X(VFMA, vfma, { u8 op1_neg, d, n, m; }) \
+  X(VFNMA, vfnma, { u8 op1_neg, d, n, m; }) \
   X(VLOAD, vload, { u16 imm; u8 single_reg, add, n, d; }) \
   X(VLOAD_MULT, vload_mult, { u32 imm; u8 d, n, wback, regs, single_regs, add; }) \
   X(VMOV_IMM, vmov_imm, { float imm; u8 d, regs; }) \
@@ -182,6 +184,7 @@ struct imm_shift {
   X(VMOV_SPECIAL_FROM, vmov_special_from, { u8 t; }) \
   X(VMOV_SPECIAL_TO, vmov_special_to, { u8 t; }) \
   X(VMUL, vmul, { u8 d, n, m; }) \
+  X(VNMUL, vnmul, { u8 d, n, m; }) \
   X(VNEG, vneg, { u8 d, m; }) \
   X(VPOP, vpop, { u16 imm; u8 d, single_regs, regs; }) \
   X(VPUSH, vpush, { u16 imm; u8 d, single_regs, regs; }) \
