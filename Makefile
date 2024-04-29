@@ -31,17 +31,11 @@ else
 AR := ar rcs
 endif
 
-ifneq '' '$(findstring g++,$(COMPILER_VERSION))'
-LDFLAGS = -flto=auto
-else
-LDFLAGS = -flto
-endif
-
 CFLAGS = --std=c17 -fexceptions
 CXXFLAGS = --std=c++20
 CPPFLAGS += -MMD -MP
 #CPPFLAGS += -O0 -g3
-CPPFLAGS += -Os -g -flto
+CPPFLAGS += -Os -g
 CPPFLAGS += -Werror -Wall -Wextra
 
 ifneq '' '$(findstring clang,$(COMPILER_VERSION))'
