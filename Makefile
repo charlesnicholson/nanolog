@@ -60,7 +60,7 @@ CXXFLAGS += -Wno-c++98-compat-pedantic \
 else
 CPPFLAGS += -Wconversion
 endif
-CPPFLAGS += -Wno-padded
+CPPFLAGS += -Wno-padded -Wno-maybe-uninitialized
 
 # ----- Targets and rules
 
