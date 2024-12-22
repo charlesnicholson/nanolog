@@ -46,7 +46,8 @@ CPPFLAGS += -Weverything \
 			-Wno-poison-system-directories \
 			-Wno-format-pedantic \
 			-Wno-unsafe-buffer-usage \
-			-Wno-switch-default
+			-Wno-switch-default \
+			-Wno-pre-c11-compat
 
 CXXFLAGS += -Wno-c++98-compat-pedantic \
 			-Wno-gnu-zero-variadic-macro-arguments \

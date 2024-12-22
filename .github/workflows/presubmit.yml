@@ -91,8 +91,16 @@ jobs:
         password: ${{ secrets.GITHUB_TOKEN }}
 
     steps:
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
       - uses: actions/checkout@v4
         with:
           submodules: recursive
+
+      - name: Setup
+        run: python3 -m pip install --upgrade setuptools wheel build
+
       - name: Build
-        run: cd pynanolog && python3 setup.py bdist_wheel
+        run: python3 -m build -w pynanolog
