@@ -99,5 +99,8 @@ jobs:
         with:
           submodules: recursive
 
+      - name: Setup
+        run: python3 -m pip install --upgrade setuptools wheel build
+
       - name: Build
         run: python3 -m build -w pynanolog
