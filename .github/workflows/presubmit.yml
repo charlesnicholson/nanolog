@@ -4,9 +4,6 @@ on:
   pull_request:
     branches: [ main ]
 
-  schedule:
-    - cron: '0 2 * * 0'  # Weekly
-
 jobs:
   armv7-m:
     runs-on: ubuntu-latest
